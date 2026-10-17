@@ -24,7 +24,7 @@ FEEDS = [
     ("Bitcoin Magazine", "https://bitcoinmagazine.com/feed", "crypto"),
     ("CNBC Markets", "https://www.cnbc.com/id/20910258/device/rss/rss.html", "markets"),
     ("CNBC Top News", "https://www.cnbc.com/id/100003114/device/rss/rss.html", "markets"),
-    ("MarketWatch", "https://feeds.content.dowjones.io/public/rss/mw_topstories", "markets"),
+    ("MarketWatch", "https://feeds.content.dowjones.io/public/rss/mw_marketpulse", "markets"),
     ("Federal Reserve", "https://www.federalreserve.gov/feeds/press_all.xml", "official"),
     ("SEC", "https://www.sec.gov/news/pressreleases.rss", "official"),
 ]
@@ -59,9 +59,9 @@ TAGS = [
 
 
 # general-news feeds: keep only headlines that are about markets or the economy
-MARKET_WORDS = re.compile(r"\b(stocks?|markets?|shares|equit\w+|Dow|S&P|Nasdaq|futures|oil|gold|silver|dollar|yields?|bonds?|treasur\w+|"
-                          r"crypto\w*|bitcoin|ether\w*|econom\w+|inflation|Fed|rates?|earnings|tariffs?|recession|GDP|jobs|sanctions|"
-                          r"invest\w*|trading|traders?|rally|sell-?off|slump|surge)\b", re.I)
+MARKET_WORDS = re.compile(r"\b(stocks?|stock market|shares|equities|Dow|S&P|Nasdaq|futures|crude|oil prices?|gold|silver|dollar|yields?|"
+                          r"bonds?|treasur\w+|crypto\w*|bitcoin|ether\w*|economy|inflation|Fed|interest rates?|rate cuts?|earnings|"
+                          r"tariffs?|GDP|payrolls|sanctions|traders?|rally|sell-?off|slump|Wall Street)\b", re.I)
 
 
 def fetch(url, timeout=20):

@@ -25,10 +25,8 @@ FEEDS = [
     ("CNBC Markets", "https://www.cnbc.com/id/20910258/device/rss/rss.html", "markets"),
     ("CNBC Top News", "https://www.cnbc.com/id/100003114/device/rss/rss.html", "markets"),
     ("MarketWatch", "https://feeds.content.dowjones.io/public/rss/mw_topstories", "markets"),
-    ("Yahoo Finance", "https://finance.yahoo.com/news/rssindex", "markets"),
     ("Federal Reserve", "https://www.federalreserve.gov/feeds/press_all.xml", "official"),
     ("SEC", "https://www.sec.gov/news/pressreleases.rss", "official"),
-    ("CFTC", "https://www.cftc.gov/RSS/RSSGP/rssgp.xml", "official"),
 ]
 
 # ticker -> extra names; tickers match in UPPERCASE only, names match any case
@@ -43,8 +41,8 @@ COINS = {
     "BONK": [], "TRUMP": ["official trump"], "PENGU": ["pudgy penguins"], "FARTCOIN": [], "VIRTUAL": ["virtuals protocol"],
     "XAU": ["gold price", "gold prices", "gold futures", "spot gold"], "XAG": ["silver price", "silver prices", "silver futures"],
     "WTI": ["crude oil", "oil prices", "brent"], "NATGAS": ["natural gas"],
-    "TSLA": ["tesla"], "NVDA": ["nvidia"], "AAPL": ["apple inc", "apple's"], "MSFT": ["microsoft"], "AMZN": ["amazon"],
-    "META": ["meta platforms"], "GOOGL": ["alphabet", "google"], "COIN": ["coinbase global"], "MSTR": ["microstrategy", "strategy inc"],
+    "TSLA": ["tesla"], "NVDA": ["nvidia"], "AAPL": ["apple inc", "apple's", "apple’s", "iphone"], "MSFT": ["microsoft"], "AMZN": ["amazon"],
+    "META": ["meta platforms"], "GOOGL": ["alphabet"], "COIN": ["coinbase global"], "MSTR": ["microstrategy", "strategy inc"],
     "HOOD": ["robinhood"], "CRCL": ["circle internet"],
 }
 # tickers that are also ordinary words or acronyms: only match by name or as $CASHTAG
@@ -58,6 +56,12 @@ TAGS = [
     ("Listing", r"\b(lists|listing|listed|delist\w*|launch(es)? (perpetual|futures)|new trading pair)\b"),
     ("Liquidations", r"\bliquidat\w*\b"),
 ]
+
+
+# general-news feeds: keep only headlines that are about markets or the economy
+MARKET_WORDS = re.compile(r"\b(stocks?|markets?|shares|equit\w+|Dow|S&P|Nasdaq|futures|oil|gold|silver|dollar|yields?|bonds?|treasur\w+|"
+                          r"crypto\w*|bitcoin|ether\w*|econom\w+|inflation|Fed|rates?|earnings|tariffs?|recession|GDP|jobs|sanctions|"
+                          r"invest\w*|trading|traders?|rally|sell-?off|slump|surge)\b", re.I)
 
 
 def fetch(url, timeout=20):
@@ -160,6 +164,8 @@ def build():
                 seen.add(key)
                 body = clean(summary, 240)
                 text = f"{title} {body}"
+                if topic == "markets" and not MARKET_WORDS.search(text):
+                    continue
                 items.append({"t": title, "u": link.strip(), "s": name, "k": topic, "d": d, "x": body,
                               "c": coins_in(text), "g": tags_in(text)})
                 n += 1
@@ -183,6 +189,10 @@ def build():
     cal = []
     try:
         rows = json.loads(fetch("https://nfs.faireconomy.media/ff_calendar_thisweek.json"))
+        try:
+            rows += json.loads(fetch("https://nfs.faireconomy.media/ff_calendar_nextweek.json"))
+        except Exception:
+            pass  # next week's file is not always published yet
         for r in rows:
             imp = r.get("impact", "")
             if not (imp == "High" or (imp == "Medium" and r.get("country") == "USD")):

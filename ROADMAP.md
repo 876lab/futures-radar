@@ -6,6 +6,7 @@ The working plan for nightly improvement runs. Each run picks the **first unchec
 
 - The owner is a day trader in Jamaica (UTC-5) who trades crypto futures, mostly on Gate, and reads charts with **Bollinger bands (20,2), Supertrend (10,3), RSI 6/12/24 and MACD (12,26,9)**, the same tools as the Gate app.
 - He is still learning, so everything must be **plain language, mobile-first and light**. Avoid jargon or explain it in one line. No clutter.
+- From his Gate stats (shared 19 Oct 2026): ~3–4 positions a day; winners held ~6–9 hours, losers ~4 hours; win rate ~52–53%. Last 30 days: +602 USDT, reward-to-risk 1.5:1. Over 180 days: +137 USDT, 0.94:1, with one −1,038 USDT loss that erased most gains. Shorts have clearly done better than longs recently. He **does not trade off candle closes**, so candle-close timing is low priority. What matters most to him: avoiding outsized losses, picking direction (long vs short) well, and multi-hour holds (1H/4H context).
 - He asked for **no Claude connectors**. Data comes straight from exchange public APIs in the browser, or from the repo's own GitHub Actions job.
 - Live app: https://876lab.github.io/futures-radar/ (GitHub Pages from `main`, file `index.html`).
 
@@ -32,19 +33,22 @@ The working plan for nightly improvement runs. Each run picks the **first unchec
 
 ## Backlog (top = next)
 
-- [ ] **Closed-candle confirmation.** The live signal can flip while a candle is still forming. Show whether the signal is *confirmed* (from the last closed candle) or *forming*, with a countdown to candle close, and default the list tags to closed candles. Simulator already uses closed candles.
+- [ ] **Max-loss guard.** In Settings, let him set a maximum loss per trade in USDT (suggest twice his average loss). The **Size this trade** calculator and signal card then warn in red when a planned trade would lose more than that at the stop, and suggest the smaller size that fits. One oversized loss (−1,038 USDT) wiped out months of gains; this is the most valuable protection.
 - [ ] **Economic event guard.** Using `calendar` in `news.json`, warn on the signal card and Setups list when a high-impact event (CPI, FOMC, jobs) is within 30 minutes before/after: "Big news at 8:30 — spreads and spikes are common. Consider waiting."
+- [ ] **Import my trades.** In the Simulator, let him load his Gate position-history export (CSV or Excel saved as CSV). Parse open/close time, contract, side, size, entry/exit price, realized PnL and fees. Show his stats by coin, long vs short, hour of day, weekday and holding time, and, using exchange candles fetched in the browser, what the app's signal said on 1H and 4H at each entry. Everything stays on his device. Keep the parser tolerant of column-name differences.
 - [ ] **Nightly backtest report (evidence for rule changes).** Add a GitHub Actions job that downloads recent candles for the top markets (Gate and Coinbase first; Binance may block US servers, so record failures), runs the same engine in Node, and publishes `backtest.json` to a `backtest-data` branch. Show "Last night's results" in the Simulator. Use it to judge any rule change.
-- [ ] **VWAP.** Daily (UTC) VWAP line on the chart and a check on the signal card ("Price above today's VWAP"). Day traders use it as the fair-value line. Information only at first.
-- [ ] **Multi-timeframe strip.** On the chart screen, a row showing the signal on 5m / 15m / 1H / 4H at once, so agreement is visible at a glance.
+- [ ] **Long vs short bias panel.** On the chart screen, a one-line read of which side the bigger picture (4H and 1D) favours, since picking the side well matters more to him than exact entry timing.
+- [ ] **Multi-timeframe strip.** On the chart screen, a row showing the signal on 15m / 1H / 4H / 1D at once, so agreement is visible at a glance.
+- [ ] **VWAP.** Daily (UTC) VWAP line on the chart and a check on the signal card ("Price above today's VWAP"). Information only at first.
 - [ ] **Open interest and funding context.** From exchange public APIs (e.g. Binance `openInterest` and `openInterestHist`, Gate contract stats): OI change over 24h and a "crowded" warning when funding is extreme. Explain in one line.
 - [ ] **RSI divergence.** Detect regular bullish/bearish divergence between price swings and RSI 12; mark it on the chart and mention it on the signal card (information only).
 - [ ] **Support and resistance from swing points.** Draw the nearest 2–3 swing highs/lows as levels; use them in the "Recent low/high" display.
-- [ ] **Trade journal.** Log trades (market, side, entry, stop, exit, size) on the device; show win rate and average R; compare with what the signal said. Export as CSV via the page (downloads only where allowed).
+- [ ] **Trade journal.** Log trades on the device; show win rate and average R; compare with what the signal said. Builds on "Import my trades".
 - [ ] **Unusual activity scanner.** A section (inside Hot) for volume spikes vs the 20-candle average and sudden moves in the last hour.
 - [ ] **Trading sessions and liquidity.** Show the current session (Asia / London / New York) and warn in thin hours and weekends.
 - [ ] **Price and signal alerts while the app is open.** Starred markets: sound/vibration and an in-app notice when a signal turns to Enter long/short or price crosses a level.
 - [ ] **Coinbase international perpetuals live.** Stream INTX perps (separate host) so they update every second.
+- [ ] **Signal forming vs confirmed (low priority).** Information only: show whether the current candle is still forming. He doesn't trade by candle closes, so keep it subtle.
 - [ ] **Performance and accessibility pass.** Check with 1,300+ markets, keyboard use, contrast in both themes.
 
 ## Done
@@ -60,3 +64,5 @@ The working plan for nightly improvement runs. Each run picks the **first unchec
 ## Notes from runs
 
 (Each run adds a dated line here if something was blocked or needs the owner.)
+
+- 2026-10-19: Owner will upload his Gate trade history; its analysis happens in chat with Claude. Priorities were reordered around his stats (max-loss guard first; candle-close item moved to the bottom).

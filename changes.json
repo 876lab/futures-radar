@@ -1,4 +1,10 @@
 [
+  {"date": "2026-10-20", "title": "Max-loss guard", "items": [
+    "New in Settings: Max loss per trade (USDT). A good start is about twice your average losing trade.",
+    "Size this trade now warns in red when a plan would lose more than that at the stop.",
+    "It also shows the smaller size and leverage that keep the loss within your limit.",
+    "Signals and stop/target levels have not changed."
+  ]},
   {"date": "2026-10-19", "title": "Nightly improvements switched on", "items": [
     "Claude now works on the app each night between 1am and 4am and lists what changed here.",
     "Every update has to pass automatic tests before it goes live.",

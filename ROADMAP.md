@@ -33,7 +33,7 @@ The working plan for nightly improvement runs. Each run picks the **first unchec
 
 ## Backlog (top = next)
 
-- [ ] **Max-loss guard.** In Settings, let him set a maximum loss per trade in USDT (suggest twice his average loss). The **Size this trade** calculator and signal card then warn in red when a planned trade would lose more than that at the stop, and suggest the smaller size that fits. One oversized loss (−1,038 USDT) wiped out months of gains; this is the most valuable protection.
+- [x] **Max-loss guard.** (done 2026-10-20) In Settings, let him set a maximum loss per trade in USDT (suggest twice his average loss). The **Size this trade** calculator and signal card then warn in red when a planned trade would lose more than that at the stop, and suggest the smaller size that fits. One oversized loss (−1,038 USDT) wiped out months of gains; this is the most valuable protection.
 - [ ] **Economic event guard.** Using `calendar` in `news.json`, warn on the signal card and Setups list when a high-impact event (CPI, FOMC, jobs) is within 30 minutes before/after: "Big news at 8:30 — spreads and spikes are common. Consider waiting."
 - [ ] **Import my trades.** In the Simulator, let him load his Gate position-history export (CSV or Excel saved as CSV). Parse open/close time, contract, side, size, entry/exit price, realized PnL and fees. Show his stats by coin, long vs short, hour of day, weekday and holding time, and, using exchange candles fetched in the browser, what the app's signal said on 1H and 4H at each entry. Everything stays on his device. Keep the parser tolerant of column-name differences.
 - [ ] **Nightly backtest report (evidence for rule changes).** Add a GitHub Actions job that downloads recent candles for the top markets (Gate and Coinbase first; Binance may block US servers, so record failures), runs the same engine in Node, and publishes `backtest.json` to a `backtest-data` branch. Show "Last night's results" in the Simulator. Use it to judge any rule change.
@@ -44,6 +44,8 @@ The working plan for nightly improvement runs. Each run picks the **first unchec
 - [ ] **RSI divergence.** Detect regular bullish/bearish divergence between price swings and RSI 12; mark it on the chart and mention it on the signal card (information only).
 - [ ] **Support and resistance from swing points.** Draw the nearest 2–3 swing highs/lows as levels; use them in the "Recent low/high" display.
 - [ ] **Trade journal.** Log trades on the device; show win rate and average R; compare with what the signal said. Builds on "Import my trades".
+- [ ] **Daily loss limit.** Builds on the journal/import: a Settings cap for one day's total losses; once reached, the signal card says "You've hit today's loss limit — consider stopping for the day." Information only.
+- [ ] **Fees in the sizing box.** Let him enter his Gate taker fee (default 0.05%) so "If stopped out" and the max-loss check include fees both ways.
 - [ ] **Unusual activity scanner.** A section (inside Hot) for volume spikes vs the 20-candle average and sudden moves in the last hour.
 - [ ] **Trading sessions and liquidity.** Show the current session (Asia / London / New York) and warn in thin hours and weekends.
 - [ ] **Price and signal alerts while the app is open.** Starred markets: sound/vibration and an in-app notice when a signal turns to Enter long/short or price crosses a level.

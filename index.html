@@ -237,6 +237,8 @@ button{cursor:pointer}
 .calc input{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:9px;background:var(--bg);font-family:var(--f-mono);font-size:13.5px}
 .calc-out{font-size:13.5px;display:grid;gap:4px}
 .calc-out b{font-family:var(--f-mono);font-weight:500}
+.maxwarn{background:var(--down-bg);color:var(--down);border-radius:9px;padding:9px 11px;display:grid;gap:4px}
+.maxwarn>b{font-family:inherit;font-weight:600}
 
 .chartbox{position:relative;overflow:hidden}
 .legend{display:flex;flex-wrap:wrap;gap:3px 12px;padding:8px 12px 4px;font-family:var(--f-mono);font-size:11px;color:var(--muted);min-height:30px}
@@ -563,6 +565,11 @@ button.ncoin:hover{border-color:var(--accent)}
       <button type="button" class="opt" data-theme-set="dark" aria-pressed="false">Dark</button>
     </div></div>
     <div>
+      <label for="maxLoss">Max loss per trade (USDT)</label>
+      <input id="maxLoss" type="number" inputmode="decimal" min="0" step="any" placeholder="Off">
+    </div>
+    <p>The most you will let one trade lose if it hits the stop. A good start is about twice your average losing trade (Gate shows this in your position history). <b>Size this trade</b> then warns in red when a plan would lose more, and shows a smaller size that fits. Leave empty to switch off.</p>
+    <div>
       <label for="proxy">Relay address (optional)</label>
       <input id="proxy" type="text" placeholder="https://your-relay.example/?url={url}" autocomplete="off" spellcheck="false">
     </div>
@@ -626,7 +633,7 @@ const state={
   view:LS.get('view','all'),cat:LS.get('cat3','setups'),sort:LS.get('sort','vol'),q:'',
   watch:new Set(LS.get('watch2',[])),tf:LS.get('tf2','15m'),selected:null,selContract:null,trend:new Map(),scanning:null,
   proxy:LS.get('proxy',''),ind:LS.get('ind3',{ema:false,bb:true,st:true,vol:true,marks:true}),limit:120,loading:false,
-  acct:LS.get('acct',100),risk:LS.get('risk',2),stream:{},lastTick:{},lastSeen:{}
+  acct:LS.get('acct',100),risk:LS.get('risk',2),maxLoss:LS.get('maxLoss',0),stream:{},lastTick:{},lastSeen:{}
 };
 if(!TFS[state.tf])state.tf='15m';
 if(state.view!=='all'&&!EX[state.view])state.view='all';
@@ -637,6 +644,13 @@ state.mcat=LS.get('mcat','hot');if(!MKT_CATS.includes(state.mcat))state.mcat='ho
 function dec(p){p=Math.abs(p);return p>=1000?2:p>=10?3:p>=1?4:p>=0.01?5:p>=0.0001?7:9}
 function fmtPrice(p){if(p==null||!isFinite(p))return '—';const d=dec(p);return p.toLocaleString('en-US',{minimumFractionDigits:Math.min(d,2),maximumFractionDigits:d})}
 function fmtUsd(p){return p==null||!isFinite(p)?'—':'$'+fmtPrice(p)}
+// position sizing: loss at the stop = account × risk%; size = that loss ÷ stop distance (as a fraction of price).
+// With a max loss set, a plan that would lose more is flagged and the size that fits the cap is returned.
+function sizeTrade(acct,riskPct,stopPct,maxLoss){
+  const loss=acct*riskPct/100,size=loss/stopPct,r={loss,size,lev:size/acct,over:false};
+  if(maxLoss>0&&loss>maxLoss*(1+1e-9)){r.over=true;r.fitLoss=maxLoss;r.fitSize=maxLoss/stopPct;r.fitRisk=maxLoss/acct*100;r.fitLev=r.fitSize/acct}
+  return r;
+}
 function fmtMoney(v){return (v<0?'−$':'$')+Math.abs(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function fmtVol(v){if(!v||!isFinite(v))return '—';const a=Math.abs(v);return '$'+(a>=1e9?(v/1e9).toFixed(2)+'B':a>=1e6?(v/1e6).toFixed(1)+'M':a>=1e3?(v/1e3).toFixed(0)+'K':v.toFixed(0))}
 function fmtPct(x){if(x==null||!isFinite(x))return '—';return (x>0?'+':'')+x.toFixed(2)+'%'}
@@ -1845,14 +1859,19 @@ function renderSignal(rc){
   if(calc){const upd=()=>updateCalc(L);$('#acct').addEventListener('input',upd);$('#riskPct').addEventListener('input',upd);upd()}
 }
 function updateCalc(L){
-  const acct=parseFloat($('#acct').value),risk=parseFloat($('#riskPct').value);const out=$('#calcOut');
-  if(!(acct>0)||!(risk>0)){out.innerHTML='<span class="muted">Enter your account size and how much of it you are willing to lose on this trade.</span>';return}
+  const acct=parseFloat($('#acct').value),risk=parseFloat($('#riskPct').value);const out=$('#calcOut'),sum=$('#calc summary');
+  if(!(acct>0)||!(risk>0)){out.innerHTML='<span class="muted">Enter your account size and how much of it you are willing to lose on this trade.</span>';sum.innerHTML='Size this trade';return}
   state.acct=acct;state.risk=risk;LS.set('acct',acct);LS.set('risk',risk);
-  const riskUsd=acct*risk/100,stopPct=L.R/L.price,size=riskUsd/stopPct,lev=size/acct;
-  out.innerHTML=`<div>Position size: <b>${fmtMoney(size)}</b> (${(size/L.price).toLocaleString('en-US',{maximumSignificantDigits:4})} units)</div>
+  const z=sizeTrade(acct,risk,L.R/L.price,state.maxLoss),riskUsd=z.loss,size=z.size,lev=z.lev;
+  const units=v=>(v/L.price).toLocaleString('en-US',{maximumSignificantDigits:4});
+  sum.innerHTML=z.over?'Size this trade <span class="down">· over your max loss</span>':'Size this trade';
+  out.innerHTML=`${z.over?`<div class="maxwarn"><b>This plan loses ${fmtMoney(riskUsd)} at the stop, more than your ${fmtMoney(state.maxLoss)} max loss.</b>
+      <span>Size that fits: <b>${fmtMoney(z.fitSize)}</b> (${units(z.fitSize)} units, ${z.fitLev<1?'no leverage':Math.ceil(z.fitLev)+'×'}), which is ${+z.fitRisk.toFixed(2)}% risk. Or skip this one.</span></div>`:''}
+    <div>Position size: <b>${fmtMoney(size)}</b> (${units(size)} units)</div>
     <div>Leverage needed: <b>${lev<1?'none (1×)':Math.ceil(lev)+'×'}</b> on your ${fmtMoney(acct)} account</div>
     <div>If stopped out: <b class="down">${fmtMoney(-riskUsd)}</b> · Target 1: <b class="up">+${fmtMoney(riskUsd*1.5)}</b> · Target 2: <b class="up">+${fmtMoney(riskUsd*3)}</b></div>
-    ${lev>20?'<div class="down">That much leverage puts you close to liquidation. Lower the risk or skip this one.</div>':''}`;
+    ${lev>20?'<div class="down">That much leverage puts you close to liquidation. Lower the risk or skip this one.</div>':''}
+    <div class="muted" style="font-size:12px">${state.maxLoss>0?`Max loss per trade: ${fmtMoney(state.maxLoss)}. Fees and fast moves can add a little to a stopped-out loss.`:'Tip: set a max loss per trade in Settings and this box will warn you before a trade can hurt too much.'}</div>`;
 }
 function renderTrendDetails(an){
   const el=$('#signals');if(!an){el.innerHTML='';return}
@@ -1946,10 +1965,11 @@ $('#back').addEventListener('click',closeDetail);
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){const open=['help','settings'].find(id=>!$('#'+id).hidden);if(open)$('#'+open).hidden=true;else closeDetail()}});
 $('#refresh').addEventListener('click',()=>{candleCache.clear();state.trend.clear();loadAll(true).then(()=>{if(state.selected&&state.gByKey.has(state.selected))openGroup(state.selected,true)})});
 $('#openHelp').addEventListener('click',()=>{$('#help').hidden=false;$('#help .sheet').scrollTop=0;if(changes){LS.set('seenChanges',changes[0].date);$('#newDot').hidden=true}});
-$('#openSettings').addEventListener('click',()=>{$('#proxy').value=state.proxy;renderFeedTable();$('#settings').hidden=false});
+$('#openSettings').addEventListener('click',()=>{$('#proxy').value=state.proxy;$('#maxLoss').value=state.maxLoss>0?state.maxLoss:'';renderFeedTable();$('#settings').hidden=false});
 document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>{$('#'+b.dataset.close).hidden=true}));
 ['help','settings'].forEach(id=>$('#'+id).addEventListener('click',e=>{if(e.target.id===id)e.currentTarget.hidden=true}));
-$('#settingsForm').addEventListener('submit',e=>{e.preventDefault();state.proxy=$('#proxy').value.trim();LS.set('proxy',state.proxy);$('#settings').hidden=true;
+$('#settingsForm').addEventListener('submit',e=>{e.preventDefault();state.proxy=$('#proxy').value.trim();LS.set('proxy',state.proxy);
+  const ml=parseFloat($('#maxLoss').value);state.maxLoss=ml>0?ml:0;LS.set('maxLoss',state.maxLoss);if($('#calcOut'))$('#acct').dispatchEvent(new Event('input'));$('#settings').hidden=true;
   state.mode='loading';candleCache.clear();state.trend.clear();loadAll(true)});
 
 function retheme(){if(!charts)return;destroyCharts();if(current)draw()}

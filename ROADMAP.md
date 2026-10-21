@@ -71,6 +71,6 @@ The working plan for nightly improvement runs. Each run picks the **first unchec
 
 (Each run adds a dated line here if something was blocked or needs the owner.)
 
-- 2026-10-21: **Picks data blocked.** The SEC answers HTTP 403 to every data.sec.gov / sec.gov/files request from GitHub Actions (3 runs, 3 honest User-Agents incl. the noreply contact), while the SEC RSS feed still works from there. The Picks page is live but shows "not ready yet". The stocks job's daily schedule is paused; it still runs on push or by hand. Next step needs the owner: allow a real contact email in the User-Agent, or pick another free source.
+- 2026-10-21: **Picks data blocked.** The SEC refuses every data request from GitHub Actions (data.sec.gov, sec.gov/files, Archives). Its refusal page says the request "has been identified as part of a network of automated tools outside of the acceptable policy", i.e. GitHub's server network is flagged, so changing the contact email would not help (8 runs tested). Wikidata answers but holds equity figures for only ~30 US-listed companies, too thin. Unofficial price/fundamental endpoints (Nasdaq, Yahoo) are ruled out by the "official docs" rule. The Picks page is live with an honest "not ready" message; the stocks job's schedule is paused. Owner to choose: run the download nightly on his own computer, or allow an unofficial source.
 
 - 2026-10-19: Owner will upload his Gate trade history; its analysis happens in chat with Claude. Priorities were reordered around his stats (max-loss guard first; candle-close item moved to the bottom).

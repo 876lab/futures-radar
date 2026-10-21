@@ -1,7 +1,7 @@
 name: Update stock data
 
 on:
-  # Daily schedule paused: the SEC refuses data.sec.gov requests from GitHub's servers (HTTP 403, 21 Oct 2026).
+  # Daily schedule paused: the SEC blocks GitHub's servers as "undeclared automated tools" whatever the User-Agent (HTTP 403, 21 Oct 2026).
   # Re-enable with: schedule: - cron: "41 8 * * *"  once a run succeeds.
   workflow_dispatch:
   push:
@@ -9,7 +9,6 @@ on:
     paths:
       - scripts/fetch_stocks.py
       - .github/workflows/stocks.yml
-      - scripts/probe_sec.py
 
 permissions:
   contents: write
@@ -24,8 +23,6 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - name: Check other data sources
-        run: python3 -u scripts/probe_sec.py
       - name: Fetch company numbers from the SEC
         run: |
           mkdir -p out

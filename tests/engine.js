@@ -39,6 +39,15 @@ z=sizeTrade(1000,2,0.02,25);ok(!z.over,'under cap is not flagged');
 z=sizeTrade(1000,2,0.02,20);ok(!z.over,'exactly at cap is not flagged');
 z=sizeTrade(5000,10,0.01,200);ok(z.over&&Math.abs(z.loss-500)<1e-9&&Math.abs(z.fitSize-20000)<1e-6&&Math.abs(z.fitRisk-4)<1e-9&&Math.abs(z.fitSize*0.01-200)<1e-9,'over cap: size that fits loses exactly the cap');
 z=sizeTrade(300,50,0.05,100);ok(z.over&&Math.abs(z.fitLev-100/0.05/300)<1e-9,'fit leverage');
+// economic event guard
+const N0=1e9,ev=(t,c,dt,i)=>({t,c,d:N0+dt,i:i||'High'});
+ok(eventGuard([],N0)===null&&eventGuard(null,N0)===null,'no calendar, no warning');
+ok(eventGuard([ev('CPI m/m','USD',31*60)],N0)===null,'31 min ahead is outside the window');
+let gd=eventGuard([ev('CPI m/m','USD',30*60)],N0);ok(gd&&gd.mins===30&&gd.until===N0+3600,'exactly 30 min ahead warns');
+gd=eventGuard([ev('Non-Farm Employment Change','USD',-12*60)],N0);ok(gd&&gd.mins===-12,'12 min after still warns');
+ok(eventGuard([ev('CPI y/y','GBP',60),ev('Retail Sales','USD',60,'Medium')],N0)===null,'only high-impact US events count');
+gd=eventGuard([ev('FOMC Statement','USD',25*60),ev('CPI m/m','USD',5*60),ev('Core CPI m/m','USD',5*60),ev('CPI m/m','USD',5*60)],N0);
+ok(gd&&gd.mins===5&&gd.names.join('|')==='CPI m/m|Core CPI m/m','nearest event wins and same-minute events group');
 const st=simStats([],2);ok(st.n===0,'empty stats');
 ok(n>50,'backtest produced too few trades: '+n);
 console.log('engine tests: '+pass+' passed, '+fail+' failed ('+n+' simulated trades in '+(Date.now()-t0)+' ms)');

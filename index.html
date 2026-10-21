@@ -239,6 +239,9 @@ button{cursor:pointer}
 .calc-out b{font-family:var(--f-mono);font-weight:500}
 .maxwarn{background:var(--down-bg);color:var(--down);border-radius:9px;padding:9px 11px;display:grid;gap:4px}
 .maxwarn>b{font-family:inherit;font-weight:600}
+.evwarn{background:var(--accent-bg);color:var(--fg);border-left:3px solid var(--accent);border-radius:9px;padding:9px 11px;display:grid;gap:3px;font-size:13.5px}
+.evwarn>b{font-weight:600}.evwarn small{color:var(--muted);font-size:12px}
+#setEv .evwarn{margin:0 0 10px}
 
 .chartbox{position:relative;overflow:hidden}
 .legend{display:flex;flex-wrap:wrap;gap:3px 12px;padding:8px 12px 4px;font-family:var(--f-mono);font-size:11px;color:var(--muted);min-height:30px}
@@ -538,6 +541,7 @@ button.ncoin:hover{border-color:var(--accent)}
       <dt>Stop loss</dt><dd>Where the idea is wrong. Close the trade there, no exceptions.</dd>
       <dt>Targets</dt><dd>Target 1 is 1.5 times your risk, target 2 is 3 times. Many traders take half at target 1 and move the stop to entry.</dd>
       <dt>Confidence</dt><dd>How many signals line up, from 0 to 100. Above 70 is strong agreement.</dd>
+      <dt>Big news warning</dt><dd>An amber note on the signal card and Setups page when a big US release (like CPI, jobs or a Fed decision) is within 30 minutes. Prices often spike both ways then, and stops can fill worse than planned. It never changes the signal.</dd>
       <dt>B and S on the chart</dt><dd>Where Supertrend flipped to buy (B) or sell (S).</dd>
     </dl>
     <h3>The indicators</h3>
@@ -650,6 +654,14 @@ function sizeTrade(acct,riskPct,stopPct,maxLoss){
   const loss=acct*riskPct/100,size=loss/stopPct,r={loss,size,lev:size/acct,over:false};
   if(maxLoss>0&&loss>maxLoss*(1+1e-9)){r.over=true;r.fitLoss=maxLoss;r.fitSize=maxLoss/stopPct;r.fitRisk=maxLoss/acct*100;r.fitLev=r.fitSize/acct}
   return r;
+}
+// economic event guard: the nearest high-impact US event (CPI, jobs, Fed) within `win` seconds before or after now.
+// Events at the same minute are grouped. Returns null when nothing is close. Information only; signals are unchanged.
+function eventGuard(cal,now,win){
+  win=win||1800;let best=null;
+  for(const e of cal||[]){if(!e||e.i!=='High'||e.c!=='USD'||!isFinite(e.d))continue;const dt=e.d-now;if(Math.abs(dt)>win)continue;
+    if(!best||Math.abs(dt)<Math.abs(best.d-now))best={d:e.d,names:[e.t]};else if(e.d===best.d&&!best.names.includes(e.t))best.names.push(e.t)}
+  if(!best)return null;best.mins=Math.round((best.d-now)/60);best.until=best.d+win;return best;
 }
 function fmtMoney(v){return (v<0?'−$':'$')+Math.abs(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function fmtVol(v){if(!v||!isFinite(v))return '—';const a=Math.abs(v);return '$'+(a>=1e9?(v/1e9).toFixed(2)+'B':a>=1e6?(v/1e6).toFixed(1)+'M':a>=1e3?(v/1e3).toFixed(0)+'K':v.toFixed(0))}
@@ -1204,7 +1216,8 @@ function renderListInner(force){
     const s=setupSets();
     if(!s.checked){area.innerHTML=`<div class="list"><div class="empty">Reading charts for the ${s.pool} most traded markets…</div></div>`;$('#footnote').textContent='';renderMood(liquid());return}
     const rows=(arr,word)=>arr.length?arr.map(g=>rowHTML(g)).join(''):`<div class="empty">No ${word} entries right now on ${TF_LABEL[state.tf]} candles.</div>`;
-    area.innerHTML=section('Long entries','var(--up)','Highest confidence first',rows(s.longs,'long'))+section('Short entries','var(--down)','Highest confidence first',rows(s.shorts,'short'));
+    area.innerHTML='<div id="setEv" hidden></div>'+section('Long entries','var(--up)','Highest confidence first',rows(s.longs,'long'))+section('Short entries','var(--down)','Highest confidence first',rows(s.shorts,'short'));
+    renderEvGuard();if(!news.data&&!news.loading&&!news.err)loadNews();
     renderMood(liquid());
     $('#footnote').innerHTML=state.scanning?`Reading charts… <span class="num">${state.scanning.done}/${state.scanning.total}</span>`:
       `Checked the ${s.checked} most traded markets on ${TF_LABEL[state.tf]} candles. The number on each tag is confidence out of 100.`;
@@ -1416,7 +1429,7 @@ async function loadNews(force){
   try{const r=await fetch(NEWS_URL+'?t='+Math.floor(NOW()/60000));if(!r.ok)throw new Error('HTTP '+r.status);
     const j=await r.json();if(!j||!Array.isArray(j.items))throw new Error('bad data');news.data=j;news.at=NOW();news.err=null}
   catch(e){news.err=String(e&&e.message||e)}
-  news.loading=false;if(state.cat==='news')renderNews(true);renderMktNews();
+  news.loading=false;if(state.cat==='news')renderNews(true);renderMktNews();renderEvGuard();
 }
 function agoShort(ts){const s=Math.max(0,Math.round(NOW()/1000-ts));return s<60?'just now':s<3600?Math.round(s/60)+'m ago':s<86400?Math.round(s/3600)+'h ago':Math.round(s/86400)+'d ago'}
 function newsMatch(it,tp){
@@ -1453,6 +1466,15 @@ function calHTML(cal){
   const when=d=>new Date(d*1000).toLocaleString([],{weekday:'short',hour:'numeric',minute:'2-digit'});
   return `<div class="card cal"><span class="lab">Coming up</span>${up.length?`<ul>${up.map(e=>`<li><span class="when">${esc(when(e.d))}</span><span><i class="imp${e.i==='High'?'':' m'}" title="${esc(e.i)} impact"></i><b>${esc(e.c)}</b> ${esc(e.t)}${e.f||e.p?`<small>${e.f?'Forecast '+esc(e.f):''}${e.f&&e.p?' · ':''}${e.p?'Previous '+esc(e.p):''}</small>`:''}</span></li>`).join('')}</ul>`:'<p>No high-impact events left this week.</p>'}
     <p>Red dot: high impact. Big data releases like CPI, jobs and Fed decisions often move crypto too.</p></div>`;
+}
+function evGuardHTML(){
+  const g=news.data&&eventGuard(news.data.calendar,NOW()/1000);if(!g)return '';
+  const tm=d=>new Date(d*1000).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}),what=esc(g.names.slice(0,2).join(', '))+(g.names.length>2?' and more':'');
+  const when=g.mins>0?`in ${g.mins} min`:g.mins<0?`${-g.mins} min ago`:'now';
+  return `<div class="evwarn" role="note"><b>Big US news ${g.mins>=0?'at':'came out at'} ${tm(g.d)} (${when}): ${what}.</b><span>Spreads and sudden spikes are common around big releases. Consider waiting until about ${tm(g.until)}.</span><small>From the News calendar. The signal itself does not change.</small></div>`;
+}
+function renderEvGuard(){
+  const h=evGuardHTML();for(const id of ['evGuard','setEv']){const el=document.getElementById(id);if(el&&el._h!==h){el.innerHTML=h;el.hidden=!h;el._h=h}}
 }
 function renderNews(force){
   const area=$('#listArea');if(!force&&$('#newsRoot'))return;
@@ -1871,8 +1893,9 @@ function renderSignal(rc){
       <div class="calc-out" id="calcOut"></div></div></details>`:'';
   el.innerHTML=`<div class="sc-band ${rc.rec}"><div><div class="sc-eyebrow">Signal · ${TF_LABEL[state.tf]} candles${rc.htfL?` · checked on ${rc.htfL}`:''}</div><div class="sc-head">${icon}${esc(rc.headline)}</div></div>
     ${rc.rec!=='avoid'?`<div class="sc-conf"><div class="lbl">Confidence</div><div class="val">${rc.conf}<span style="font-size:13px;opacity:.75">/100</span></div><div class="cbar"><i style="width:${rc.conf}%"></i></div></div>`:''}</div>
-    <div class="sc-body"><p class="sc-text">${esc(rc.text)}</p>${lv}
+    <div class="sc-body"><div id="evGuard" hidden></div><p class="sc-text">${esc(rc.text)}</p>${lv}
     <ul class="checks">${rc.checks.map(c=>`<li><span class="ic ${c.state}">${CHECK_IC[c.state]}</span><span>${c.html}</span></li>`).join('')}</ul>${calc}</div>`;
+  renderEvGuard();
   if(calc){const upd=()=>updateCalc(L);$('#acct').addEventListener('input',upd);$('#riskPct').addEventListener('input',upd);upd()}
 }
 function updateCalc(L){
@@ -2004,7 +2027,8 @@ setInterval(()=>{if(state.mode!=='live'||document.hidden||state.loading)return;t
 state.theme=LS.get('theme','system');applyTheme(state.theme);
 state.compact=!!LS.get('compact',false);document.body.classList.toggle('compact',state.compact);$('#compactBtn').setAttribute('aria-pressed',state.compact);
 applyPanes();seenBump(state.cat);
-setInterval(()=>{if(!document.hidden&&(state.cat==='news'||state.selected))loadNews()},5*60000);
+setInterval(()=>{if(!document.hidden&&(state.cat==='news'||state.cat==='setups'||state.selected))loadNews()},5*60000);
+setInterval(renderEvGuard,20000);
 loadChanges();setInterval(loadChanges,30*60000);
 renderAll();
 loadAll(false);

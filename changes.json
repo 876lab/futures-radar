@@ -1,4 +1,10 @@
 [
+  {"date": "2026-10-21", "title": "Big news warning", "items": [
+    "When a big US release like CPI, jobs or a Fed decision is within 30 minutes, an amber note shows on the signal card and the Setups page.",
+    "It tells you the time, how many minutes away it is, and when it's usually calmer to trade again.",
+    "Prices often spike both ways around these releases and stops can fill worse than planned.",
+    "Signals and stop/target levels have not changed."
+  ]},
   {"date": "2026-10-21", "title": "Bybit replaces Coinbase", "items": [
     "Markets, prices and charts now come from Binance, Gate and Bybit.",
     "Bybit's busiest markets and your starred ones update live every second.",

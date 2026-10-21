@@ -19,6 +19,7 @@ async def main():
             pg = await b.new_page(viewport={"width": 390, "height": 800}, device_scale_factor=1, color_scheme=scheme)
             pg.on("pageerror", lambda e: problems.append(f"[{scheme}] JS error: {e}"))
             fx = json.load(open(FIX)); fx["updated"] = int(time.time()) - 300
+            fx["calendar"] = [{"t": "CPI m/m", "c": "USD", "d": int(time.time()) + 900, "i": "High", "f": "0.3%", "p": "0.4%"}]   # big news in 15 min
             await pg.route("**/news-data/news.json*", lambda r: r.fulfill(body=json.dumps(fx), headers={"access-control-allow-origin": "*", "content-type": "application/json"}))
             await pg.route("**/changes.json*", lambda r: r.fulfill(path=os.path.join(ROOT, "..", "changes.json"), headers={"content-type": "application/json"}))
             await pg.goto("file://" + PAGE); await pg.wait_for_timeout(2500)
@@ -28,10 +29,12 @@ async def main():
                 if not txt.strip(): problems.append(f"[{scheme}] {nav}: page is empty")
                 for bad in ("undefined", "NaN"):
                     if bad in txt: problems.append(f"[{scheme}] {nav}: shows '{bad}'")
+                if nav == "setups" and "Big US news" not in txt: problems.append(f"[{scheme}] setups: big-news warning missing")
                 if scheme == "dark": await pg.screenshot(path=os.path.join(OUT, f"{nav}.png"))
             await pg.click(".row"); await pg.wait_for_timeout(1500)
             sig = await pg.inner_text("#sigCard")
             if not sig.strip(): problems.append(f"[{scheme}] chart screen: signal card empty")
+            if "Big US news" not in sig: problems.append(f"[{scheme}] chart screen: big-news warning missing")
             if scheme == "dark":
                 await pg.screenshot(path=os.path.join(OUT, "chart.png"))
                 await pg.go_back(); await pg.wait_for_timeout(600)   # phone back gesture closes the chart screen

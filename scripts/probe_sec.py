@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
-"""One-off check: does the SEC accept us with its exact sample headers? Prints status codes only."""
-import urllib.request
+"""One-off check: print the SEC's refusal page text, to learn why it refuses GitHub's servers."""
+import gzip, re, urllib.request
 UA = "Futures Radar 876lab@users.noreply.github.com"
-for host, u in [("www.sec.gov", "https://www.sec.gov/news/pressreleases.rss"), ("www.sec.gov", "https://www.sec.gov/files/company_tickers.json"),
-                ("data.sec.gov", "https://data.sec.gov/submissions/CIK0000320193.json")]:
-    for hdrs in ({"User-Agent": UA, "Accept-Encoding": "gzip, deflate", "Host": host},
-                 {"User-Agent": UA, "Accept-Encoding": "gzip, deflate", "Host": host, "Accept": "application/json,text/xml,*/*", "From": "876lab@users.noreply.github.com"}):
-        try:
-            with urllib.request.urlopen(urllib.request.Request(u, headers=hdrs), timeout=30) as r:
-                print(r.status, u, len(hdrs))
-        except urllib.error.HTTPError as e:
-            body = e.read()[:300]
-            print(e.code, u, len(hdrs), body[:200])
-        except Exception as e:
-            print("ERR", u, e)
+try:
+    urllib.request.urlopen(urllib.request.Request("https://data.sec.gov/submissions/CIK0000320193.json",
+        headers={"User-Agent": UA, "Accept-Encoding": "gzip, deflate", "Host": "data.sec.gov"}), timeout=30)
+    print("accepted")
+except urllib.error.HTTPError as e:
+    b = e.read()
+    try: b = gzip.decompress(b)
+    except Exception: pass
+    t = re.sub(r"<[^>]+>", " ", b.decode("utf-8", "replace"))
+    print(e.code, " ".join(t.split())[:1500])

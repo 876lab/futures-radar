@@ -20,8 +20,13 @@ import sys
 import time
 import urllib.request
 
-# The SEC asks for "Company Name contact@email" and refuses other formats.
-UA = "Futures Radar 876lab@users.noreply.github.com"
+# The SEC asks automated tools to say who they are, with a contact. All of these do; the first one the SEC accepts is used.
+UAS = [
+    "Futures Radar 876lab@users.noreply.github.com",
+    "Mozilla/5.0 (compatible; FuturesRadar/1.0; +https://github.com/876lab/futures-radar; 876lab@users.noreply.github.com)",
+    "876lab futures-radar (https://github.com/876lab/futures-radar)",
+]
+UA = UAS[0]
 WIKI_UA = "FuturesRadar/1.0 (https://github.com/876lab/futures-radar; 876lab@users.noreply.github.com)"
 SEC_TICKERS = "https://www.sec.gov/files/company_tickers.json"
 FRAMES = "https://data.sec.gov/api/xbrl/frames/{tax}/{tag}/{unit}/{period}.json"
@@ -132,7 +137,24 @@ def first(*maps):
     return out
 
 
+def pick_ua():
+    """Try each identity once against a small SEC file; keep the first that is accepted."""
+    global UA
+    for ua in UAS:
+        try:
+            req = urllib.request.Request("https://data.sec.gov/api/xbrl/companyconcept/CIK0000320193/dei/EntityCommonStockSharesOutstanding.json",
+                                         headers={"User-Agent": ua, "Accept-Encoding": "gzip"})
+            with urllib.request.urlopen(req, timeout=30) as r:
+                print("SEC accepted User-Agent:", ua, r.status); UA = ua; return True
+        except Exception as e:
+            print("SEC refused User-Agent:", ua, "->", e)
+        time.sleep(1)
+    return False
+
+
 def main(out_path, app_path):
+    if not pick_ua():
+        errors.append("SEC refused every User-Agent"); blocked.append("all")
     now = dt.datetime.now(dt.timezone.utc)
     years = list(range(now.year - 6, now.year + 1))  # e.g. 2020..2026; latest 5 with data are used
     try:

@@ -12,6 +12,30 @@ PAGE = os.path.abspath(sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, 
 FIX = os.path.join(ROOT, "fixtures", "news.json")
 problems = []
 
+async def block_exchanges(pg):
+    # always use the built-in sample markets, so results don't depend on which exchanges this machine can reach
+    for host in ("fapi.binance.com", "api.gateio.ws", "api.bybit.com"):
+        await pg.route(f"https://{host}/**", lambda r: r.abort())
+
+async def isolation_check(b):
+    """A broken section must show a 'hit a snag' card, be logged in Settings, and leave the other pages working."""
+    pg = await b.new_page(viewport={"width": 390, "height": 800})
+    await block_exchanges(pg)
+    bad = {"updated": int(time.time()), "items": [None], "sources": []}   # malformed news data
+    await pg.route("**/news-data/news.json*", lambda r: r.fulfill(body=json.dumps(bad), headers={"access-control-allow-origin": "*", "content-type": "application/json"}))
+    await pg.route("**/changes.json*", lambda r: r.fulfill(path=os.path.join(ROOT, "..", "changes.json"), headers={"content-type": "application/json"}))
+    errs = []; pg.on("pageerror", lambda e: errs.append(str(e)))
+    await pg.goto("file://" + PAGE); await pg.wait_for_timeout(2500)
+    await pg.click('[data-nav="news"]'); await pg.wait_for_timeout(1500)
+    if "hit a snag" not in await pg.inner_text("#listArea"): problems.append("isolation: broken News page did not show the snag card")
+    await pg.click('[data-nav="markets"]'); await pg.wait_for_timeout(700)
+    if not await pg.locator(".row").count(): problems.append("isolation: Markets stopped working after News broke")
+    await pg.click("#openSettings"); await pg.wait_for_timeout(300)
+    if "1 problem recorded" not in await pg.inner_text("#errBox"): problems.append("isolation: problem not recorded in Settings")
+    await pg.screenshot(path=os.path.join(OUT, "settings-health.png"))
+    if errs: problems.append("isolation: uncaught JS error: " + errs[0])
+    await pg.close()
+
 async def main():
     async with async_playwright() as p:
         b = await p.chromium.launch()
@@ -22,6 +46,7 @@ async def main():
             fx["calendar"] = [{"t": "CPI m/m", "c": "USD", "d": int(time.time()) + 900, "i": "High", "f": "0.3%", "p": "0.4%"}]   # big news in 15 min
             await pg.route("**/news-data/news.json*", lambda r: r.fulfill(body=json.dumps(fx), headers={"access-control-allow-origin": "*", "content-type": "application/json"}))
             await pg.route("**/changes.json*", lambda r: r.fulfill(path=os.path.join(ROOT, "..", "changes.json"), headers={"content-type": "application/json"}))
+            await block_exchanges(pg)
             await pg.goto("file://" + PAGE); await pg.wait_for_timeout(2500)
             for nav in ("markets", "setups", "news", "watch", "sim", "markets"):
                 await pg.click(f'[data-nav="{nav}"]'); await pg.wait_for_timeout(700)
@@ -48,6 +73,7 @@ async def main():
                 await pg.click("#openHelp"); await pg.wait_for_timeout(300)
                 if not await pg.is_visible("#help"): problems.append("help sheet did not open")
             await pg.close()
+        await isolation_check(b)
         await b.close()
 
 asyncio.run(main())

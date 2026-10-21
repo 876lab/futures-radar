@@ -18,13 +18,14 @@ The working plan for nightly improvement runs. Each run picks the **first unchec
 - Signal engine: `computeSeries` → `analyzeAt(cs,S,L)` → `recommend(an,cs,han,tf)`. Indicators only look backwards; `tests/engine.js` proves it.
 - Simulator: `backtestSeries` + `simTrade` + `simStats`; entries at next candle open, stop first when both touched, fees/slippage both sides.
 - (Parked) Stocks: `scripts/fetch_stocks.py` ran daily in `.github/workflows/stocks.yml` and force-pushes `stocks.json` (yearly company numbers from the SEC XBRL frames API for the S&P 500 and the stock futures in `STOCKS`) to the `stocks-data` branch. The **Picks** page scores them with `qualityCheck` (6 checks; fair price only when a live futures price exists). SEC contact in the User-Agent is the GitHub noreply address, chosen by the owner.
+- Safety nets: `.github/workflows/tests.yml` re-runs `tests/run.sh` on GitHub for every push to main; `.github/workflows/health.yml` runs `tests/health.py` daily against the live site (Binance/Bybit can't be reached from GitHub's US servers and are only noted). In the app, `renderList` and the chart screen catch errors and show a "hit a snag" card; errors are logged on the device (Settings → App health) for the owner to copy to Claude.
 - `changes.json` feeds the in-app **What's new** panel (newest first).
 - Section comments in the script are used by `tests/engine.js` to slice code; keep them.
 
 ## Rules for every nightly run
 
 1. **One focused improvement per night.** Keep the diff reviewable (aim for under ~300 changed lines). Small and correct beats big.
-2. **Run `bash tests/run.sh` before pushing.** Push only if it prints `ALL CHECKS PASSED`. If you cannot make it pass, revert your app changes and push only notes in this file.
+2. **Run `bash tests/run.sh` before pushing.** Push only if it prints `ALL CHECKS PASSED`. After pushing, check that the GitHub **Tests** run is green; if the **Daily health check** is red, fixing it comes before any backlog item. If you cannot make it pass, revert your app changes and push only notes in this file.
 3. **Do not change the signal rules** (`analyzeAt`, `recommend`, entry/stop/target maths) unless backtest evidence shows an improvement across many markets (see the backtest item below). Until then, new signal ideas ship as **information or opt-in toggles**, never silently changing Enter/Hold/Avoid.
 4. **Never remove features**, never change hosting or repository settings, never delete branches, never add paid services, API keys or secrets, never add Claude connectors.
 5. **Do not touch the login.** The owner is choosing the login approach with Claude on Saturday 24 October 2026.
@@ -64,6 +65,7 @@ The working plan for nightly improvement runs. Each run picks the **first unchec
 - [x] Inter font; bottom tab bar; compact rows; sparklines; swipe/back; sticky search; light/dark switch
 - [x] News page (headlines, Fear & Greed, calendar, X links) and per-market headlines
 - [x] Automated test suite (`tests/run.sh`) and What's new panel
+- [x] Safety nets: tests on GitHub, daily live health check, broken sections isolated with an App health log (2026-10-21)
 
 ## Notes from runs
 

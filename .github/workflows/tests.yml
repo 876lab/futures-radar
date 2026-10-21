@@ -1,0 +1,35 @@
+name: Tests
+
+# Re-runs the full test suite on GitHub for every change to main, whoever made it.
+# A failure here means the live app may be broken: GitHub emails the repo owner.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the headless browser
+        run: |
+          python3 -m pip install --quiet playwright
+          python3 -m playwright install --with-deps chromium
+      - name: Run every check
+        run: bash tests/run.sh
+      - name: Keep the screenshots if something failed
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: tests/out/

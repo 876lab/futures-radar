@@ -1,0 +1,24 @@
+name: Daily health check
+
+# Opens the live app once a day like a phone would and checks each part works.
+# Stays quiet when all is well; a failure makes GitHub email the repo owner.
+on:
+  schedule:
+    - cron: "23 10 * * *"   # 5:23am in Jamaica
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the headless browser
+        run: |
+          python3 -m pip install --quiet playwright
+          python3 -m playwright install --with-deps chromium
+      - name: Check the live app
+        run: python3 -u tests/health.py

@@ -1,4 +1,9 @@
 [
+  {"date": "2026-10-21", "title": "Safety nets", "items": [
+    "If one page breaks, it now shows \"hit a snag\" with a Try again button, and the rest of the app keeps working.",
+    "Problems are saved in Settings → App health. Tap Copy details and send them to Claude.",
+    "The app is checked automatically on every update and once every morning; you get an email only if something is wrong."
+  ]},
   {"date": "2026-10-21", "title": "Big news warning", "items": [
     "When a big US release like CPI, jobs or a Fed decision is within 30 minutes, an amber note shows on the signal card and the Setups page.",
     "It tells you the time, how many minutes away it is, and when it's usually calmer to trade again.",

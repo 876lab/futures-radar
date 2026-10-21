@@ -17,6 +17,7 @@ The working plan for nightly improvement runs. Each run picks the **first unchec
 - News: `scripts/fetch_news.py` runs every 15 min in `.github/workflows/news.yml` and force-pushes `news.json` to the `news-data` branch; the app reads it from raw.githubusercontent.com.
 - Signal engine: `computeSeries` → `analyzeAt(cs,S,L)` → `recommend(an,cs,han,tf)`. Indicators only look backwards; `tests/engine.js` proves it.
 - Simulator: `backtestSeries` + `simTrade` + `simStats`; entries at next candle open, stop first when both touched, fees/slippage both sides.
+- Stocks: `scripts/fetch_stocks.py` runs daily in `.github/workflows/stocks.yml` and force-pushes `stocks.json` (yearly company numbers from the SEC XBRL frames API for the S&P 500 and the stock futures in `STOCKS`) to the `stocks-data` branch. The **Picks** page scores them with `qualityCheck` (6 checks; fair price only when a live futures price exists). SEC contact in the User-Agent is the GitHub noreply address, chosen by the owner.
 - `changes.json` feeds the in-app **What's new** panel (newest first).
 - Section comments in the script are used by `tests/engine.js` to slice code; keep them.
 
@@ -50,6 +51,8 @@ The working plan for nightly improvement runs. Each run picks the **first unchec
 - [ ] **Trading sessions and liquidity.** Show the current session (Asia / London / New York) and warn in thin hours and weekends.
 - [ ] **Price and signal alerts while the app is open.** Starred markets: sound/vibration and an in-app notice when a signal turns to Enter long/short or price crosses a level.
 - [ ] **Coinbase international perpetuals live.** Stream INTX perps (separate host) so they update every second.
+- [ ] **Picks: fair price for every S&P stock.** Needs a free, key-less daily share price source; none found on 2026-10-21 (Stooq now needs a key). Check again.
+- [ ] **Picks: sector-aware checks.** Banks and insurers carry debt by design; judge them on return on equity and steady profits only.
 - [ ] **Signal forming vs confirmed (low priority).** Information only: show whether the current candle is still forming. He doesn't trade by candle closes, so keep it subtle.
 - [ ] **Performance and accessibility pass.** Check with 1,300+ markets, keyboard use, contrast in both themes.
 
@@ -62,6 +65,7 @@ The working plan for nightly improvement runs. Each run picks the **first unchec
 - [x] Inter font; bottom tab bar; compact rows; sparklines; swipe/back; sticky search; light/dark switch
 - [x] News page (headlines, Fear & Greed, calendar, X links) and per-market headlines
 - [x] Automated test suite (`tests/run.sh`) and What's new panel
+- [x] Picks page: stocks scored on 6 traits shared by great investors (2026-10-21, owner request)
 
 ## Notes from runs
 

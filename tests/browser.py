@@ -20,15 +20,25 @@ async def main():
             pg.on("pageerror", lambda e: problems.append(f"[{scheme}] JS error: {e}"))
             fx = json.load(open(FIX)); fx["updated"] = int(time.time()) - 300
             await pg.route("**/news-data/news.json*", lambda r: r.fulfill(body=json.dumps(fx), headers={"access-control-allow-origin": "*", "content-type": "application/json"}))
+            await pg.route("**/stocks-data/stocks.json*", lambda r: r.fulfill(path=os.path.join(ROOT, "fixtures", "stocks.json"), headers={"access-control-allow-origin": "*", "content-type": "application/json"}))
             await pg.route("**/changes.json*", lambda r: r.fulfill(path=os.path.join(ROOT, "..", "changes.json"), headers={"content-type": "application/json"}))
             await pg.goto("file://" + PAGE); await pg.wait_for_timeout(2500)
-            for nav in ("markets", "setups", "news", "watch", "sim", "markets"):
+            for nav in ("markets", "setups", "picks", "news", "watch", "sim", "markets"):
                 await pg.click(f'[data-nav="{nav}"]'); await pg.wait_for_timeout(700)
                 txt = await pg.inner_text("#listArea")
                 if not txt.strip(): problems.append(f"[{scheme}] {nav}: page is empty")
                 for bad in ("undefined", "NaN"):
                     if bad in txt: problems.append(f"[{scheme}] {nav}: shows '{bad}'")
                 if scheme == "dark": await pg.screenshot(path=os.path.join(OUT, f"{nav}.png"))
+            await pg.click('[data-nav="picks"]'); await pg.wait_for_timeout(700)
+            if await pg.locator("details.pick").count() < 3: problems.append(f"[{scheme}] picks: too few stocks listed")
+            await pg.click("details.pick summary"); await pg.wait_for_timeout(300)
+            if await pg.locator("details.pick[open] .checks li").count() < 6: problems.append(f"[{scheme}] picks: checks missing")
+            ptxt = await pg.inner_text("#listArea")
+            for bad in ("undefined", "NaN", "Infinity"):
+                if bad in ptxt: problems.append(f"[{scheme}] picks: shows '{bad}'")
+            if scheme == "dark": await pg.screenshot(path=os.path.join(OUT, "picks-open.png"), full_page=True)
+            await pg.click('[data-nav="markets"]'); await pg.wait_for_timeout(500)
             await pg.click(".row"); await pg.wait_for_timeout(1500)
             sig = await pg.inner_text("#sigCard")
             if not sig.strip(): problems.append(f"[{scheme}] chart screen: signal card empty")

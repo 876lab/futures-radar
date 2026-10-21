@@ -1,0 +1,40 @@
+name: Update stock data
+
+on:
+  schedule:
+    - cron: "41 8 * * *"   # daily, after the SEC republishes its data (about 3am New York time)
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - scripts/fetch_stocks.py
+      - .github/workflows/stocks.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: stocks
+  cancel-in-progress: true
+
+jobs:
+  stocks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch company numbers from the SEC
+        run: |
+          mkdir -p out
+          python3 scripts/fetch_stocks.py out/stocks.json index.html
+      - name: Publish to the stocks-data branch
+        run: |
+          cd out
+          git init -q -b stocks-data
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add stocks.json
+          git commit -q -m "Update stocks $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push -q -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" stocks-data
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

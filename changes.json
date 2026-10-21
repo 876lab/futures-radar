@@ -1,4 +1,10 @@
 [
+  {"date": "2026-10-21", "title": "Picks: stocks great investors would like", "items": [
+    "New Picks tab: stocks scored on six habits shared by investors like Buffett, Lynch and Graham.",
+    "Stocks you can trade as futures get all six checks, including a fair-price check using the live price.",
+    "S&P 500 companies are scored on five checks (no price yet). Tap any stock to see why it scored what it did.",
+    "Company numbers come from SEC filings and update daily. A starting point for research, not a buy signal."
+  ]},
   {"date": "2026-10-20", "title": "Max-loss guard", "items": [
     "New in Settings: Max loss per trade (USDT). A good start is about twice your average losing trade.",
     "Size this trade now warns in red when a plan would lose more than that at the stop.",

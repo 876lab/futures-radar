@@ -26,7 +26,7 @@ jobs:
       - name: Fetch company numbers from the SEC
         run: |
           mkdir -p out
-          python3 scripts/fetch_stocks.py out/stocks.json index.html
+          python3 -u scripts/fetch_stocks.py out/stocks.json index.html
       - name: Publish to the stocks-data branch
         run: |
           cd out

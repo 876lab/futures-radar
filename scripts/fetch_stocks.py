@@ -20,18 +20,26 @@ import sys
 import time
 import urllib.request
 
-UA = "FuturesRadar/1.0 (+https://github.com/876lab/futures-radar; 876lab@users.noreply.github.com)"
+# The SEC asks for "Company Name contact@email" and refuses other formats.
+UA = "Futures Radar 876lab@users.noreply.github.com"
+WIKI_UA = "FuturesRadar/1.0 (https://github.com/876lab/futures-radar; 876lab@users.noreply.github.com)"
 SEC_TICKERS = "https://www.sec.gov/files/company_tickers.json"
 FRAMES = "https://data.sec.gov/api/xbrl/frames/{tax}/{tag}/{unit}/{period}.json"
 SP500 = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
 errors = []
 
 
+blocked = []  # set when the SEC refuses us, so we stop asking
+
+
 def get(url, tries=3):
+    sec = "sec.gov" in url
+    if sec and blocked:
+        raise RuntimeError("skipped: SEC refused earlier requests")
     for k in range(tries):
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept-Encoding": "gzip"})
-            with urllib.request.urlopen(req, timeout=60) as r:
+            req = urllib.request.Request(url, headers={"User-Agent": UA if sec else WIKI_UA, "Accept-Encoding": "gzip"})
+            with urllib.request.urlopen(req, timeout=45) as r:
                 body = r.read()
                 if r.headers.get("Content-Encoding") == "gzip":
                     body = gzip.decompress(body)
@@ -39,6 +47,8 @@ def get(url, tries=3):
         except urllib.error.HTTPError as e:
             if e.code == 404:
                 return None  # frame not published (yet)
+            if e.code == 403 and sec:
+                blocked.append(url); raise
             if k == tries - 1:
                 raise
         except Exception:
@@ -106,7 +116,9 @@ def frame(tax, tag, unit, period):
     try:
         body = get(FRAMES.format(tax=tax, tag=tag, unit=unit, period=period))
     except Exception as e:
-        errors.append(f"{tag} {period}: {e}"); return {}
+        if not (blocked and len(errors) > 3):
+            errors.append(f"{tag} {period}: {e}")
+        return {}
     if not body:
         return {}
     return {d["cik"]: d["val"] for d in json.loads(body).get("data", [])}
@@ -194,6 +206,8 @@ def main(out_path, app_path):
         json.dump(out, f, separators=(",", ":"))
     ok = sum(1 for s in universe.values() if "years" in s)
     print(f"{len(universe)} stocks, {ok} with data, {len(errors)} errors")
+    if blocked:
+        print("SEC refused requests (HTTP 403) with User-Agent:", UA)
     for e in errors[:20]:
         print("  -", e)
     if ok < 50:

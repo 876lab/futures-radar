@@ -399,27 +399,6 @@ details.more[open]>summary::after{content:"−"}
 .cal .imp{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--down);margin-right:6px;vertical-align:middle}
 .cal .imp.m{background:var(--accent)}
 .cal small{display:block;color:var(--muted);font-size:12px}
-.picks{display:grid;gap:14px}
-.picks .section + .section{margin-top:4px}
-.pick{border-bottom:1px solid var(--line)}
-.pick:last-of-type{border-bottom:0}
-.pick>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:10px 14px}
-.pick>summary::-webkit-details-marker{display:none}
-.pick>summary .r-main{flex:1;min-width:0}
-.pick>summary .r-right{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
-.pick[open]>summary{background:var(--surface-2)}
-.pick .checks{padding:10px 14px 0;margin:0}
-.pick .note{padding:8px 14px 0;margin:0;font-size:12.5px;color:var(--muted)}
-.pick-acts{padding:10px 14px 12px}
-.pick>.note:last-child{padding-bottom:12px}
-.pdots{display:inline-flex;gap:3px;align-items:center}
-.pd{width:8px;height:8px;border-radius:2px;background:var(--flat-bg);display:inline-block}
-.pd.ok{background:var(--up)} .pd.no{background:var(--down-bg);box-shadow:inset 0 0 0 1px var(--down)}
-.pick-how{padding:0;text-align:left}
-.pick-how-in{padding:0 14px 12px;font-size:13.5px;display:grid;gap:8px;color:var(--fg);font-weight:400}
-.pick-how-in b{font-weight:600}
-.pick-how-in p{margin:0}
-.pick-how-in ol{margin:0;padding-left:20px;display:grid;gap:5px}
 .nlist{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
 .nitem{padding:11px 14px;border-bottom:1px solid var(--line);display:grid;gap:4px}
 .nitem:last-child{border-bottom:0}
@@ -570,7 +549,6 @@ button.ncoin:hover{border-color:var(--accent)}
       <dt>EMA 20 / 50 / 200</dt><dd>Moving averages. Price above them, with the short line on top, is a classic uptrend.</dd>
       <dt>Funding</dt><dd>A small fee swapped between longs and shorts every few hours on perpetuals. Positive means longs pay shorts.</dd>
       <dt>Volume</dt><dd>Dollar value traded. A move on rising volume is more trustworthy.</dd>
-      <dt>Picks</dt><dd>Company stocks scored on six habits that great investors such as Buffett, Lynch and Graham share: good business, fair price, low debt, growing, real cash and no losing years. Numbers come from SEC filings, updated daily. A high score is a starting point for research, not a buy signal.</dd>
       <dt>News</dt><dd>Headlines from crypto and financial news sites, the Federal Reserve and the SEC, refreshed every 15 minutes. Fear &amp; Greed sums up market mood from 0 (extreme fear) to 100 (extreme greed).</dd>
       <dt>Live</dt><dd>The dot at the top shows how fresh prices are. "Live · now" means ticks are streaming in. "Delayed" means no tick for 30 seconds; the app reconnects on its own.</dd>
     </dl>
@@ -619,11 +597,10 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const EX={binance:{name:'Binance'},gate:{name:'Gate'},coinbase:{name:'Coinbase'}};
 const EXK=Object.keys(EX);
 const CATS=[['hot','Hot'],['all','All'],['new','New'],['crypto','Crypto'],['meme','Meme'],['ai','AI'],['stocks','Stocks'],['tradfi','TradFi'],['dated','Expiring']];
-const MKT_CATS=CATS.map(c=>c[0]),PAGES=['setups','picks','sim','news','watch'];
+const MKT_CATS=CATS.map(c=>c[0]),PAGES=['setups','sim','news','watch'];
 const CAT_DESC={news:'Headlines that can move markets, refreshed every 15 minutes, plus market mood and upcoming economic events.',hot:'The biggest movers and most traded markets over the last 24 hours.',
   sim:'Test how the app\'s entry signals would have done on past prices before you trust them with money.',
   setups:'Markets where the chart shows a long or short entry right now, checked against the bigger timeframe.',
-  picks:'Company stocks that pass the checks great investors share: good business, fair price, low debt, growth, real cash and steady profits.',
   watch:'Markets you starred. They stay on this device.',
   all:'Every futures market. A coin listed on several exchanges shows once, with all its exchanges inside.',new:'Listed in the last 30 days. New markets can swing hard.',
   crypto:'Coins and tokens.',meme:'Community and joke coins. Expect big swings.',ai:'Tokens tied to AI projects.',
@@ -1099,7 +1076,7 @@ function setupSets(){
 function listTargets(){
   if(state.cat==='hot'){const h=hotSets();const seen=new Set(),out=[];[...h.gain,...h.lose,...h.active].forEach(g=>{if(!seen.has(g.key)){seen.add(g.key);out.push(g)}});return out}
   if(state.cat==='setups'){const s=setupSets();return s.longs.length||s.shorts.length?[...s.longs,...s.shorts]:setupPool()}
-  if(state.cat==='sim'||state.cat==='news'||state.cat==='picks')return setupPool();
+  if(state.cat==='sim'||state.cat==='news')return setupPool();
   return visible();
 }
 function scanTargets(){if(state.cat==='setups')return setupPool();return listTargets()}
@@ -1151,8 +1128,7 @@ function renderTabs(){
 const seen=LS.get('seen',{});function seenBump(c){seen[c]=(seen[c]||0)+1;LS.set('seen',seen)}
 const ICON_MKT='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 20V11M11 20V5M17 20v-8M3 20h18"/></svg>';
 const ICON_NEWS='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h12v14H6a2 2 0 0 1-2-2z"/><path d="M16 9h4v8a2 2 0 0 1-2 2"/><path d="M8 9h4M8 13h4"/></svg>';
-const ICON_PICKS='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16"/><path d="M6 20V10l6-5 6 5v10"/><path d="m9.5 13.5 2 2 3.5-4"/></svg>';
-const NAV=[['markets','Markets',ICON_MKT],['setups','Setups',TARGET],['picks','Picks',ICON_PICKS],['sim','Simulator',FLASK],['news','News',ICON_NEWS],['watch','Starred',STAR]];
+const NAV=[['markets','Markets',ICON_MKT],['setups','Setups',TARGET],['sim','Simulator',FLASK],['news','News',ICON_NEWS],['watch','Starred',STAR]];
 function pageOf(c){return MKT_CATS.includes(c)?'markets':c}
 function renderNav(){const pg=pageOf(state.cat);$('#nav').innerHTML=NAV.map(([k,l,ic])=>`<button type="button" data-nav="${k}"${pg===k?' aria-current="page"':''}>${ic}<span>${l}</span></button>`).join('')}
 function applyChrome(){
@@ -1160,16 +1136,16 @@ function applyChrome(){
   $('#venues').hidden=!(pg==='markets'||pg==='setups'||pg==='watch');
   $('#stick').hidden=pg==='sim';
   $('#tabs').hidden=pg!=='markets';
-  $('#bar2').hidden=pg==='sim'||pg==='news'||pg==='picks';
+  $('#bar2').hidden=pg==='sim'||pg==='news';
   $('#sortWrap').hidden=!((pg==='markets'&&state.cat!=='hot')||pg==='watch');
-  $('#q').placeholder=pg==='news'?'Search headlines, e.g. ETF, Solana, Fed':pg==='picks'?'Search stocks, e.g. Apple, NVDA':'Search, e.g. bitcoin, gold, TSLA';
+  $('#q').placeholder=pg==='news'?'Search headlines, e.g. ETF, Solana, Fed':'Search, e.g. bitcoin, gold, TSLA';
 }
 function goPage(k){
   const cat=k==='markets'?state.mcat:k;
   if(cat===state.cat){window.scrollTo({top:0,behavior:'smooth'});return}
   state.cat=cat;LS.set('cat3',cat);state.limit=120;seenBump(cat);
   renderNav();renderTabs();renderList(true);if(window.scrollY>150)window.scrollTo({top:0});
-  if(cat==='news')loadNews();else if(cat==='picks')loadStocks();else scan(cat==='setups'?SETUP_POOL:30);
+  if(cat==='news')loadNews();else scan(cat==='setups'?SETUP_POOL:30);
 }
 function rowHTML(g,opt){
   opt=opt||{};const s=sigOf(g),c=pctCls(g.chg);
@@ -1198,7 +1174,6 @@ function renderListInner(force){
   const area=$('#listArea');
   if(state.cat==='sim'){$('#mood').innerHTML='';$('#footnote').textContent='';renderSim(force);return}
   if(state.cat==='news'){$('#mood').innerHTML='';$('#footnote').textContent='';renderNews(force);return}
-  if(state.cat==='picks'){$('#mood').innerHTML='';$('#footnote').textContent='';renderPicks(force);return}
   if(!state.pairs.length){area.innerHTML='<div class="list"><div class="empty">Loading markets…</div></div>';return}
   if(state.cat==='hot'){
     const h=hotSets();const max=Math.max(1,...h.gain.concat(h.lose).map(g=>Math.abs(g.chg))),amax=Math.max(1,...h.active.map(g=>Math.abs(g.chg)));
@@ -1242,7 +1217,7 @@ async function evaluate(p,tf){
   return{cs,an,han,rc};
 }
 async function scan(max){
-  if(state.scanning||!state.groups.length||state.cat==='sim'||state.cat==='news'||state.cat==='picks')return;
+  if(state.scanning||!state.groups.length||state.cat==='sim'||state.cat==='news')return;
   const tf=state.tf;const list=scanTargets().filter(g=>!state.trend.has(g.primary.id+'|'+tf)).slice(0,max||40);
   if(!list.length){renderTabs();renderList();return}
   state.scanning={done:0,total:list.length};let i=0;
@@ -1721,107 +1696,6 @@ function simResultsHTML(){
   </div>`;
 }
 
-/* ---------- quality picks: traits shared by great stock pickers (stocks.json, built daily by the repo's GitHub job) ---------- */
-// Each check is a trait that at least 3 of Buffett, Munger, Graham, Lynch, Fisher, Templeton, Greenblatt, Klarman, Smith and O'Neil share.
-// Pure maths: s is one stock from stocks.json (yearly numbers, oldest first), price is a live share price or null.
-const PICK_RULES={roe:15,pe:20,peg:1,debtYears:3,growth:5};
-function qualityCheck(s,price){
-  const ni=s.ni||[],n=ni.length,last=n-1,checks=[],f1=v=>v.toFixed(1),f0=v=>v.toFixed(0);
-  if(n<3)return null;
-  const add=(k,st,title,text)=>checks.push({k,state:st,title,text});
-  // 1. good business: return on equity (Buffett, Munger, Fisher, Greenblatt, Smith, Lynch)
-  const eqAvg=s.equity!=null?(s.equityPrev>0&&s.equity>0?(s.equity+s.equityPrev)/2:s.equity):null;
-  const roe=eqAvg>0?ni[last]/eqAvg*100:null;
-  if(roe==null)add('biz','mid','Good business',s.equity!=null&&s.equity<=0?'Can\'t measure: shareholder equity is below zero, often from large buybacks.':'No equity figure in its filings.');
-  else add('biz',roe>=PICK_RULES.roe?'ok':'no','Good business',`Earns ${f1(roe)}% a year on shareholders' money (looking for ${PICK_RULES.roe}% or more).`);
-  // growth of profit per share (EPS), falling back to total profit
-  const vals=(s.eps||[]).length===n&&s.eps.every(v=>v!=null)?s.eps:ni,per=vals===ni?'Profit':'Profit per share';
-  const yrs=n-1,cagr=vals[0]>0&&vals[last]>0?(Math.pow(vals[last]/vals[0],1/yrs)-1)*100:null;
-  // 2. fair price: P/E or PEG (Graham, Buffett, Munger, Klarman, Templeton, Greenblatt, Lynch, Smith)
-  let pe=null;
-  if(!(price>0))add('price','mid','Fair price','No live price here, so this check is skipped. Compare its P/E on a stock site.');
-  else{const eps=s.eps&&s.eps[last];
-    if(!(eps>0))add('price','no','Fair price','Lost money last year, so there are no profits to pay for.');
-    else{pe=price/eps;const peg=cagr>0?pe/cagr:null,ok=pe<=PICK_RULES.pe||(peg!=null&&peg<=PICK_RULES.peg);
-      add('price',ok?'ok':'no','Fair price',`P/E ${f1(pe)}: you pay $${f1(pe)} for each $1 of yearly profit${peg!=null?`, or ${peg.toFixed(2)} after growth (PEG)`:''}. Looking for ${PICK_RULES.pe} or less, or PEG ${PICK_RULES.peg} or less.`)}}
-  // 3. low debt (Graham, Buffett, Lynch, Klarman, Smith)
-  if(s.debt==null||s.debt<=0)add('debt','ok','Low debt','No long-term debt in its filings.');
-  else if(!(ni[last]>0))add('debt','no','Low debt','Has debt and lost money last year.');
-  else{const y=s.debt/ni[last];add('debt',y<=PICK_RULES.debtYears?'ok':'no','Low debt',`Could pay off its long-term debt with ${f1(y)} years of profit (looking for ${PICK_RULES.debtYears} or less).`)}
-  // 4. steady growth (Fisher, Lynch, O'Neil, Smith, Buffett)
-  let drops=0;for(let i=1;i<n;i++)if(vals[i]<vals[i-1])drops++;
-  if(cagr==null)add('growth','no','Growing',`${per} was not positive at both ends of the last ${n} years.`);
-  else add('growth',cagr>=PICK_RULES.growth&&drops<=1?'ok':'no','Growing',`${per} ${cagr>=0?'up':'down'} ${f1(Math.abs(cagr))}% a year over ${yrs} years, fell in ${plural(drops,'year')} (looking for ${PICK_RULES.growth}%+ and at most 1 down year).`);
-  // 5. real cash (Buffett, Smith, Klarman, Greenblatt)
-  const fc=(s.fcf||[]).slice(-3);
-  if(fc.length<3||fc.some(v=>v==null))add('cash','mid','Real cash','Not enough cash-flow figures in its filings.');
-  else add('cash',fc.every(v=>v>0)?'ok':'no','Real cash',fc.every(v=>v>0)?'Brought in more cash than it spent in each of the last 3 years.':`Spent more cash than it brought in during ${plural(fc.filter(v=>v<=0).length,'of the last 3 years')}.`);
-  // 6. steady profits, the margin-of-safety habit (Graham, Buffett, Klarman, Templeton)
-  const losses=ni.filter(v=>v<=0).length;
-  add('steady',losses?'no':'ok','No losing years',losses?`Lost money in ${losses} of the last ${n} years.`:`Made a profit in each of the last ${n} years.`);
-  const priced=price>0,score=checks.filter(c=>c.state==='ok').length;
-  return {checks,score,max:priced?6:5,roe,pe,cagr};
-}
-const STOCKS_URL=NEWS_URL.replace('/news-data/news.json','/stocks-data/stocks.json');
-const picks={data:null,at:0,err:null,loading:false,limit:30};
-async function loadStocks(force){
-  if(picks.loading)return;if(!force&&picks.data&&NOW()-picks.at<60*60000)return;
-  picks.loading=true;
-  try{const r=await fetch(STOCKS_URL+'?t='+Math.floor(NOW()/3600000));if(!r.ok)throw new Error('HTTP '+r.status);
-    const j=await r.json();if(!j||!Array.isArray(j.stocks))throw new Error('bad data');picks.data=j;picks.at=NOW();picks.err=null}
-  catch(e){picks.err=String(e&&e.message||e)}
-  picks.loading=false;if(state.cat==='picks')renderPicks(true);
-}
-function scoredPicks(){
-  const d=picks.data;if(!d)return {trade:[],sp:[]};
-  const q=state.q,trade=[],sp=[];
-  for(const s of d.stocks){
-    if(!s.years)continue;
-    if(q&&!(s.t+' '+s.name).toUpperCase().includes(q))continue;
-    const g=state.gByKey.get(s.t),live=g&&g.cats.has('stocks')&&g.kind!=='dated'?g:null;
-    const r=qualityCheck(s,live?live.price:null);if(!r)continue;
-    const row={s,g:live,r};
-    if(live)trade.push(row);else if(s.sp)sp.push(row);
-  }
-  const by=(a,b)=>b.r.score/b.r.max-a.r.score/a.r.max||(b.r.roe||0)-(a.r.roe||0);
-  trade.sort(by);sp.sort(by);
-  return {trade,sp:q?sp:sp.filter(x=>x.r.score>=4)};
-}
-function pickHTML({s,g,r}){
-  const cls=r.score/r.max>=0.8?'up':r.score/r.max>=0.5?'flat':'down';
-  const dots=r.checks.map(c=>`<i class="pd ${c.state}" title="${esc(c.title)}"></i>`).join('');
-  return `<details class="pick"><summary><div class="r-main"><div class="r-top"><span class="tk">${esc(s.t)}</span><span class="fn">${esc(s.name)}</span></div>
-      <div class="r-sub"><span class="pdots" aria-hidden="true">${dots}</span>${r.pe!=null?`<span class="num">P/E ${r.pe.toFixed(1)}</span>`:''}${r.roe!=null?`<span class="num">ROE ${r.roe.toFixed(0)}%</span>`:''}</div></div>
-      <div class="r-right">${g?`<span class="r-price">${fmtUsd(g.price)}</span>`:''}<span class="pill ${cls}" aria-label="Passes ${r.score} of ${r.max} checks">${r.score}/${r.max}</span></div></summary>
-    <ul class="checks">${r.checks.map(c=>`<li><span class="ic ${c.state}">${CHECK_IC[c.state]}</span><span><b>${esc(c.title)}:</b> ${esc(c.text)}</span></li>`).join('')}</ul>
-    <p class="note">Numbers from ${esc(s.name||s.t)}'s yearly SEC filings, ${s.years[0]}–${s.years[s.years.length-1]}.${g?'':' Not traded as futures on your exchanges.'}</p>
-    ${g?`<div class="pick-acts"><button type="button" class="btn" data-coin="${esc(g.key)}">Open ${esc(s.t)} chart</button></div>`:''}</details>`;
-}
-const PICK_HOW=[['Good business','earns a lot on the money it uses','Buffett, Munger, Fisher, Greenblatt, Lynch, Smith'],
-  ['Fair price','not too expensive for its profits','Graham, Buffett, Lynch, Templeton, Greenblatt, Klarman'],
-  ['Low debt','could pay its debts back from profits','Graham, Buffett, Lynch, Klarman, Smith'],
-  ['Growing','profits rising year after year','Fisher, Lynch, O\'Neil, Smith, Buffett'],
-  ['Real cash','cash in the bank, not just paper profits','Buffett, Smith, Klarman, Greenblatt'],
-  ['No losing years','steady through bad times, so less chance of a big loss','Graham, Buffett, Klarman, Templeton']];
-function renderPicks(force){
-  const area=$('#listArea'),sig=[state.groups.length>0,picks.at,state.q,picks.limit].join('|'),root=$('#picksRoot');
-  if(!force&&root&&root.dataset.sig===sig)return;
-  const how=`<details class="card more pick-how"><summary>How picks are chosen</summary><div class="pick-how-in">
-    <p>We studied 10 of the most successful stock pickers: Warren Buffett, Charlie Munger, Benjamin Graham, Peter Lynch, Philip Fisher, John Templeton, Joel Greenblatt, Seth Klarman, Terry Smith and William O'Neil. Each check below is a habit at least three of them share. A stock scores one point per check it passes.</p>
-    <ol>${PICK_HOW.map(([t,d,w])=>`<li><b>${t}</b>: ${d}. <span class="muted">${w}</span></li>`).join('')}</ol>
-    <p><b>Your part</b> (the numbers can't check these): understand what the company does and how it makes money; trust the people running it; be ready to hold for years, not days.</p>
-    <p class="muted">A high score is a place to start your research, not a buy signal. Company numbers come from yearly SEC filings, so they can be up to a year old. Fair price needs a live price, so it is only checked for stocks you can trade here.</p></div></details>`;
-  const d=picks.data;
-  if(!d){area.innerHTML=`<div class="picks" id="picksRoot">${how}<div class="list"><div class="empty">${picks.loading||(!picks.err&&!picks.at)?'Loading company numbers…':'Company numbers aren\'t ready yet. The daily download from the SEC is still being set up, so this page will fill in once it works. Check What\'s new for updates.'}</div></div></div>`;
-    if(!picks.loading&&!picks.err)loadStocks();return}
-  const {trade,sp}=scoredPicks();
-  const list=(arr,empty,lim)=>arr.length?arr.slice(0,lim).map(pickHTML).join('')+(arr.length>lim?`<button class="more" data-pmore="1">Show ${Math.min(30,arr.length-lim)} more</button>`:''):`<div class="empty">${empty}</div>`;
-  area.innerHTML=`<div class="picks" id="picksRoot" data-sig="${esc(sig)}">${how}
-    ${section('You can trade these','var(--accent)','Scored out of 6',list(trade,state.pairs.length?'No stock futures with company numbers found.':'Loading markets…',99))}
-    ${section('S&amp;P 500 · top scores','var(--up)',state.q?'Matching your search':'4 or 5 out of 5',list(sp,'No matches.',picks.limit))}
-    <p class="nfoot">Company numbers updated ${agoShort(d.updated)} from SEC filings. Tap a stock to see each check.</p></div>`;
-}
-
 /* ---------- charts ---------- */
 let charts=null,current=null;
 function chartOpts(extra){
@@ -2066,7 +1940,7 @@ listArea.addEventListener('click',e=>{const b=e.target.closest('[data-sim]');if(
   LS.set('sim',sim.opts)});
 listArea.addEventListener('input',e=>{const k=e.target.dataset&&e.target.dataset.simin;if(!k)return;sim.opts[k]=e.target.value;LS.set('sim',sim.opts)});
 listArea.addEventListener('keydown',e=>{const sr=e.target.closest&&e.target.closest('tr.simrow');if(sr&&(e.key==='Enter'||e.key===' ')){e.preventDefault();openSimMarket(sr.dataset.key,sr.dataset.id,sr.dataset.tf)}});
-listArea.addEventListener('click',e=>{if(e.target.closest('[data-pmore]')){picks.limit+=30;renderPicks(true);return}const nt=e.target.closest('[data-ntopic]');if(nt){news.topic=nt.dataset.ntopic;LS.set('ntopic',news.topic);renderNews(true)}});
+listArea.addEventListener('click',e=>{const nt=e.target.closest('[data-ntopic]');if(nt){news.topic=nt.dataset.ntopic;LS.set('ntopic',news.topic);renderNews(true)}});
 function openCoin(e){const c=e.target.closest('[data-coin]');if(!c)return false;state.simShow=null;openGroup(c.dataset.coin);return true}
 $('#mktNews').addEventListener('click',e=>{openCoin(e)});
 listArea.addEventListener('click',e=>{if(openCoin(e))return;const sr=e.target.closest('tr.simrow');if(sr){openSimMarket(sr.dataset.key,sr.dataset.id,sr.dataset.tf);return}

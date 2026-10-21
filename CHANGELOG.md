@@ -3,6 +3,7 @@
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
 ## 2026-10-21
+- Owner decided to skip Picks for now: removed the Picks page, its tests, the stocks job and script. Code kept in history (commit c701ecd) for later.
 - Follow-up: the SEC refuses downloads from GitHub's servers (HTTP 403), so stocks.json has not been published yet. The SEC's own refusal page confirms it flags GitHub's server network, so a different contact email would not help. The Picks page says so plainly, and the stocks job's daily schedule is paused until a data route works (see ROADMAP notes).
 - New **Picks** page (bottom bar), requested by the owner. Stocks are scored on six habits shared by at least three of ten great stock pickers (Buffett, Munger, Graham, Lynch, Fisher, Templeton, Greenblatt, Klarman, Terry Smith, O'Neil): good business (ROE ≥ 15%), fair price (P/E ≤ 20 or PEG ≤ 1), low debt (≤ 3 years of profit), growing (≥ 5% a year, at most one down year), real cash (free cash flow positive 3 years) and no losing years (5 years). Two lists: stocks with futures on Gate/Binance/Coinbase (6 checks with the live price) and S&P 500 top scores (5 checks, no price). Plus a "your part" checklist and a Help entry.
 - New daily job `.github/workflows/stocks.yml` + `scripts/fetch_stocks.py` publishing `stocks.json` to the `stocks-data` branch.

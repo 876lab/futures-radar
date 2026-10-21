@@ -1,27 +1,6 @@
 [
-  {"date": "2026-10-21", "title": "Picks: stocks great investors would like", "items": [
-    "New Picks tab: stocks scored on six habits shared by investors like Buffett, Lynch and Graham.",
-    "Stocks you can trade as futures get all six checks, including a fair-price check using the live price.",
-    "S&P 500 companies are scored on five checks (no price yet). Tap any stock to see why it scored what it did.",
-    "Company numbers come from SEC filings. The download is still being set up, so the lists fill in once it works. A starting point for research, not a buy signal."
-  ]},
-  {"date": "2026-10-20", "title": "Max-loss guard", "items": [
-    "New in Settings: Max loss per trade (USDT). A good start is about twice your average losing trade.",
-    "Size this trade now warns in red when a plan would lose more than that at the stop.",
-    "It also shows the smaller size and leverage that keep the loss within your limit.",
-    "Signals and stop/target levels have not changed."
-  ]},
-  {"date": "2026-10-19", "title": "Nightly improvements switched on", "items": [
-    "Claude now works on the app each night between 1am and 4am and lists what changed here.",
-    "Every update has to pass automatic tests before it goes live.",
-    "A dot on the ? button means there's something new."
-  ]},
-  {"date": "2026-10-17", "title": "News, bottom bar and a cleaner layout", "items": [
-    "News page with headlines, Fear & Greed and upcoming economic events.",
-    "Bottom tab bar, compact rows and a 24-hour mini chart on every row.",
-    "Light/dark switch in Settings; swipe back from a chart."
-  ]},
-  {"date": "2026-10-17", "title": "Simulator", "items": [
-    "Test the app's signals on the last 1,000 candles, including a top-25 stress test."
-  ]}
+  {"date": "2026-10-20", "title": "Max-loss guard", "items": ["New in Settings: Max loss per trade (USDT). A good start is about twice your average losing trade.", "Size this trade now warns in red when a plan would lose more than that at the stop.", "It also shows the smaller size and leverage that keep the loss within your limit.", "Signals and stop/target levels have not changed."]},
+  {"date": "2026-10-19", "title": "Nightly improvements switched on", "items": ["Claude now works on the app each night between 1am and 4am and lists what changed here.", "Every update has to pass automatic tests before it goes live.", "A dot on the ? button means there's something new."]},
+  {"date": "2026-10-17", "title": "News, bottom bar and a cleaner layout", "items": ["News page with headlines, Fear & Greed and upcoming economic events.", "Bottom tab bar, compact rows and a 24-hour mini chart on every row.", "Light/dark switch in Settings; swipe back from a chart."]},
+  {"date": "2026-10-17", "title": "Simulator", "items": ["Test the app's signals on the last 1,000 candles, including a top-25 stress test."]}
 ]

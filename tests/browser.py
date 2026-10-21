@@ -65,9 +65,6 @@ async def main():
             await pg.click('[data-nav="markets"]'); await pg.wait_for_timeout(500)
             if await pg.is_visible("#settings"): problems.append(f"[{scheme}] settings page did not close")
             await pg.click(".row"); await pg.wait_for_timeout(1500)
-            on_top = await pg.evaluate("""() => { const b = document.querySelector('[data-nav="news"]').getBoundingClientRect();
-                const el = document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2); return !!(el && el.closest('#nav')) }""")
-            if not on_top: problems.append(f"[{scheme}] bottom bar hidden on the chart screen")
             sig = await pg.inner_text("#sigCard")
             if not sig.strip(): problems.append(f"[{scheme}] chart screen: signal card empty")
             if "Big US news" not in sig: problems.append(f"[{scheme}] chart screen: big-news warning missing")
@@ -75,10 +72,6 @@ async def main():
                 await pg.screenshot(path=os.path.join(OUT, "chart.png"))
                 await pg.go_back(); await pg.wait_for_timeout(600)   # phone back gesture closes the chart screen
                 if await pg.is_visible("#detail .d-head"): problems.append("back did not close the chart screen")
-                await pg.click(".row"); await pg.wait_for_timeout(800)
-                await pg.click('[data-nav="news"]'); await pg.wait_for_timeout(900)   # bottom bar works from a chart
-                if await pg.is_visible("#detail .d-head"): problems.append("bottom bar tap did not close the chart screen")
-                if "fear" not in (await pg.inner_text("#listArea")).lower(): problems.append("bottom bar tap from a chart did not open News")
                 await pg.click('[data-nav="sim"]'); await pg.wait_for_timeout(400)
                 await pg.click("#simRun")
                 await pg.wait_for_selector("#simRes", timeout=30000)

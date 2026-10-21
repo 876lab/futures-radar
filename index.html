@@ -366,8 +366,6 @@ button{cursor:pointer}
   .nav button svg{width:21px;height:21px}
   .nav button[aria-current="page"]{color:var(--accent);font-weight:600}
   .wrap{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
-  .nav{z-index:35}
-  body.d-open .detail{bottom:var(--navh,64px);padding-bottom:28px}
 }
 .stick{position:sticky;top:calc(var(--hdr) + env(safe-area-inset-top,0px));z-index:6;background:var(--bg);display:flex;flex-direction:column;gap:8px;padding-block:8px;margin-block:-8px}
 .bar2{justify-content:space-between}
@@ -599,7 +597,7 @@ button.ncoin:hover{border-color:var(--accent)}
     <p>Each row is one market. When the same coin trades on several exchanges, it appears once. Its price and 24-hour change come from the exchange with the most trading, and volume adds up all of them.</p>
     <h3>Getting around</h3>
     <dl>
-      <dt>Bottom bar</dt><dd>Markets, Setups, Simulator, News, Starred and Settings. It stays on screen, even on a chart; tap any button to jump there. On a computer the same buttons sit above the list.</dd>
+      <dt>Bottom bar</dt><dd>Markets, Setups, Simulator, News, Starred and Settings. On a computer the same buttons sit above the list.</dd>
       <dt>Compact</dt><dd>Shows one line per market so more fit on screen.</dd>
       <dt>Swipes on a chart</dt><dd>Swipe in from the left edge, or use your phone's back gesture, to return to the list. Swipe left or right on the signal card to change candle size.</dd>
       <dt>Small line on each row</dt><dd>The price over the last 24 hours, green if it ended higher.</dd>
@@ -2080,7 +2078,6 @@ $('#venues').addEventListener('click',e=>{const b=e.target.closest('[data-view]'
   if(state.selected&&state.gByKey.has(state.selected))openGroup(state.selected,true);else if(matchMedia('(min-width:980px)').matches){const v=listTargets();if(v.length)openGroup(v[0].key,true)}
   scan(SETUP_POOL)});
 $('#nav').addEventListener('click',e=>{const b=e.target.closest('[data-nav]');if(!b)return;if(document.body.classList.contains('d-open'))closeDetail();goPage(b.dataset.nav)});
-const navEl=$('#nav'),setNavH=()=>document.documentElement.style.setProperty('--navh',navEl.offsetHeight+'px');setNavH();try{new ResizeObserver(setNavH).observe(navEl)}catch(e){}
 $('#tabs').addEventListener('click',e=>{const b=e.target.closest('[data-cat]');if(!b)return;state.cat=b.dataset.cat;state.mcat=state.cat;LS.set('mcat',state.mcat);LS.set('cat3',state.cat);state.limit=120;seenBump(state.cat);renderNav();renderTabs();renderList(true);scan(state.cat==='setups'?SETUP_POOL:30)});
 $('#sort').addEventListener('change',e=>{state.sort=e.target.value;LS.set('sort',state.sort);renderList();if(/^trend/.test(state.sort))scan(40)});
 let qT;$('#q').addEventListener('input',e=>{clearTimeout(qT);qT=setTimeout(()=>{state.q=e.target.value.trim().toUpperCase();state.limit=120;renderTabs();renderList(state.cat==='news')},120)});

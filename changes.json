@@ -1,6 +1,5 @@
 [
-  {"date": "2026-10-21", "title": "Bottom bar everywhere, new Settings page", "items": [
-    "The bottom bar now stays on screen, even on a chart. Tap any button to jump straight there.",
+  {"date": "2026-10-21", "title": "New Settings page", "items": [
     "Settings has its own button on the bar, with your theme, row style, candle size, account size, risk %, max loss and the big news warning in one place.",
     "Changes save as you type, on this device only.",
     "Signals and stop/target levels have not changed."

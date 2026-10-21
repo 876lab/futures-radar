@@ -2,6 +2,9 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-10-21 (owner request: undo always-visible bottom bar)
+- The chart screen covers the bottom bar again on phones, as before. The Settings page and its bar button stay.
+
 ## 2026-10-21 (owner request: bottom bar and Settings)
 - The bottom bar now stays on screen everywhere on a phone, including the chart screen (it sits above the chart; the chart screen stops at the bar). Tapping a bar button from a chart closes the chart and opens that page.
 - **Settings** is now a full page and the sixth button on the bottom bar (the top-right sliders button opens the same page). Sections: **Look** (theme; roomy/compact rows), **Trading** (candle size for signals and Setups; account size and risk % used by Size this trade; max loss per trade), **Warnings** (big news warning on/off, on by default), **Data** (feed status; relay address with its own save-and-reload button), **App health**, **Help**. Changes save on the device as you type; only the relay reloads prices.

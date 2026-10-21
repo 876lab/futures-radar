@@ -475,7 +475,7 @@ button.ncoin:hover{border-color:var(--accent)}
           </label>
         </div>
       </div>
-      <div id="listArea"><div class="list"><div class="empty">Loading markets from Binance, Gate and Coinbase…</div></div></div>
+      <div id="listArea"><div class="list"><div class="empty">Loading markets from Binance, Gate and Bybit…</div></div></div>
       <p class="footnote" id="footnote"></p>
     </section>
 
@@ -576,7 +576,7 @@ button.ncoin:hover{border-color:var(--accent)}
     <p>Only needed if an exchange refuses requests from your browser. Put {url} where the exchange address goes; without it the address is added to the end.</p>
     <h3>Data feeds</h3>
     <div style="overflow-x:auto"><table class="feedtbl" id="feedTable"></table></div>
-    <p>Market lists come from each exchange's public REST API. Prices and the open chart then stream live over each exchange's WebSocket feed: Binance USDⓈ-M futures, Gate USDT perpetuals, and Coinbase futures. Starred markets and sizing inputs stay on this device.</p>
+    <p>Market lists come from each exchange's public REST API. Prices and the open chart then stream live over each exchange's WebSocket feed: Binance USDⓈ-M futures, Gate USDT perpetuals, and Bybit USDT perpetuals and futures. Starred markets and sizing inputs stay on this device.</p>
     <div class="acts">
       <button type="button" class="btn" data-close="settings">Cancel</button>
       <button type="submit" class="btn primary">Save and reload</button>
@@ -594,7 +594,7 @@ const DAY=864e5,NOW=()=>Date.now();
 const LS={get(k,d){try{const v=localStorage.getItem('fradar:'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem('fradar:'+k,JSON.stringify(v))}catch(e){}}};
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 
-const EX={binance:{name:'Binance'},gate:{name:'Gate'},coinbase:{name:'Coinbase'}};
+const EX={binance:{name:'Binance'},gate:{name:'Gate'},bybit:{name:'Bybit'}};
 const EXK=Object.keys(EX);
 const CATS=[['hot','Hot'],['all','All'],['new','New'],['crypto','Crypto'],['meme','Meme'],['ai','AI'],['stocks','Stocks'],['tradfi','TradFi'],['dated','Expiring']];
 const MKT_CATS=CATS.map(c=>c[0]),PAGES=['setups','sim','news','watch'];
@@ -629,7 +629,7 @@ const NAMES={BTC:'Bitcoin',ETH:'Ethereum',SOL:'Solana',XRP:'XRP',BNB:'BNB',DOGE:
   EUR:'Euro',GBP:'British pound',JPY:'Japanese yen'};
 
 const state={
-  pairs:[],groups:[],gByKey:new Map(),byId:new Map(),mode:'loading',status:{binance:'load',gate:'load',coinbase:'load'},errors:{},updated:0,
+  pairs:[],groups:[],gByKey:new Map(),byId:new Map(),mode:'loading',status:{binance:'load',gate:'load',bybit:'load'},errors:{},updated:0,
   view:LS.get('view','all'),cat:LS.get('cat3','setups'),sort:LS.get('sort','vol'),q:'',
   watch:new Set(LS.get('watch2',[])),tf:LS.get('tf2','15m'),selected:null,selContract:null,trend:new Map(),scanning:null,
   proxy:LS.get('proxy',''),ind:LS.get('ind3',{ema:false,bb:true,st:true,vol:true,marks:true}),limit:120,loading:false,
@@ -666,7 +666,8 @@ function plural(n,w){return n+' '+w+(n===1?'':'s')}
 
 /* ---------- classification ---------- */
 const MULT={'1000000':1e6,'100000':1e5,'10000':1e4,'1000':1e3,'1M':1e6,'1K':1e3};
-function baseInfo(b){b=String(b||'').toUpperCase();const m=b.match(/^(1000000|100000|10000|1000|1M|1K)([A-Z].*)$/);return m?{root:m[2],mult:MULT[m[1]]}:{root:b,mult:1}}
+function baseInfo(b){b=String(b||'').toUpperCase();const m=b.match(/^(1000000|100000|10000|1000|1M|1K)([A-Z].*)$/);if(m)return {root:m[2],mult:MULT[m[1]]};
+  const s=b.match(/^([A-Z]{2,})(1000|10000)$/);return s?{root:s[1],mult:MULT[s[2]]}:{root:b,mult:1}}
 function stockRoot(b){if(STOCKS.has(b))return b;for(const s of ['X','ON','STOCK']){if(b.endsWith(s)&&b.length>s.length&&STOCKS.has(b.slice(0,-s.length)))return b.slice(0,-s.length)}return null}
 function canonical(root){return ALIAS[root]||stockRoot(root)||root}
 function classify(b,h){
@@ -725,27 +726,28 @@ async function loadGate(){
   }
   return out;
 }
-const CB_ROOTS=[[/\bGOLD\b/,'XAU'],[/SILVER/,'XAG'],[/PLATINUM/,'XPT'],[/PALLADIUM/,'XPD'],[/COPPER/,'COPPER'],[/NATURAL GAS|NAT GAS/,'NATGAS'],[/BRENT/,'BRENT'],[/CRUDE|\bOIL\b|\bWTI\b/,'WTI']];
-async function loadCoinbase(){
-  const C='https://api.coinbase.com/api/v3/brokerage/market/products';
-  const res=await Promise.allSettled([getJSON(C+'?product_type=FUTURE&limit=1000'),getJSON(C+'?product_type=FUTURE&contract_expiry_type=PERPETUAL&limit=1000')]);
-  const ok=res.filter(r=>r.status==='fulfilled');if(!ok.length)throw res[0].reason;
-  const seen=new Map();ok.forEach(r=>((r.value&&r.value.products)||[]).forEach(p=>seen.set(p.product_id,p)));
-  const out=[];
-  for(const p of seen.values()){
-    if(p.trading_disabled||p.is_disabled||(p.status&&!/online/i.test(p.status)))continue;
-    const d=p.future_product_details||{},pd=d.perpetual_details||{};
-    const exp=d.contract_expiry?Date.parse(d.contract_expiry):null;if(exp&&exp<NOW())continue;
-    const perp=d.contract_expiry_type==='PERPETUAL'||(exp&&exp-NOW()>2*365*DAY);
-    const text=[d.group_description,d.contract_root_unit,d.contract_display_name,p.display_name,p.base_display_symbol].join(' ').toUpperCase();
-    const hit=CB_ROOTS.find(([re])=>re.test(text));
-    const base=d.contract_root_unit||p.base_display_symbol||String(p.product_id).split('-')[0];
-    const price=+p.price||+pd.mark_price||0;if(!price)continue;
-    const fr=pd.funding_rate!=null&&pd.funding_rate!==''?pd.funding_rate:d.funding_rate;
-    out.push(mk({ex:'coinbase',sym:p.product_id,base,root:hit?hit[1]:undefined,quote:p.quote_display_symbol||'USD',alias:(d.group_description||'')+' '+(p.display_name||''),
-      price,chg:+p.price_percentage_change_24h||0,vol:+p.approximate_quote_24h_volume||0,funding:fr!=null&&fr!==''?+fr:null,listed:null,isNew:!!p.new,
-      kind:perp?'perp':'dated',expiry:perp?null:exp,venue:d.venue||p.product_venue||'',
-      hint:{tradfi:!!hit||/S&P|NASDAQ|DOW JONES|RUSSELL|TREASUR|CORN|WHEAT|SOYBEAN|EURO FX|\bYEN\b/.test(text),stock:/EQUITY|\bSTOCK|SHARES/.test(text)}}));
+// Bybit V5 public market API (https://bybit-exchange.github.io/docs/v5/intro). USDT-settled perpetuals and futures.
+const BY='https://api.bybit.com/v5/market';
+async function bybitInstruments(){
+  const list=[];let cursor='';
+  for(let k=0;k<5;k++){
+    const r=await getJSON(BY+'/instruments-info?category=linear&limit=1000'+(cursor?'&cursor='+encodeURIComponent(cursor):''));
+    if(!r||r.retCode)throw new Error((r&&r.retMsg)||'No data');
+    list.push(...((r.result&&r.result.list)||[]));cursor=r.result&&r.result.nextPageCursor;if(!cursor)break;
+  }
+  return list;
+}
+async function loadBybit(){
+  const [ticks,instruments]=await Promise.all([getJSON(BY+'/tickers?category=linear'),bybitInstruments()]);
+  if(!ticks||ticks.retCode)throw new Error((ticks&&ticks.retMsg)||'No data');
+  const tm=new Map(((ticks.result&&ticks.result.list)||[]).map(t=>[t.symbol,t]));const out=[];
+  for(const c of instruments){
+    if(c.status!=='Trading'||c.settleCoin!=='USDT')continue;const t=tm.get(c.symbol);if(!t)continue;
+    const dated=/Futures/i.test(c.contractType||'')&&+c.deliveryTime>0,price=+t.lastPrice;if(!(price>0))continue;
+    const tags=[c.symbolType].concat(c.tags||[],c.displayName,c.fullName).join(' ').toUpperCase();
+    out.push(mk({ex:'bybit',sym:c.symbol,base:c.baseCoin,quote:c.quoteCoin,price,chg:+t.price24hPcnt*100,vol:+t.turnover24h||0,
+      funding:!dated&&t.fundingRate!=null&&t.fundingRate!==''?+t.fundingRate:null,listed:+c.launchTime||null,kind:dated?'dated':'perp',expiry:dated?+c.deliveryTime:null,
+      hint:{stock:/XSTOCK|\bSTOCK|EQUITY/.test(tags),tradfi:/TRADFI|COMMODIT|METAL|FOREX/.test(tags)}}));
   }
   return out;
 }
@@ -768,7 +770,7 @@ function openWS(name,url,o){
   return{close(){closed=true;clearTimeout(timer);clearInterval(pingT);try{ws&&ws.close()}catch(e){}},
     send(m){if(ws&&ws.readyState===1)ws.send(typeof m==='string'?m:JSON.stringify(m))},get ready(){return !!ws&&ws.readyState===1}};
 }
-const feeds={},dirty=new Set(),gateSubs=new Set();
+const feeds={},dirty=new Set(),gateSubs=new Set(),bybitSubs=new Set();
 function tick(id,price,chg,vol){
   const p=state.byId.get(id);if(!p||!(price>0))return;
   p.price=price;p.unitPrice=price/(p.mult||1);if(isFinite(chg))p.chg=chg;if(vol!=null&&isFinite(vol)&&vol>0)p.vol=vol;
@@ -780,6 +782,14 @@ function subscribeGate(){
   const names=state.pairs.filter(p=>p.ex==='gate'&&!gateSubs.has(p.sym)).map(p=>p.sym);
   for(let i=0;i<names.length;i+=100){f.send({time:sec(),channel:'futures.tickers',event:'subscribe',payload:names.slice(i,i+100)})}
   names.forEach(n=>gateSubs.add(n));
+}
+function subscribeBybit(){
+  const f=feeds.bybit;if(!f||!f.ready)return;
+  // Bybit pushes up to 10 updates a second per market, so stream the 80 busiest plus starred ones; the rest refresh every minute.
+  const mine=state.pairs.filter(p=>p.ex==='bybit'),busy=new Set(mine.slice().sort((a,b)=>(b.vol||0)-(a.vol||0)).slice(0,80).map(p=>p.sym));
+  const names=mine.filter(p=>(busy.has(p.sym)||state.watch.has(p.key))&&!bybitSubs.has(p.sym)).map(p=>p.sym);
+  for(let i=0;i<names.length;i+=100)f.send({op:'subscribe',args:names.slice(i,i+100).map(n=>'tickers.'+n)});
+  names.forEach(n=>bybitSubs.add(n));
 }
 function startFeeds(){
   if(state.mode!=='live'||typeof WebSocket==='undefined')return;
@@ -796,11 +806,16 @@ function startFeeds(){
       ping:ws=>ws.send(JSON.stringify({time:sec(),channel:'futures.ping'}))});
     else subscribeGate();
   }
-  if(state.status.coinbase==='ok'&&!feeds.coinbase)feeds.coinbase=openWS('coinbase','wss://advanced-trade-ws.coinbase.com',{
-    onopen:ws=>{const ids=state.pairs.filter(p=>p.ex==='coinbase'&&!/INTX$/.test(p.sym)).map(p=>p.sym);
-      ws.send(JSON.stringify({type:'subscribe',channel:'heartbeats'}));
-      for(let i=0;i<ids.length;i+=50)ws.send(JSON.stringify({type:'subscribe',channel:'ticker_batch',product_ids:ids.slice(i,i+50)}))},
-    onmsg:d=>{if((d.channel==='ticker_batch'||d.channel==='ticker')&&Array.isArray(d.events))d.events.forEach(ev=>(ev.tickers||[]).forEach(t=>tick('coinbase:'+t.product_id,+t.price,+t.price_percent_chg_24_h,null)))}});
+  if(state.status.bybit==='ok'){
+    if(!feeds.bybit)feeds.bybit=openWS('bybit','wss://stream.bybit.com/v5/public/linear',{
+      onopen:()=>{bybitSubs.clear();subscribeBybit()},
+      onmsg:d=>{const t=d&&d.data;if(!t||typeof d.topic!=='string'||d.topic.indexOf('tickers.')!==0)return;
+        const p=state.byId.get('bybit:'+t.symbol);if(!p)return;
+        if(t.fundingRate!=null&&t.fundingRate!==''&&p.kind==='perp')p.funding=+t.fundingRate;
+        tick(p.id,t.lastPrice!=null?+t.lastPrice:p.price,t.price24hPcnt!=null?+t.price24hPcnt*100:NaN,t.turnover24h!=null?+t.turnover24h:null)},
+      ping:ws=>ws.send(JSON.stringify({op:'ping'}))});
+    else subscribeBybit();
+  }
 }
 let chartFeed=null;
 function stopChartFeed(){if(chartFeed){chartFeed.close();chartFeed=null}}
@@ -819,6 +834,13 @@ function startChartFeed(p,tf){
         d.result.forEach(k=>{if(k.n&&k.n!==tf+'_'+p.sym)return;const c=+k.c;
           liveCandle(p,tf,{time:+k.t,open:+k.o/m,high:+k.h/m,low:+k.l/m,close:c/m,volume:k.a!=null?+k.a*c:null})})},
       ping:ws=>ws.send(JSON.stringify({time:sec(),channel:'futures.ping'}))});
+  }else if(p.ex==='bybit'){
+    current.feedKind='kline';
+    chartFeed=openWS('chart','wss://stream.bybit.com/v5/public/linear',{
+      onopen:ws=>ws.send(JSON.stringify({op:'subscribe',args:[`kline.${BY_INT[tf]}.${p.sym}`]})),
+      onmsg:d=>{if(d.topic!==`kline.${BY_INT[tf]}.${p.sym}`||!Array.isArray(d.data))return;
+        d.data.forEach(k=>liveCandle(p,tf,{time:Math.floor(+k.start/1000),open:+k.open/m,high:+k.high/m,low:+k.low/m,close:+k.close/m,volume:+k.turnover||+k.volume||0}))},
+      ping:ws=>ws.send(JSON.stringify({op:'ping'}))});
   }else current.feedKind='tick';
 }
 function liveCandle(p,tf,k){
@@ -837,7 +859,7 @@ function liveCandle(p,tf,k){
 }
 function liveTickChart(price){
   if(!current||!charts)return;const p=current.p;
-  const s=p.ex==='coinbase'?CB_GRAN[state.tf][1]:TFS[state.tf];
+  const s=TFS[state.tf];
   const b=Math.floor(NOW()/1000/s)*s,last=current.cs[current.cs.length-1];if(!last)return;
   if(b>last.time)liveCandle(p,state.tf,{time:b,open:last.close,high:Math.max(last.close,price),low:Math.min(last.close,price),close:price,volume:0});
   else if(b===last.time)liveCandle(p,state.tf,{time:last.time,open:last.open,high:Math.max(last.high,price),low:Math.min(last.low,price),close:price,volume:last.volume});
@@ -881,7 +903,7 @@ function renderFeedTable(){
 
 /* ---------- candles (scaled to one unit of the asset) ---------- */
 const candleCache=new Map();
-const CB_GRAN={'5m':['FIVE_MINUTE',300],'15m':['FIFTEEN_MINUTE',900],'1h':['ONE_HOUR',3600],'4h':['SIX_HOUR',21600],'1d':['ONE_DAY',86400]};
+const BY_INT={'5m':'5','15m':'15','1h':'60','4h':'240','1d':'D'};
 async function fetchCandles(p,tf,n){
   let data;
   if(p.demo)data=demoCandles(p,tf,n);
@@ -892,13 +914,9 @@ async function fetchCandles(p,tf,n){
     const r=await getJSON(`https://api.gateio.ws/api/v4/futures/usdt/candlesticks?contract=${encodeURIComponent(p.sym)}&interval=${tf}&limit=${Math.min(n,2000)}`,20000);
     data=r.map(k=>({time:+k.t,open:+k.o,high:+k.h,low:+k.l,close:+k.c,volume:+k.sum||+k.v||0}));
   }else{
-    const [g,sec]=CB_GRAN[tf];let end=Math.floor(NOW()/1000);data=[];
-    for(let page=0;page<Math.ceil(n/350);page++){
-      const start=end-349*sec;
-      const r=await getJSON(`https://api.coinbase.com/api/v3/brokerage/market/products/${encodeURIComponent(p.sym)}/candles?start=${start}&end=${end}&granularity=${g}&limit=350`,20000);
-      const got=((r&&r.candles)||[]).map(k=>({time:+k.start,open:+k.open,high:+k.high,low:+k.low,close:+k.close,volume:+k.volume||0}));
-      if(!got.length)break;data=data.concat(got);end=start-sec;
-    }
+    const r=await getJSON(`${BY}/kline?category=linear&symbol=${encodeURIComponent(p.sym)}&interval=${BY_INT[tf]}&limit=${Math.min(n,1000)}`,20000);
+    if(!r||r.retCode)throw new Error((r&&r.retMsg)||'No candles');
+    data=((r.result&&r.result.list)||[]).map(k=>({time:Math.floor(+k[0]/1000),open:+k[1],high:+k[2],low:+k[3],close:+k[4],volume:+k[6]||+k[5]||0}));
   }
   const m=p.mult||1;
   data=data.filter(k=>isFinite(k.close)&&k.close>0).map(k=>m===1?k:{time:k.time,open:k.open/m,high:k.high/m,low:k.low/m,close:k.close/m,volume:k.volume}).sort((a,b)=>a.time-b.time);
@@ -965,18 +983,17 @@ function demoPairs(){
    ['gate','NVDAX_USDT','NVDAX','USDT',141.25,38e6,0.00004,'perp',12,-0.0005,0.006,{}],
    ['gate','XAU_USDT','XAU','USDT',2683.9,88e6,0.00003,'perp',45,0.0003,0.002,{}],
    ['gate','KAITO_USDT','KAITO','USDT',1.742,61e6,0.0006,'perp',9,-0.004,0.02,{}],
-   ['coinbase','BTC-PERP-INTX','BTC','USDC',97262,2.6e9,0.00001,'perp',600,0.0007,0.0045,{}],
-   ['coinbase','ETH-PERP-INTX','ETH','USDC',3621,1.1e9,0.00001,'perp',600,0.0009,0.006,{}],
-   ['coinbase','SOL-PERP-INTX','SOL','USDC',184.7,420e6,0.00001,'perp',500,-0.0006,0.008,{}],
-   ['coinbase','DOGE-PERP-INTX','DOGE','USDC',0.2186,160e6,0.00001,'perp',500,0.0011,0.011,{}],
-   ['coinbase','GOL-26DEC26-CDE','GOLD','USD',2702.1,96e6,null,'dated',200,0.0003,0.002,{root:'XAU',tradfi:1,exp:U(2026,11,26)}],
-   ['coinbase','OIL-17NOV26-CDE','OIL','USD',71.84,54e6,null,'dated',200,-0.0016,0.006,{root:'WTI',tradfi:1,exp:U(2026,10,17)}],
-   ['coinbase','BIT-30OCT26-CDE','BTC','USD',97540,310e6,null,'dated',100,0.0007,0.0045,{exp:U(2026,9,30)}]
+   ['bybit','BTCUSDT','BTC','USDT',97251,3.4e9,0.0001,'perp',2000,0.0007,0.0045,{}],
+   ['bybit','ETHUSDT','ETH','USDT',3620,1.6e9,0.0001,'perp',2000,0.0009,0.006,{}],
+   ['bybit','SOLUSDT','SOL','USDT',184.6,700e6,0.0001,'perp',1200,-0.0006,0.008,{}],
+   ['bybit','DOGEUSDT','DOGE','USDT',0.2185,260e6,0.00012,'perp',1200,0.0011,0.011,{}],
+   ['bybit','XRPUSDT','XRP','USDT',2.412,330e6,0.0001,'perp',1500,0.0008,0.009,{}],
+   ['bybit','BTCUSDT-26DEC26','BTC','USDT',97980,120e6,null,'dated',90,0.0007,0.0045,{exp:U(2026,11,26)}]
   ];
   return D.map(a=>{
     const [ex,sym,base,quote,price,vol,fund,kind,ageDays,drift,dvol,x]=a;
-    const p=mk({ex,sym,base,root:x.root,quote,price,vol,funding:fund,kind,listed:ex==='coinbase'?null:NOW()-ageDays*DAY,isNew:ex==='coinbase'&&ageDays<30,expiry:x.exp||null,
-      venue:ex==='coinbase'?(kind==='perp'?'INTX':'CDE'):'',hint:{meme:!!x.meme,ai:!!x.ai,stock:!!x.stock,tradfi:!!x.tradfi},chg:0});
+    const p=mk({ex,sym,base,root:x.root,quote,price,vol,funding:fund,kind,listed:NOW()-ageDays*DAY,expiry:x.exp||null,
+      venue:'',hint:{meme:!!x.meme,ai:!!x.ai,stock:!!x.stock,tradfi:!!x.tradfi},chg:0});
     p.demo=true;p.drift=drift;p.dvol=dvol;
     const cs=demoCandles(p,'1h');p.chg=(cs[cs.length-1].close/cs[cs.length-25].close-1)*100;
     return p;
@@ -1017,7 +1034,7 @@ async function loadAll(manual,quiet){
   if(state.loading)return;state.loading=true;$('#refresh').classList.add('spin');
   if(state.mode!=='live')EXK.forEach(k=>state.status[k]='load');
   if(!quiet)renderStatus();
-  const L={binance:loadBinance,gate:loadGate,coinbase:loadCoinbase};
+  const L={binance:loadBinance,gate:loadGate,bybit:loadBybit};
   const res=await Promise.allSettled(EXK.map(k=>L[k]()));
   let pairs=[];const errs={};
   res.forEach((r,i)=>{const k=EXK[i];if(r.status==='fulfilled'&&r.value.length){state.status[k]='ok';pairs=pairs.concat(r.value)}
@@ -1101,7 +1118,7 @@ function renderStatus(){
   const b=$('#banner');
   if(state.mode==='demo'){
     b.hidden=false;
-    b.innerHTML=`<p><strong>Sample data, not live prices.</strong> This preview isn't allowed to connect to Binance, Gate or Coinbase, so the markets, prices and signals here are made up. Open the app from its own web address and it streams live prices from all three exchanges.</p><button class="btn primary" id="retry">Try live data again</button><button class="x" id="bannerX" aria-label="Hide this message">×</button>`;
+    b.innerHTML=`<p><strong>Sample data, not live prices.</strong> This preview isn't allowed to connect to Binance, Gate or Bybit, so the markets, prices and signals here are made up. Open the app from its own web address and it streams live prices from all three exchanges.</p><button class="btn primary" id="retry">Try live data again</button><button class="x" id="bannerX" aria-label="Hide this message">×</button>`;
     if(state.bannerHidden)b.hidden=true;
   }else if(state.mode==='live'&&Object.keys(state.errors).length){
     b.hidden=false;const names=Object.keys(state.errors).map(k=>EX[k].name).join(' and ');
@@ -1392,7 +1409,7 @@ const NEWS_URL=(()=>{const m=location.hostname.match(/^([^.]+)\.github\.io$/i),r
   return `https://raw.githubusercontent.com/${m?m[1]:'876lab'}/${m&&repo?repo:'futures-radar'}/news-data/news.json`})();
 const news={data:null,at:0,err:null,loading:false,topic:LS.get('ntopic','all')};
 const NTOPICS=[['all','All'],['crypto','Crypto'],['macro','Markets & macro'],['reg','Regulation'],['ex','Exchanges & listings'],['risk','Hacks & liquidations']];
-const X_ACCTS=[['CoinDesk','CoinDesk'],['Cointelegraph','Cointelegraph'],['TheBlock__','The Block'],['WuBlockchain','Wu Blockchain'],['federalreserve','Federal Reserve'],['SECGov','SEC'],['binance','Binance'],['coinbase','Coinbase']];
+const X_ACCTS=[['CoinDesk','CoinDesk'],['Cointelegraph','Cointelegraph'],['TheBlock__','The Block'],['WuBlockchain','Wu Blockchain'],['federalreserve','Federal Reserve'],['SECGov','SEC'],['binance','Binance'],['Bybit_Official','Bybit']];
 async function loadNews(force){
   if(news.loading)return;if(!force&&news.data&&NOW()-news.at<4*60000)return;
   news.loading=true;
@@ -1406,7 +1423,7 @@ function newsMatch(it,tp){
   if(tp==='crypto')return it.k==='crypto';
   if(tp==='macro')return it.k==='markets'||it.g.includes('Macro')||it.s==='Federal Reserve';
   if(tp==='reg')return it.g.includes('Regulation')||it.s==='SEC'||it.s==='CFTC';
-  if(tp==='ex')return it.g.includes('Listing')||/\b(binance|coinbase|gate\.io|exchange)\b/i.test(it.t);
+  if(tp==='ex')return it.g.includes('Listing')||/\b(binance|bybit|coinbase|gate\.io|exchange)\b/i.test(it.t);
   if(tp==='risk')return it.g.includes('Hack')||it.g.includes('Liquidations');
   return true;
 }
@@ -1479,7 +1496,7 @@ function renderChanges(){
 
 /* ---------- simulator: replay the signals on past candles ---------- */
 const SIM_N=1000,SIM_WARM=210;
-function barSec(p,tf){return p.ex==='coinbase'?CB_GRAN[tf][1]:TFS[tf]}
+function barSec(p,tf){return TFS[tf]}
 // one trade from a signal on candle i: enter at the next candle's open, then walk forward
 function simTrade(cs,i,rc,o){
   const n=cs.length,d=rc.dir,R=rc.levels&&rc.levels.R;if(i+1>=n||!(R>0))return null;
@@ -1826,7 +1843,7 @@ function refreshDetailHead(){
     const third=p.kind==='dated'&&p.expiry?['Expires',dateStr(p.expiry)]:p.listed?['Listed',ago(p.listed)]:['Exchange',EX[p.ex].name];
     box.innerHTML=`<dl class="stats">${[['24h volume',fmtVol(p.vol)],['Funding',p.funding!=null?fmtFund(p.funding):'—'],third].map(([a,b])=>`<div><dt>${a}</dt><dd title="${esc(b)}">${esc(b)}</dd></div>`).join('')}</dl>`;
   }
-  $('#chartSrc').innerHTML=`${EX[p.ex].name} ${p.kind==='dated'?'expiring':'perpetual'}${p.ex==='coinbase'&&state.tf==='4h'?' · 6H candles':''}${state.simShow&&state.simShow.id===p.id&&state.simShow.tf===state.tf?` · <b style="color:var(--accent)">${state.simShow.trades.length} simulated trades</b>`:''}<span id="liveTag" hidden> · <i class="dot stream" style="vertical-align:middle"></i> live candles</span>`;
+  $('#chartSrc').innerHTML=`${EX[p.ex].name} ${p.kind==='dated'?'expiring':'perpetual'}${state.simShow&&state.simShow.id===p.id&&state.simShow.tf===state.tf?` · <b style="color:var(--accent)">${state.simShow.trades.length} simulated trades</b>`:''}<span id="liveTag" hidden> · <i class="dot stream" style="vertical-align:middle"></i> live candles</span>`;
   document.querySelectorAll('.row').forEach(r=>r.classList.toggle('sel-on',r.dataset.key===state.selected));
   renderMktNews();
 }

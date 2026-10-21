@@ -1,4 +1,9 @@
 [
+  {"date": "2026-10-21", "title": "Bybit replaces Coinbase", "items": [
+    "Markets, prices and charts now come from Binance, Gate and Bybit.",
+    "Bybit's busiest markets and your starred ones update live every second.",
+    "4H charts on Bybit use real 4-hour candles."
+  ]},
   {"date": "2026-10-20", "title": "Max-loss guard", "items": ["New in Settings: Max loss per trade (USDT). A good start is about twice your average losing trade.", "Size this trade now warns in red when a plan would lose more than that at the stop.", "It also shows the smaller size and leverage that keep the loss within your limit.", "Signals and stop/target levels have not changed."]},
   {"date": "2026-10-19", "title": "Nightly improvements switched on", "items": ["Claude now works on the app each night between 1am and 4am and lists what changed here.", "Every update has to pass automatic tests before it goes live.", "A dot on the ? button means there's something new."]},
   {"date": "2026-10-17", "title": "News, bottom bar and a cleaner layout", "items": ["News page with headlines, Fear & Greed and upcoming economic events.", "Bottom tab bar, compact rows and a 24-hour mini chart on every row.", "Light/dark switch in Settings; swipe back from a chart."]},

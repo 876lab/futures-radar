@@ -1,6 +1,6 @@
 # Futures Radar
 
-A futures screener for Binance, Gate and Coinbase. It merges markets across exchanges, has Hot and Setups tabs, and gives enter / hold / avoid signals with entry, stop and targets. Charts are Gate-style, using Bollinger bands, Supertrend, RSI 6/12/24 and MACD.
+A futures screener for Binance, Gate and Bybit. It merges markets across exchanges, has Hot and Setups tabs, and gives enter / hold / avoid signals with entry, stop and targets. Charts are Gate-style, using Bollinger bands, Supertrend, RSI 6/12/24 and MACD.
 
 Open the app: https://876lab.github.io/futures-radar/
 

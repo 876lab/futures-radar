@@ -13,7 +13,7 @@ The working plan for nightly improvement runs. Each run picks the **first unchec
 ## How the app is built
 
 - One file: `index.html` (HTML, CSS, JS inline). Libraries: TradingView Lightweight Charts 4.2.0 from jsDelivr; Inter font from Google Fonts.
-- Data: Binance USDⓈ-M, Gate USDT and Coinbase futures REST for lists/candles; WebSocket streams for live prices (Binance `wss://fstream.binance.com/market/...`, Gate `wss://fx-ws.gateio.ws/v4/ws/usdt`, Coinbase `wss://advanced-trade-ws.coinbase.com`).
+- Data: Binance USDⓈ-M, Gate USDT and Bybit V5 linear (USDT perpetuals and futures) REST for lists/candles; WebSocket streams for live prices (Binance `wss://fstream.binance.com/market/...`, Gate `wss://fx-ws.gateio.ws/v4/ws/usdt`, Bybit `wss://stream.bybit.com/v5/public/linear`, the 80 busiest Bybit markets plus starred ones). Coinbase was replaced by Bybit on 2026-10-21 at the owner's request (Coinbase was blocked for him). Bybit blocks US IPs, so it can't be tested from GitHub's US servers.
 - News: `scripts/fetch_news.py` runs every 15 min in `.github/workflows/news.yml` and force-pushes `news.json` to the `news-data` branch; the app reads it from raw.githubusercontent.com.
 - Signal engine: `computeSeries` → `analyzeAt(cs,S,L)` → `recommend(an,cs,han,tf)`. Indicators only look backwards; `tests/engine.js` proves it.
 - Simulator: `backtestSeries` + `simTrade` + `simStats`; entries at next candle open, stop first when both touched, fees/slippage both sides.
@@ -50,7 +50,6 @@ The working plan for nightly improvement runs. Each run picks the **first unchec
 - [ ] **Unusual activity scanner.** A section (inside Hot) for volume spikes vs the 20-candle average and sudden moves in the last hour.
 - [ ] **Trading sessions and liquidity.** Show the current session (Asia / London / New York) and warn in thin hours and weekends.
 - [ ] **Price and signal alerts while the app is open.** Starred markets: sound/vibration and an in-app notice when a signal turns to Enter long/short or price crosses a level.
-- [ ] **Coinbase international perpetuals live.** Stream INTX perps (separate host) so they update every second.
 - [ ] **Picks (parked by the owner, 21 Oct 2026; do not pick up unless he asks).** Stocks scored on 6 traits shared by great investors. Built and then removed because the SEC blocks GitHub's servers; full code is in commit c701ecd (plus fixes up to d96b7ae). Revive only with a working data route (e.g. download run on the owner's computer).
 - [ ] **Signal forming vs confirmed (low priority).** Information only: show whether the current candle is still forming. He doesn't trade by candle closes, so keep it subtle.
 - [ ] **Performance and accessibility pass.** Check with 1,300+ markets, keyboard use, contrast in both themes.

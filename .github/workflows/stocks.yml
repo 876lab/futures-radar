@@ -24,7 +24,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - name: Check which SEC addresses answer
+      - name: Check other data sources
         run: python3 -u scripts/probe_sec.py
       - name: Fetch company numbers from the SEC
         run: |

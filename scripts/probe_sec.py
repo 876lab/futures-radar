@@ -1,21 +1,18 @@
 #!/usr/bin/env python3
-"""One-off check: which SEC addresses answer GitHub's servers. Prints status codes only."""
-import urllib.request
-UAS = ["Futures Radar 876lab@users.noreply.github.com",
-       "Mozilla/5.0 (compatible; FuturesRadarNews/1.0; +https://github.com/876lab/futures-radar)"]
-URLS = ["https://www.sec.gov/news/pressreleases.rss",
-        "https://www.sec.gov/files/company_tickers.json",
-        "https://www.sec.gov/include/ticker.txt",
-        "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=10-K&output=atom",
-        "https://www.sec.gov/Archives/edgar/data/320193/index.json",
-        "https://www.sec.gov/Archives/edgar/daily-index/xbrl/companyfacts.zip",
-        "https://data.sec.gov/submissions/CIK0000320193.json",
-        "https://data.sec.gov/api/xbrl/frames/us-gaap/NetIncomeLoss/USD/CY2024.json"]
-for ua in UAS:
-    for u in URLS:
+"""One-off check: can GitHub's servers reach Wikidata, and how much company data does it hold? Prints counts only."""
+import json, urllib.parse, urllib.request
+UA = "FuturesRadar/1.0 (https://github.com/876lab/futures-radar; 876lab@users.noreply.github.com)"
+def q(sparql):
+    u = "https://query.wikidata.org/sparql?format=json&query=" + urllib.parse.quote(sparql)
+    with urllib.request.urlopen(urllib.request.Request(u, headers={"User-Agent": UA}), timeout=60) as r:
+        return json.load(r)["results"]["bindings"]
+base = "?c p:P414 ?s . ?s ps:P414 ?ex ; pq:P249 ?t . VALUES ?ex { wd:Q13677 wd:Q82059 } "
+for prop, label in [("P2295", "net profit"), ("P2139", "revenue"), ("P2137", "equity"), ("P2403", "total assets"), ("P3362", "operating income")]:
+    for y in (2022, 2023, 2024, 2025):
         try:
-            req = urllib.request.Request(u, method="HEAD" if u.endswith(".zip") else "GET", headers={"User-Agent": ua, "Accept-Encoding": "gzip"})
-            with urllib.request.urlopen(req, timeout=30) as r:
-                print(r.status, r.headers.get("Content-Length"), u, "|", ua[:30])
+            rows = q(f"SELECT (COUNT(DISTINCT ?c) AS ?n) WHERE {{ {base} ?c p:{prop} ?v . ?v pq:P585 ?d . FILTER(YEAR(?d)={y}) }}")
+            print(label, y, rows[0]["n"]["value"])
         except Exception as e:
-            print("ERR", e, u, "|", ua[:30])
+            print("ERR", label, y, e)
+rows = q(f"SELECT ?t ?d ?val WHERE {{ {base} FILTER(?t IN ('AAPL','KO','NVDA')) ?c p:P2295 ?v . ?v ps:P2295 ?val ; pq:P585 ?d . }} ORDER BY ?t ?d")
+for r in rows[-15:]: print(r["t"]["value"], r["d"]["value"][:10], r["val"]["value"])

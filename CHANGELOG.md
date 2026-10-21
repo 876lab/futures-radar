@@ -2,6 +2,9 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-10-21 (owner request: Settings only at the top)
+- Removed the Settings button from the bottom bar; the sliders button at the top right opens the Settings page as before.
+
 ## 2026-10-21 (owner request: switches and a hiding bottom bar)
 - On/off settings are now slider switches: **Compact rows**, **Big news warning** and the new **Hide bottom bar while scrolling**.
 - On phones the bottom bar slides away while the page scrolls and comes back about half a second after scrolling stops (on by default; switch it off to keep the bar on screen). Respects the phone's reduce-motion setting.

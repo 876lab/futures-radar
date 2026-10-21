@@ -603,7 +603,7 @@ button.ncoin:hover{border-color:var(--accent)}
     <p>Each row is one market. When the same coin trades on several exchanges, it appears once. Its price and 24-hour change come from the exchange with the most trading, and volume adds up all of them.</p>
     <h3>Getting around</h3>
     <dl>
-      <dt>Bottom bar</dt><dd>Markets, Setups, Simulator, News, Starred and Settings. It slides away while you scroll and comes back when you stop; switch that off in Settings to keep it on screen. On a computer the same buttons sit above the list.</dd>
+      <dt>Bottom bar</dt><dd>Markets, Setups, Simulator, News and Starred. Settings is the sliders button at the top right. The bar slides away while you scroll and comes back when you stop; switch that off in Settings to keep it on screen. On a computer the same buttons sit above the list.</dd>
       <dt>Compact</dt><dd>Shows one line per market so more fit on screen.</dd>
       <dt>Swipes on a chart</dt><dd>Swipe in from the left edge, or use your phone's back gesture, to return to the list. Swipe left or right on the signal card to change candle size.</dd>
       <dt>Small line on each row</dt><dd>The price over the last 24 hours, green if it ended higher.</dd>
@@ -1208,8 +1208,7 @@ function renderTabs(){
 const seen=LS.get('seen',{});function seenBump(c){seen[c]=(seen[c]||0)+1;LS.set('seen',seen)}
 const ICON_MKT='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 20V11M11 20V5M17 20v-8M3 20h18"/></svg>';
 const ICON_NEWS='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h12v14H6a2 2 0 0 1-2-2z"/><path d="M16 9h4v8a2 2 0 0 1-2 2"/><path d="M8 9h4M8 13h4"/></svg>';
-const ICON_SET='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>';
-const NAV=[['markets','Markets',ICON_MKT],['setups','Setups',TARGET],['sim','Simulator',FLASK],['news','News',ICON_NEWS],['watch','Starred',STAR],['settings','Settings',ICON_SET]];
+const NAV=[['markets','Markets',ICON_MKT],['setups','Setups',TARGET],['sim','Simulator',FLASK],['news','News',ICON_NEWS],['watch','Starred',STAR]];
 function pageOf(c){return MKT_CATS.includes(c)?'markets':c}
 function renderNav(){const pg=pageOf(state.cat);$('#nav').innerHTML=NAV.map(([k,l,ic])=>`<button type="button" data-nav="${k}"${pg===k?' aria-current="page"':''}>${ic}<span>${l}</span></button>`).join('')}
 function applyChrome(){

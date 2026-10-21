@@ -56,7 +56,7 @@ async def main():
                     if bad in txt: problems.append(f"[{scheme}] {nav}: shows '{bad}'")
                 if nav == "setups" and "Big US news" not in txt: problems.append(f"[{scheme}] setups: big-news warning missing")
                 if scheme == "dark": await pg.screenshot(path=os.path.join(OUT, f"{nav}.png"))
-            await pg.click('[data-nav="settings"]'); await pg.wait_for_timeout(500)
+            await pg.click("#openSettings"); await pg.wait_for_timeout(500)
             st = await pg.inner_text("#settings")
             if "max loss per trade" not in st.lower() or "big news warning" not in st.lower(): problems.append(f"[{scheme}] settings page incomplete")
             for bad in ("undefined", "NaN"):

@@ -305,6 +305,15 @@ button{cursor:pointer}
 .setpage .sgrp{display:grid;gap:10px;padding-top:14px;border-top:1px solid var(--line)}
 .setpage .sgrp:first-of-type{border-top:0;padding-top:0}
 .setpage h3{margin:0}
+.swrow{display:flex;align-items:center;justify-content:space-between;gap:14px;cursor:pointer}
+.swrow .t{display:grid;gap:2px;min-width:0}
+.swrow .t b{font-weight:600;font-size:14px}
+.swrow .t span{font-size:12.5px;color:var(--muted)}
+.switch{flex:none;position:relative;width:46px;height:28px;border-radius:14px;border:0;padding:0;background:var(--line);transition:background .2s}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgb(0 0 0 / .3);transition:transform .2s}
+.switch[aria-checked="true"]{background:var(--up)}
+.switch[aria-checked="true"]::after{transform:translateX(18px)}
+.switch:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .setpage input{margin-top:6px}
 .inrow{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 @media (min-width:560px){.inrow{grid-template-columns:repeat(4,minmax(0,1fr))}}
@@ -366,7 +375,10 @@ button{cursor:pointer}
   .nav button svg{width:21px;height:21px}
   .nav button[aria-current="page"]{color:var(--accent);font-weight:600}
   .wrap{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+  .nav{transition:transform .25s ease}
+  body.nav-away .nav{transform:translateY(105%)}
 }
+@media (prefers-reduced-motion:reduce){.nav,.switch,.switch::after{transition:none}}
 .stick{position:sticky;top:calc(var(--hdr) + env(safe-area-inset-top,0px));z-index:6;background:var(--bg);display:flex;flex-direction:column;gap:8px;padding-block:8px;margin-block:-8px}
 .bar2{justify-content:space-between}
 .bar2-r{display:flex;gap:8px;align-items:center;margin-left:auto}
@@ -500,10 +512,8 @@ button.ncoin:hover{border-color:var(--accent)}
               <button type="button" class="opt" data-theme-set="light" aria-pressed="false">Light</button>
               <button type="button" class="opt" data-theme-set="dark" aria-pressed="false">Dark</button>
             </div></div>
-            <div class="fld"><span class="lab">Market rows</span><div class="opts" id="setCompact">
-              <button type="button" class="opt" data-compact="0" aria-pressed="true">Roomy</button>
-              <button type="button" class="opt" data-compact="1" aria-pressed="false">Compact (one line)</button>
-            </div></div>
+            <div class="swrow" data-sw="compact"><span class="t"><b id="swCompactL">Compact rows</b><span>One line per market, so more fit on screen.</span></span><button type="button" class="switch" role="switch" aria-labelledby="swCompactL" aria-checked="false"></button></div>
+            <div class="swrow" data-sw="navHide"><span class="t"><b id="swNavL">Hide bottom bar while scrolling</b><span>It slides away as you scroll and comes back when you stop.</span></span><button type="button" class="switch" role="switch" aria-labelledby="swNavL" aria-checked="true"></button></div>
           </div>
           <div class="sgrp">
             <h3>Trading</h3>
@@ -522,11 +532,7 @@ button.ncoin:hover{border-color:var(--accent)}
           </div>
           <div class="sgrp">
             <h3>Warnings</h3>
-            <div class="fld"><span class="lab">Big news warning</span><div class="opts" id="setEvOn">
-              <button type="button" class="opt" data-evon="1" aria-pressed="true">On</button>
-              <button type="button" class="opt" data-evon="0" aria-pressed="false">Off</button>
-            </div></div>
-            <p>An amber note on the signal card and Setups when a big US release (CPI, jobs, Fed) is within 30 minutes.</p>
+            <div class="swrow" data-sw="evOn"><span class="t"><b id="swEvL">Big news warning</b><span>An amber note on the signal card and Setups when a big US release (CPI, jobs, Fed) is within 30 minutes.</span></span><button type="button" class="switch" role="switch" aria-labelledby="swEvL" aria-checked="true"></button></div>
           </div>
           <div class="sgrp">
             <h3>Data</h3>
@@ -597,7 +603,7 @@ button.ncoin:hover{border-color:var(--accent)}
     <p>Each row is one market. When the same coin trades on several exchanges, it appears once. Its price and 24-hour change come from the exchange with the most trading, and volume adds up all of them.</p>
     <h3>Getting around</h3>
     <dl>
-      <dt>Bottom bar</dt><dd>Markets, Setups, Simulator, News, Starred and Settings. On a computer the same buttons sit above the list.</dd>
+      <dt>Bottom bar</dt><dd>Markets, Setups, Simulator, News, Starred and Settings. It slides away while you scroll and comes back when you stop; switch that off in Settings to keep it on screen. On a computer the same buttons sit above the list.</dd>
       <dt>Compact</dt><dd>Shows one line per market so more fit on screen.</dd>
       <dt>Swipes on a chart</dt><dd>Swipe in from the left edge, or use your phone's back gesture, to return to the list. Swipe left or right on the signal card to change candle size.</dd>
       <dt>Small line on each row</dt><dd>The price over the last 24 hours, green if it ended higher.</dd>
@@ -681,7 +687,7 @@ const state={
   view:LS.get('view','all'),cat:LS.get('cat3','setups'),sort:LS.get('sort','vol'),q:'',
   watch:new Set(LS.get('watch2',[])),tf:LS.get('tf2','15m'),selected:null,selContract:null,trend:new Map(),scanning:null,
   proxy:LS.get('proxy',''),ind:LS.get('ind3',{ema:false,bb:true,st:true,vol:true,marks:true}),limit:120,loading:false,
-  acct:LS.get('acct',100),evOn:LS.get('evOn',true),risk:LS.get('risk',2),maxLoss:LS.get('maxLoss',0),stream:{},lastTick:{},lastSeen:{}
+  acct:LS.get('acct',100),evOn:LS.get('evOn',true),navHide:LS.get('navHide',true),risk:LS.get('risk',2),maxLoss:LS.get('maxLoss',0),stream:{},lastTick:{},lastSeen:{}
 };
 if(!TFS[state.tf])state.tf='15m';
 if(state.view!=='all'&&!EX[state.view])state.view='all';
@@ -2099,7 +2105,8 @@ $('#errBox').addEventListener('click',e=>{const b=e.target.closest('[data-err]')
   try{navigator.clipboard.writeText(txt).then(done,()=>prompt('Copy this:',txt))}catch(x){prompt('Copy this:',txt)}});
 function renderSettings(){
   const pr=(sel,attr,val)=>document.querySelectorAll(sel).forEach(b=>b.setAttribute('aria-pressed',b.dataset[attr]===val));
-  pr('[data-theme-set]','themeSet',state.theme);pr('[data-compact]','compact',state.compact?'1':'0');pr('[data-evon]','evon',state.evOn?'1':'0');
+  pr('[data-theme-set]','themeSet',state.theme);
+  document.querySelectorAll('[data-sw]').forEach(r=>r.querySelector('.switch').setAttribute('aria-checked',!!state[r.dataset.sw]));
   $('#setTf').innerHTML=Object.keys(TFS).map(k=>`<button type="button" class="opt" data-settf="${k}" aria-pressed="${state.tf===k}">${TF_LABEL[k]}</button>`).join('');
   const f=(id,v)=>{const el=$(id);if(document.activeElement!==el)el.value=v};
   f('#setAcct',state.acct);f('#setRisk',state.risk);f('#maxLoss',state.maxLoss>0?state.maxLoss:'');f('#proxy',state.proxy);
@@ -2111,11 +2118,15 @@ function refreshCalc(){if($('#calcOut')&&$('#acct')){$('#acct').value=state.acct
 function openSettingsPage(){if(document.body.classList.contains('d-open'))closeDetail();goPage('settings')}
 $('#openSettings').addEventListener('click',openSettingsPage);
 $('#settingsForm').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
-  if(b.dataset.compact!=null){setCompact(b.dataset.compact==='1');renderSettings()}
-  else if(b.dataset.evon!=null){state.evOn=b.dataset.evon==='1';LS.set('evOn',state.evOn);renderEvGuard();renderSettings()}
+  const sw=b.closest('[data-sw]');
+  if(sw){const k=sw.dataset.sw,on=!state[k];if(k==='compact')setCompact(on);else{state[k]=on;LS.set(k,on)}if(k==='evOn')renderEvGuard();if(k==='navHide')document.body.classList.remove('nav-away');renderSettings()}
   else if(b.dataset.settf){setTf(b.dataset.settf)}
   else if(b.id==='setHelp')$('#openHelp').click();
   else if(b.dataset.themeSet)setTimeout(renderSettings,0)});
+$('#settingsForm').addEventListener('click',e=>{if(e.target.closest('button'))return;const r=e.target.closest('[data-sw]');if(r)r.querySelector('.switch').click()});
+// bottom bar: slide away while the page scrolls, come back once scrolling stops (phones only; switch in Settings)
+let navT=null;window.addEventListener('scroll',()=>{if(!state.navHide||!matchMedia('(max-width:979px)').matches)return;
+  document.body.classList.add('nav-away');clearTimeout(navT);navT=setTimeout(()=>document.body.classList.remove('nav-away'),450)},{passive:true});
 $('#setAcct').addEventListener('input',e=>{const v=parseFloat(e.target.value);if(v>0){state.acct=v;LS.set('acct',v);refreshCalc()}});
 $('#setRisk').addEventListener('input',e=>{const v=parseFloat(e.target.value);if(v>0&&v<=100){state.risk=v;LS.set('risk',v);refreshCalc()}});
 $('#maxLoss').addEventListener('input',e=>{const v=parseFloat(e.target.value);state.maxLoss=v>0?v:0;LS.set('maxLoss',state.maxLoss);refreshCalc()});

@@ -2,6 +2,11 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-10-21 (owner request: switches and a hiding bottom bar)
+- On/off settings are now slider switches: **Compact rows**, **Big news warning** and the new **Hide bottom bar while scrolling**.
+- On phones the bottom bar slides away while the page scrolls and comes back about half a second after scrolling stops (on by default; switch it off to keep the bar on screen). Respects the phone's reduce-motion setting.
+- Browser test checks the bar hides during a scroll and comes back after.
+
 ## 2026-10-21 (owner request: undo always-visible bottom bar)
 - The chart screen covers the bottom bar again on phones, as before. The Settings page and its bar button stay.
 

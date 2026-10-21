@@ -71,4 +71,6 @@ The working plan for nightly improvement runs. Each run picks the **first unchec
 
 (Each run adds a dated line here if something was blocked or needs the owner.)
 
+- 2026-10-21: **Picks data blocked.** The SEC answers HTTP 403 to every data.sec.gov / sec.gov/files request from GitHub Actions (3 runs, 3 honest User-Agents incl. the noreply contact), while the SEC RSS feed still works from there. The Picks page is live but shows "not ready yet". The stocks job's daily schedule is paused; it still runs on push or by hand. Next step needs the owner: allow a real contact email in the User-Agent, or pick another free source.
+
 - 2026-10-19: Owner will upload his Gate trade history; its analysis happens in chat with Claude. Priorities were reordered around his stats (max-loss guard first; candle-close item moved to the bottom).

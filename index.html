@@ -1812,7 +1812,7 @@ function renderPicks(force){
     <p><b>Your part</b> (the numbers can't check these): understand what the company does and how it makes money; trust the people running it; be ready to hold for years, not days.</p>
     <p class="muted">A high score is a place to start your research, not a buy signal. Company numbers come from yearly SEC filings, so they can be up to a year old. Fair price needs a live price, so it is only checked for stocks you can trade here.</p></div></details>`;
   const d=picks.data;
-  if(!d){area.innerHTML=`<div class="picks" id="picksRoot">${how}<div class="list"><div class="empty">${picks.loading||(!picks.err&&!picks.at)?'Loading company numbers…':'Company numbers load when the app runs from its web address. They are rebuilt every day from SEC filings.'}</div></div></div>`;
+  if(!d){area.innerHTML=`<div class="picks" id="picksRoot">${how}<div class="list"><div class="empty">${picks.loading||(!picks.err&&!picks.at)?'Loading company numbers…':'Company numbers aren\'t ready yet. The daily download from the SEC is still being set up, so this page will fill in once it works. Check What\'s new for updates.'}</div></div></div>`;
     if(!picks.loading&&!picks.err)loadStocks();return}
   const {trade,sp}=scoredPicks();
   const list=(arr,empty,lim)=>arr.length?arr.slice(0,lim).map(pickHTML).join('')+(arr.length>lim?`<button class="more" data-pmore="1">Show ${Math.min(30,arr.length-lim)} more</button>`:''):`<div class="empty">${empty}</div>`;

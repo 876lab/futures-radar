@@ -1,8 +1,8 @@
 name: Update stock data
 
 on:
-  schedule:
-    - cron: "41 8 * * *"   # daily, after the SEC republishes its data (about 3am New York time)
+  # Daily schedule paused: the SEC refuses data.sec.gov requests from GitHub's servers (HTTP 403, 21 Oct 2026).
+  # Re-enable with: schedule: - cron: "41 8 * * *"  once a run succeeds.
   workflow_dispatch:
   push:
     branches: [main]

@@ -301,6 +301,11 @@ button{cursor:pointer}
 .opt{padding:7px 12px;border-radius:9px;border:1px solid var(--line);background:var(--surface);font-size:12.5px;font-weight:600;white-space:nowrap}
 .opt:hover{background:var(--surface-2)}
 .opt[aria-pressed="true"]{background:var(--fg);border-color:var(--fg);color:var(--bg)}
+.setpage{width:auto;max-height:none;overflow:visible;border-radius:var(--r);gap:14px}
+.setpage .sgrp{display:grid;gap:10px;padding-top:14px;border-top:1px solid var(--line)}
+.setpage .sgrp:first-of-type{border-top:0;padding-top:0}
+.setpage h3{margin:0}
+.setpage input{margin-top:6px}
 .inrow{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 @media (min-width:560px){.inrow{grid-template-columns:repeat(4,minmax(0,1fr))}}
 .inrow label{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:600}
@@ -361,6 +366,8 @@ button{cursor:pointer}
   .nav button svg{width:21px;height:21px}
   .nav button[aria-current="page"]{color:var(--accent);font-weight:600}
   .wrap{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+  .nav{z-index:35}
+  body.d-open .detail{bottom:var(--navh,64px);padding-bottom:28px}
 }
 .stick{position:sticky;top:calc(var(--hdr) + env(safe-area-inset-top,0px));z-index:6;background:var(--bg);display:flex;flex-direction:column;gap:8px;padding-block:8px;margin-block:-8px}
 .bar2{justify-content:space-between}
@@ -486,6 +493,65 @@ button.ncoin:hover{border-color:var(--accent)}
       </div>
       <div id="listArea"><div class="list"><div class="empty">Loading markets from Binance, Gate and Bybit…</div></div></div>
       <p class="footnote" id="footnote"></p>
+      <div id="settings" hidden>
+        <form class="sheet setpage" id="settingsForm" autocomplete="off">
+          <div class="sgrp">
+            <h3>Look</h3>
+            <div class="fld"><span class="lab">Theme</span><div class="opts" id="themeOpts">
+              <button type="button" class="opt" data-theme-set="system" aria-pressed="true">Match my phone</button>
+              <button type="button" class="opt" data-theme-set="light" aria-pressed="false">Light</button>
+              <button type="button" class="opt" data-theme-set="dark" aria-pressed="false">Dark</button>
+            </div></div>
+            <div class="fld"><span class="lab">Market rows</span><div class="opts" id="setCompact">
+              <button type="button" class="opt" data-compact="0" aria-pressed="true">Roomy</button>
+              <button type="button" class="opt" data-compact="1" aria-pressed="false">Compact (one line)</button>
+            </div></div>
+          </div>
+          <div class="sgrp">
+            <h3>Trading</h3>
+            <div class="fld"><span class="lab">Candle size for signals and Setups</span><div class="opts" id="setTf"></div></div>
+            <p>You can also change this on any chart. 1H and 4H suit trades held for several hours.</p>
+            <div class="inrow">
+              <label for="setAcct">Account size ($)<input id="setAcct" type="number" inputmode="decimal" min="1" step="any"></label>
+              <label for="setRisk">Risk per trade (%)<input id="setRisk" type="number" inputmode="decimal" min="0.1" max="100" step="0.1"></label>
+            </div>
+            <p>Used by <b>Size this trade</b> on the signal card. Many traders risk 1–2% of the account per trade.</p>
+            <div>
+              <label for="maxLoss">Max loss per trade (USDT)</label>
+              <input id="maxLoss" type="number" inputmode="decimal" min="0" step="any" placeholder="Off">
+            </div>
+            <p>The most you will let one trade lose if it hits the stop. A good start is about twice your average losing trade (Gate shows this in your position history). <b>Size this trade</b> then warns in red when a plan would lose more, and shows a smaller size that fits. Leave empty to switch off.</p>
+          </div>
+          <div class="sgrp">
+            <h3>Warnings</h3>
+            <div class="fld"><span class="lab">Big news warning</span><div class="opts" id="setEvOn">
+              <button type="button" class="opt" data-evon="1" aria-pressed="true">On</button>
+              <button type="button" class="opt" data-evon="0" aria-pressed="false">Off</button>
+            </div></div>
+            <p>An amber note on the signal card and Setups when a big US release (CPI, jobs, Fed) is within 30 minutes.</p>
+          </div>
+          <div class="sgrp">
+            <h3>Data</h3>
+            <div style="overflow-x:auto"><table class="feedtbl" id="feedTable"></table></div>
+            <p>Market lists come from each exchange's public REST API. Prices and the open chart then stream live over each exchange's WebSocket feed: Binance USDⓈ-M futures, Gate USDT perpetuals, and Bybit USDT perpetuals and futures. Starred markets and your settings stay on this device.</p>
+            <div>
+              <label for="proxy">Relay address (optional)</label>
+              <input id="proxy" type="text" placeholder="https://your-relay.example/?url={url}" autocomplete="off" spellcheck="false">
+            </div>
+            <p>Only needed if an exchange refuses requests from your browser. Put {url} where the exchange address goes; without it the address is added to the end.</p>
+            <div class="acts" style="justify-content:flex-start"><button type="button" class="btn primary" id="saveRelay">Save relay and reload prices</button></div>
+          </div>
+          <div class="sgrp">
+            <h3>App health</h3>
+            <div id="errBox"></div>
+          </div>
+          <div class="sgrp">
+            <h3>Help</h3>
+            <p id="setAbout"></p>
+            <div class="acts" style="justify-content:flex-start"><button type="button" class="btn" id="setHelp">How to read this app and what's new</button></div>
+          </div>
+        </form>
+      </div>
     </section>
 
     <section class="detail" id="detail" aria-label="Chart and signal">
@@ -533,7 +599,7 @@ button.ncoin:hover{border-color:var(--accent)}
     <p>Each row is one market. When the same coin trades on several exchanges, it appears once. Its price and 24-hour change come from the exchange with the most trading, and volume adds up all of them.</p>
     <h3>Getting around</h3>
     <dl>
-      <dt>Bottom bar</dt><dd>Markets, Setups, Simulator, News and Starred. On a computer the same buttons sit above the list.</dd>
+      <dt>Bottom bar</dt><dd>Markets, Setups, Simulator, News, Starred and Settings. It stays on screen, even on a chart; tap any button to jump there. On a computer the same buttons sit above the list.</dd>
       <dt>Compact</dt><dd>Shows one line per market so more fit on screen.</dd>
       <dt>Swipes on a chart</dt><dd>Swipe in from the left edge, or use your phone's back gesture, to return to the list. Swipe left or right on the signal card to change candle size.</dd>
       <dt>Small line on each row</dt><dd>The price over the last 24 hours, green if it ended higher.</dd>
@@ -566,35 +632,7 @@ button.ncoin:hover{border-color:var(--accent)}
   </div>
 </div>
 
-<div class="sheet-bg" id="settings" hidden>
-  <form class="sheet" id="settingsForm">
-    <h2>Settings</h2>
-    <div class="fld"><span class="lab">Appearance</span><div class="opts" id="themeOpts">
-      <button type="button" class="opt" data-theme-set="system" aria-pressed="true">Match my phone</button>
-      <button type="button" class="opt" data-theme-set="light" aria-pressed="false">Light</button>
-      <button type="button" class="opt" data-theme-set="dark" aria-pressed="false">Dark</button>
-    </div></div>
-    <div>
-      <label for="maxLoss">Max loss per trade (USDT)</label>
-      <input id="maxLoss" type="number" inputmode="decimal" min="0" step="any" placeholder="Off">
-    </div>
-    <p>The most you will let one trade lose if it hits the stop. A good start is about twice your average losing trade (Gate shows this in your position history). <b>Size this trade</b> then warns in red when a plan would lose more, and shows a smaller size that fits. Leave empty to switch off.</p>
-    <div>
-      <label for="proxy">Relay address (optional)</label>
-      <input id="proxy" type="text" placeholder="https://your-relay.example/?url={url}" autocomplete="off" spellcheck="false">
-    </div>
-    <p>Only needed if an exchange refuses requests from your browser. Put {url} where the exchange address goes; without it the address is added to the end.</p>
-    <h3>Data feeds</h3>
-    <div style="overflow-x:auto"><table class="feedtbl" id="feedTable"></table></div>
-    <p>Market lists come from each exchange's public REST API. Prices and the open chart then stream live over each exchange's WebSocket feed: Binance USDⓈ-M futures, Gate USDT perpetuals, and Bybit USDT perpetuals and futures. Starred markets and sizing inputs stay on this device.</p>
-    <h3>App health</h3>
-    <div id="errBox"></div>
-    <div class="acts">
-      <button type="button" class="btn" data-close="settings">Cancel</button>
-      <button type="submit" class="btn primary">Save and reload</button>
-    </div>
-  </form>
-</div>
+
 
 <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
 <script>
@@ -609,8 +647,8 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const EX={binance:{name:'Binance'},gate:{name:'Gate'},bybit:{name:'Bybit'}};
 const EXK=Object.keys(EX);
 const CATS=[['hot','Hot'],['all','All'],['new','New'],['crypto','Crypto'],['meme','Meme'],['ai','AI'],['stocks','Stocks'],['tradfi','TradFi'],['dated','Expiring']];
-const MKT_CATS=CATS.map(c=>c[0]),PAGES=['setups','sim','news','watch'];
-const CAT_DESC={news:'Headlines that can move markets, refreshed every 15 minutes, plus market mood and upcoming economic events.',hot:'The biggest movers and most traded markets over the last 24 hours.',
+const MKT_CATS=CATS.map(c=>c[0]),PAGES=['setups','sim','news','watch','settings'];
+const CAT_DESC={settings:'Your preferences. Changes save on this device straight away.',news:'Headlines that can move markets, refreshed every 15 minutes, plus market mood and upcoming economic events.',hot:'The biggest movers and most traded markets over the last 24 hours.',
   sim:'Test how the app\'s entry signals would have done on past prices before you trust them with money.',
   setups:'Markets where the chart shows a long or short entry right now, checked against the bigger timeframe.',
   watch:'Markets you starred. They stay on this device.',
@@ -645,7 +683,7 @@ const state={
   view:LS.get('view','all'),cat:LS.get('cat3','setups'),sort:LS.get('sort','vol'),q:'',
   watch:new Set(LS.get('watch2',[])),tf:LS.get('tf2','15m'),selected:null,selContract:null,trend:new Map(),scanning:null,
   proxy:LS.get('proxy',''),ind:LS.get('ind3',{ema:false,bb:true,st:true,vol:true,marks:true}),limit:120,loading:false,
-  acct:LS.get('acct',100),risk:LS.get('risk',2),maxLoss:LS.get('maxLoss',0),stream:{},lastTick:{},lastSeen:{}
+  acct:LS.get('acct',100),evOn:LS.get('evOn',true),risk:LS.get('risk',2),maxLoss:LS.get('maxLoss',0),stream:{},lastTick:{},lastSeen:{}
 };
 if(!TFS[state.tf])state.tf='15m';
 if(state.view!=='all'&&!EX[state.view])state.view='all';
@@ -1114,7 +1152,7 @@ function setupSets(){
 function listTargets(){
   if(state.cat==='hot'){const h=hotSets();const seen=new Set(),out=[];[...h.gain,...h.lose,...h.active].forEach(g=>{if(!seen.has(g.key)){seen.add(g.key);out.push(g)}});return out}
   if(state.cat==='setups'){const s=setupSets();return s.longs.length||s.shorts.length?[...s.longs,...s.shorts]:setupPool()}
-  if(state.cat==='sim'||state.cat==='news')return setupPool();
+  if(state.cat==='sim'||state.cat==='news'||state.cat==='settings')return setupPool();
   return visible();
 }
 function scanTargets(){if(state.cat==='setups')return setupPool();return listTargets()}
@@ -1166,15 +1204,17 @@ function renderTabs(){
 const seen=LS.get('seen',{});function seenBump(c){seen[c]=(seen[c]||0)+1;LS.set('seen',seen)}
 const ICON_MKT='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 20V11M11 20V5M17 20v-8M3 20h18"/></svg>';
 const ICON_NEWS='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h12v14H6a2 2 0 0 1-2-2z"/><path d="M16 9h4v8a2 2 0 0 1-2 2"/><path d="M8 9h4M8 13h4"/></svg>';
-const NAV=[['markets','Markets',ICON_MKT],['setups','Setups',TARGET],['sim','Simulator',FLASK],['news','News',ICON_NEWS],['watch','Starred',STAR]];
+const ICON_SET='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>';
+const NAV=[['markets','Markets',ICON_MKT],['setups','Setups',TARGET],['sim','Simulator',FLASK],['news','News',ICON_NEWS],['watch','Starred',STAR],['settings','Settings',ICON_SET]];
 function pageOf(c){return MKT_CATS.includes(c)?'markets':c}
 function renderNav(){const pg=pageOf(state.cat);$('#nav').innerHTML=NAV.map(([k,l,ic])=>`<button type="button" data-nav="${k}"${pg===k?' aria-current="page"':''}>${ic}<span>${l}</span></button>`).join('')}
 function applyChrome(){
   const pg=pageOf(state.cat);
   $('#venues').hidden=!(pg==='markets'||pg==='setups'||pg==='watch');
-  $('#stick').hidden=pg==='sim';
+  $('#stick').hidden=pg==='sim'||pg==='settings';
   $('#tabs').hidden=pg!=='markets';
-  $('#bar2').hidden=pg==='sim'||pg==='news';
+  $('#bar2').hidden=pg==='sim'||pg==='news'||pg==='settings';
+  $('#settings').hidden=pg!=='settings';$('#listArea').hidden=$('#footnote').hidden=pg==='settings';
   $('#sortWrap').hidden=!((pg==='markets'&&state.cat!=='hot')||pg==='watch');
   $('#q').placeholder=pg==='news'?'Search headlines, e.g. ETF, Solana, Fed':'Search, e.g. bitcoin, gold, TSLA';
 }
@@ -1215,6 +1255,7 @@ function renderListInner(force){
   const area=$('#listArea');
   if(state.cat==='sim'){$('#mood').innerHTML='';$('#footnote').textContent='';renderSim(force);return}
   if(state.cat==='news'){$('#mood').innerHTML='';$('#footnote').textContent='';renderNews(force);return}
+  if(state.cat==='settings'){$('#mood').innerHTML='';$('#footnote').textContent='';area.innerHTML='';renderSettings();return}
   if(!state.pairs.length){area.innerHTML='<div class="list"><div class="empty">Loading markets…</div></div>';return}
   if(state.cat==='hot'){
     const h=hotSets();const max=Math.max(1,...h.gain.concat(h.lose).map(g=>Math.abs(g.chg))),amax=Math.max(1,...h.active.map(g=>Math.abs(g.chg)));
@@ -1259,7 +1300,7 @@ async function evaluate(p,tf){
   return{cs,an,han,rc};
 }
 async function scan(max){
-  if(state.scanning||!state.groups.length||state.cat==='sim'||state.cat==='news')return;
+  if(state.scanning||!state.groups.length||state.cat==='sim'||state.cat==='news'||state.cat==='settings')return;
   const tf=state.tf;const list=scanTargets().filter(g=>!state.trend.has(g.primary.id+'|'+tf)).slice(0,max||40);
   if(!list.length){renderTabs();renderList();return}
   state.scanning={done:0,total:list.length};let i=0;
@@ -1480,7 +1521,7 @@ function calHTML(cal){
     <p>Red dot: high impact. Big data releases like CPI, jobs and Fed decisions often move crypto too.</p></div>`;
 }
 function evGuardHTML(){
-  const g=news.data&&eventGuard(news.data.calendar,NOW()/1000);if(!g)return '';
+  const g=state.evOn&&news.data&&eventGuard(news.data.calendar,NOW()/1000);if(!g)return '';
   const tm=d=>new Date(d*1000).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}),what=esc(g.names.slice(0,2).join(', '))+(g.names.length>2?' and more':'');
   const when=g.mins>0?`in ${g.mins} min`:g.mins<0?`${-g.mins} min ago`:'now';
   return `<div class="evwarn" role="note"><b>Big US news ${g.mins>=0?'at':'came out at'} ${tm(g.d)} (${when}): ${what}.</b><span>Spreads and sudden spikes are common around big releases. Consider waiting until about ${tm(g.until)}.</span><small>From the News calendar. The signal itself does not change.</small></div>`;
@@ -1520,7 +1561,7 @@ function renderMktNews(){
 let changes=null;
 async function loadChanges(){
   try{const r=await fetch('changes.json?t='+Math.floor(NOW()/600000));if(!r.ok)return;const j=await r.json();
-    if(!Array.isArray(j)||!j.length)return;changes=j;$('#newDot').hidden=LS.get('seenChanges','')===j[0].date;renderChanges()}catch(e){}
+    if(!Array.isArray(j)||!j.length)return;changes=j;$('#newDot').hidden=LS.get('seenChanges','')===j[0].date+'|'+j[0].title;renderChanges();if(state.cat==='settings')renderSettings()}catch(e){}
 }
 function renderChanges(){
   const el=$('#whatsNew');if(!el||!changes)return;
@@ -2038,7 +2079,8 @@ listArea.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.tar
 $('#venues').addEventListener('click',e=>{const b=e.target.closest('[data-view]');if(!b)return;state.view=b.dataset.view;LS.set('view',state.view);state.limit=120;buildGroups();renderVenues();renderTabs();renderList();
   if(state.selected&&state.gByKey.has(state.selected))openGroup(state.selected,true);else if(matchMedia('(min-width:980px)').matches){const v=listTargets();if(v.length)openGroup(v[0].key,true)}
   scan(SETUP_POOL)});
-$('#nav').addEventListener('click',e=>{const b=e.target.closest('[data-nav]');if(b)goPage(b.dataset.nav)});
+$('#nav').addEventListener('click',e=>{const b=e.target.closest('[data-nav]');if(!b)return;if(document.body.classList.contains('d-open'))closeDetail();goPage(b.dataset.nav)});
+const navEl=$('#nav'),setNavH=()=>document.documentElement.style.setProperty('--navh',navEl.offsetHeight+'px');setNavH();try{new ResizeObserver(setNavH).observe(navEl)}catch(e){}
 $('#tabs').addEventListener('click',e=>{const b=e.target.closest('[data-cat]');if(!b)return;state.cat=b.dataset.cat;state.mcat=state.cat;LS.set('mcat',state.mcat);LS.set('cat3',state.cat);state.limit=120;seenBump(state.cat);renderNav();renderTabs();renderList(true);scan(state.cat==='setups'?SETUP_POOL:30)});
 $('#sort').addEventListener('change',e=>{state.sort=e.target.value;LS.set('sort',state.sort);renderList();if(/^trend/.test(state.sort))scan(40)});
 let qT;$('#q').addEventListener('input',e=>{clearTimeout(qT);qT=setTimeout(()=>{state.q=e.target.value.trim().toUpperCase();state.limit=120;renderTabs();renderList(state.cat==='news')},120)});
@@ -2047,22 +2089,43 @@ $('#toggles').addEventListener('click',e=>{const b=e.target.closest('[data-ind]'
 $('#venueBox').addEventListener('click',e=>{const r=e.target.closest('[data-cid]');if(r&&state.selected)openGroup(state.selected,true,r.dataset.cid)});
 $('#venueBox').addEventListener('keydown',e=>{const r=e.target.closest('[data-cid]');if(r&&(e.key==='Enter'||e.key===' ')){e.preventDefault();openGroup(state.selected,true,r.dataset.cid)}});
 $('#themeOpts').addEventListener('click',e=>{const b=e.target.closest('[data-theme-set]');if(!b)return;state.theme=b.dataset.themeSet;LS.set('theme',state.theme);applyTheme(state.theme)});
-$('#compactBtn').addEventListener('click',()=>{state.compact=!state.compact;LS.set('compact',state.compact);document.body.classList.toggle('compact',state.compact);$('#compactBtn').setAttribute('aria-pressed',state.compact)});
+$('#compactBtn').addEventListener('click',()=>setCompact(!state.compact));
 $('#panesBtn').addEventListener('click',()=>{state.ind.panes=!state.ind.panes;LS.set('ind3',state.ind);applyPanes()});
 $('#dStar').addEventListener('click',()=>{if(state.selected)toggleStar(state.selected)});
 $('#back').addEventListener('click',closeDetail);
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){const open=['help','settings'].find(id=>!$('#'+id).hidden);if(open)$('#'+open).hidden=true;else closeDetail()}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(!$('#help').hidden)$('#help').hidden=true;else closeDetail()}});
 $('#refresh').addEventListener('click',()=>{candleCache.clear();state.trend.clear();loadAll(true).then(()=>{if(state.selected&&state.gByKey.has(state.selected))openGroup(state.selected,true)})});
-$('#openHelp').addEventListener('click',()=>{$('#help').hidden=false;$('#help .sheet').scrollTop=0;if(changes){LS.set('seenChanges',changes[0].date);$('#newDot').hidden=true}});
+$('#openHelp').addEventListener('click',()=>{$('#help').hidden=false;$('#help .sheet').scrollTop=0;if(changes){LS.set('seenChanges',changes[0].date+'|'+changes[0].title);$('#newDot').hidden=true}});
 $('#errBox').addEventListener('click',e=>{const b=e.target.closest('[data-err]');if(!b)return;
   if(b.dataset.err==='clear'){errLog.length=0;LS.set('errs',[]);renderErrBox();return}
   const txt=errReport(),done=()=>{b.textContent='Copied';setTimeout(()=>{b.textContent='Copy details'},2000)};
   try{navigator.clipboard.writeText(txt).then(done,()=>prompt('Copy this:',txt))}catch(x){prompt('Copy this:',txt)}});
-$('#openSettings').addEventListener('click',()=>{$('#proxy').value=state.proxy;$('#maxLoss').value=state.maxLoss>0?state.maxLoss:'';renderFeedTable();$('#settings').hidden=false});
+function renderSettings(){
+  const pr=(sel,attr,val)=>document.querySelectorAll(sel).forEach(b=>b.setAttribute('aria-pressed',b.dataset[attr]===val));
+  pr('[data-theme-set]','themeSet',state.theme);pr('[data-compact]','compact',state.compact?'1':'0');pr('[data-evon]','evon',state.evOn?'1':'0');
+  $('#setTf').innerHTML=Object.keys(TFS).map(k=>`<button type="button" class="opt" data-settf="${k}" aria-pressed="${state.tf===k}">${TF_LABEL[k]}</button>`).join('');
+  const f=(id,v)=>{const el=$(id);if(document.activeElement!==el)el.value=v};
+  f('#setAcct',state.acct);f('#setRisk',state.risk);f('#maxLoss',state.maxLoss>0?state.maxLoss:'');f('#proxy',state.proxy);
+  $('#setAbout').textContent=`Last updated ${changes&&changes[0]?changes[0].date:'recently'}. Every update has to pass automatic tests before it goes live.`;
+  renderFeedTable();
+}
+function setCompact(on){state.compact=on;LS.set('compact',on);document.body.classList.toggle('compact',on);$('#compactBtn').setAttribute('aria-pressed',on)}
+function refreshCalc(){if($('#calcOut')&&$('#acct')){$('#acct').value=state.acct;$('#riskPct').value=state.risk;$('#acct').dispatchEvent(new Event('input'))}}
+function openSettingsPage(){if(document.body.classList.contains('d-open'))closeDetail();goPage('settings')}
+$('#openSettings').addEventListener('click',openSettingsPage);
+$('#settingsForm').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  if(b.dataset.compact!=null){setCompact(b.dataset.compact==='1');renderSettings()}
+  else if(b.dataset.evon!=null){state.evOn=b.dataset.evon==='1';LS.set('evOn',state.evOn);renderEvGuard();renderSettings()}
+  else if(b.dataset.settf){setTf(b.dataset.settf)}
+  else if(b.id==='setHelp')$('#openHelp').click();
+  else if(b.dataset.themeSet)setTimeout(renderSettings,0)});
+$('#setAcct').addEventListener('input',e=>{const v=parseFloat(e.target.value);if(v>0){state.acct=v;LS.set('acct',v);refreshCalc()}});
+$('#setRisk').addEventListener('input',e=>{const v=parseFloat(e.target.value);if(v>0&&v<=100){state.risk=v;LS.set('risk',v);refreshCalc()}});
+$('#maxLoss').addEventListener('input',e=>{const v=parseFloat(e.target.value);state.maxLoss=v>0?v:0;LS.set('maxLoss',state.maxLoss);refreshCalc()});
 document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>{$('#'+b.dataset.close).hidden=true}));
-['help','settings'].forEach(id=>$('#'+id).addEventListener('click',e=>{if(e.target.id===id)e.currentTarget.hidden=true}));
-$('#settingsForm').addEventListener('submit',e=>{e.preventDefault();state.proxy=$('#proxy').value.trim();LS.set('proxy',state.proxy);
-  const ml=parseFloat($('#maxLoss').value);state.maxLoss=ml>0?ml:0;LS.set('maxLoss',state.maxLoss);if($('#calcOut'))$('#acct').dispatchEvent(new Event('input'));$('#settings').hidden=true;
+$('#help').addEventListener('click',e=>{if(e.target.id==='help')e.currentTarget.hidden=true});
+$('#settingsForm').addEventListener('submit',e=>{e.preventDefault();if(document.activeElement)document.activeElement.blur()});   // Enter just closes the keyboard; values save as you type
+$('#saveRelay').addEventListener('click',()=>{state.proxy=$('#proxy').value.trim();LS.set('proxy',state.proxy);showToast('Saved. Reloading prices…');
   state.mode='loading';candleCache.clear();state.trend.clear();loadAll(true)});
 
 function retheme(){if(!charts)return;destroyCharts();if(current)draw()}

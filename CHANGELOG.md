@@ -2,6 +2,12 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-10-21 (owner request: bottom bar and Settings)
+- The bottom bar now stays on screen everywhere on a phone, including the chart screen (it sits above the chart; the chart screen stops at the bar). Tapping a bar button from a chart closes the chart and opens that page.
+- **Settings** is now a full page and the sixth button on the bottom bar (the top-right sliders button opens the same page). Sections: **Look** (theme; roomy/compact rows), **Trading** (candle size for signals and Setups; account size and risk % used by Size this trade; max loss per trade), **Warnings** (big news warning on/off, on by default), **Data** (feed status; relay address with its own save-and-reload button), **App health**, **Help**. Changes save on the device as you type; only the relay reloads prices.
+- What's new dot now also lights up for a second update on the same day.
+- Browser test now opens Settings in both themes, checks the bottom bar is on top of the chart screen, and taps it from a chart.
+
 ## 2026-10-21 (nightly run)
 - **Economic event guard.** When a high-impact US event from the News calendar (`calendar` in `news.json`, e.g. CPI, jobs, FOMC) is within 30 minutes before or after now, an amber note appears at the top of the signal card and the Setups page: time of the release in his local time, minutes until/since, and "consider waiting until about …" (release + 30 min). Events at the same minute are grouped. Information only; Enter/Hold/Avoid and entry/stop/target maths are unchanged. Only USD high-impact events count (crypto is priced in dollars; e.g. UK or NZ CPI don't trigger it).
 - The app now also fetches the news file while on Setups (it already did on the chart screen) and re-checks the warning every 20 seconds. Help has a "Big news warning" entry.

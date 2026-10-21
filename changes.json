@@ -1,4 +1,10 @@
 [
+  {"date": "2026-10-21", "title": "Bottom bar everywhere, new Settings page", "items": [
+    "The bottom bar now stays on screen, even on a chart. Tap any button to jump straight there.",
+    "Settings has its own button on the bar, with your theme, row style, candle size, account size, risk %, max loss and the big news warning in one place.",
+    "Changes save as you type, on this device only.",
+    "Signals and stop/target levels have not changed."
+  ]},
   {"date": "2026-10-21", "title": "Safety nets", "items": [
     "If one page breaks, it now shows \"hit a snag\" with a Try again button, and the rest of the app keeps working.",
     "Problems are saved in Settings → App health. Tap Copy details and send them to Claude.",

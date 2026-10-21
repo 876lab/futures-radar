@@ -9,6 +9,7 @@ on:
     paths:
       - scripts/fetch_stocks.py
       - .github/workflows/stocks.yml
+      - scripts/probe_sec.py
 
 permissions:
   contents: write
@@ -23,6 +24,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      - name: Check which SEC addresses answer
+        run: python3 -u scripts/probe_sec.py
       - name: Fetch company numbers from the SEC
         run: |
           mkdir -p out

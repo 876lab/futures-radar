@@ -2,6 +2,20 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-10-22 (owner request: stress and security test)
+- New `tests/stress.py`, now part of `tests/run.sh`: about 3,000 markets across the three exchanges, hostile data (script payloads in market names, news titles, sources, tags, coins and calendar entries; `javascript:`/`data:` links; NaN/Infinity/negative/empty numbers; malformed candles), WebSocket floods (hundreds of ticker messages a second with junk mixed in), and tampered on-device storage, in both themes, including a simulator run. It fails if any payload runs, a non-web link appears, a JS error is thrown, NaN/undefined shows, or the list is slow. Checked that it catches a deliberately unescaped headline.
+- **No XSS found**: every exchange and news string was already escaped and news links already limited to http(s).
+- Fixed: **one malformed market dropped a whole exchange** (e.g. an odd field in one Binance symbol made the app say "Binance didn't respond"). Each market is now checked on its own; markets without a real positive price are skipped, and impossible 24h changes/volumes/funding are blanked instead of shown (live ticks too).
+- Fixed: **one odd news entry broke the News page** (e.g. coins as text instead of a list). `cleanNews` now keeps only well-formed items as plain strings/numbers of sensible length and strips invisible control/text-direction characters.
+- Fixed: **broken saved settings could break the app** (App health log, simulator options, other saved values of the wrong type). Saved values of the wrong type now fall back to the default; the App health log and simulator options are validated.
+- Fixed: **Setups said "Reading charts for the 0 most traded markets…" forever** when no market was busy enough (or a search matched none); it now says so plainly.
+- Long unbroken text in news cards and warnings now wraps instead of running off the screen.
+- News job (`scripts/fetch_news.py`): skips any feed response over 5 MB and only keeps http(s) headline links (defence in depth; the app already filtered them).
+- 3 new engine tests for `cleanNews`; the isolation test now breaks the News page a different way, since bad news data no longer breaks it.
+- Reviewed with no change needed: GitHub workflows use read-only permissions except the news job (write, only to the `news-data` branch); no secrets in the repo; external links use `noopener noreferrer`; WebSocket and REST parsing already ignored junk messages.
+- Not done (see ROADMAP): integrity hash (SRI) for the chart library and a Content-Security-Policy. The chart library couldn't be downloaded from this environment to compute a verified hash, and a wrong hash or policy would break the live app.
+- Signal rules and entry/stop/target maths unchanged.
+
 ## 2026-10-22 (nightly run)
 - **Big news later today.** On Setups, when a high-impact release is coming later today (local time) but is more than 30 minutes away, a quiet grey line lists the times and names (up to three, grouped by time), so he can plan around it. Within 30 minutes the amber warning takes over as before. Shown only while **Big news warning** is on.
 - **Also count Japan, China and euro-area news** (new switch in Settings → Warnings, off by default). Adds high-impact JPY, CNY and EUR events from the News calendar (e.g. Bank of Japan and ECB rate decisions, top China data) to both the warning and the later-today line; the warning names the country ("Big Japan news at …"). UK and other countries still don't count.

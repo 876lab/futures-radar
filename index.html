@@ -247,6 +247,7 @@ button{cursor:pointer}
 .maxwarn>b{font-family:inherit;font-weight:600}
 .evwarn{background:var(--accent-bg);color:var(--fg);border-left:3px solid var(--accent);border-radius:9px;padding:9px 11px;display:grid;gap:3px;font-size:13.5px}
 .evwarn>b{font-weight:600}.evwarn small{color:var(--muted);font-size:12px}
+.news,.evday,.evwarn{overflow-wrap:anywhere}
 .evday{display:grid;gap:3px;font-size:13px;line-height:1.45;color:var(--muted);padding:8px 11px;border:1px solid var(--line);border-radius:9px}.evday .lab{font-size:11px;letter-spacing:.06em;text-transform:uppercase;font-weight:600}.evday b{color:var(--fg);font-weight:600}.evday small{font-size:11.5px}
 #setEv .evday{margin:0 0 10px}
 #setEv .evwarn{margin:0 0 10px}
@@ -648,7 +649,8 @@ button.ncoin:hover{border-color:var(--accent)}
 const $=s=>document.querySelector(s);
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const DAY=864e5,NOW=()=>Date.now();
-const LS={get(k,d){try{const v=localStorage.getItem('fradar:'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem('fradar:'+k,JSON.stringify(v))}catch(e){}}};
+// saved settings: a value of the wrong type (old version, edited storage) falls back to the default instead of breaking the app
+const LS={get(k,d){try{const r=localStorage.getItem('fradar:'+k);if(r==null)return d;const v=JSON.parse(r);if(d!=null&&(typeof v!==typeof d||Array.isArray(v)!==Array.isArray(d)||v===null))return d;return v}catch(e){return d}},set(k,v){try{localStorage.setItem('fradar:'+k,JSON.stringify(v))}catch(e){}}};
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 
 const EX={binance:{name:'Binance'},gate:{name:'Gate'},bybit:{name:'Bybit'}};
@@ -726,6 +728,21 @@ function eventsLater(cal,now,end,win,cc){
     const g=out.find(x=>x.d===e.d);if(!g)out.push({d:e.d,names:[e.t],cc:[e.c]});else{if(!g.names.includes(e.t))g.names.push(e.t);if(!g.cc.includes(e.c))g.cc.push(e.c)}}
   return out.sort((a,b)=>a.d-b.d);
 }
+// news.json comes from our own job, but its text comes from outside news sites: keep only well-formed items,
+// as plain strings and numbers of sensible length, so one odd entry can't break the News page.
+function cleanNews(j){
+  if(!j||typeof j!=='object'||!Array.isArray(j.items))return null;
+  const str=(v,n)=>typeof v==='string'?v.replace(/[\u0000-\u001f\u202a-\u202e\u2066-\u2069]/g,'').slice(0,n||300):typeof v==='number'&&isFinite(v)?String(v):'';
+  const strs=(a,n)=>Array.isArray(a)?a.filter(x=>typeof x==='string'&&x).map(x=>x.slice(0,40)).slice(0,n||8):[];
+  const fin=v=>typeof v==='number'&&isFinite(v);
+  const items=j.items.filter(it=>it&&typeof it==='object'&&fin(it.d)&&typeof it.t==='string'&&it.t)
+    .slice(0,400).map(it=>({t:str(it.t,300),u:str(it.u,2000),s:str(it.s,60),k:str(it.k,20),d:it.d,x:str(it.x,600),c:strs(it.c),g:strs(it.g)}));
+  const calendar=(Array.isArray(j.calendar)?j.calendar:[]).filter(e=>e&&typeof e==='object'&&fin(e.d)&&typeof e.t==='string')
+    .slice(0,60).map(e=>({t:str(e.t,120),c:str(e.c,8),d:e.d,i:str(e.i,10),f:str(e.f,20),p:str(e.p,20)}));
+  const f=j.fng,fng=f&&typeof f==='object'&&fin(f.v)&&f.v>=0&&f.v<=100?{v:Math.round(f.v),l:str(f.l,40),d:fin(f.d)?f.d:0,prev:fin(f.prev)?f.prev:null}:null;
+  const sources=(Array.isArray(j.sources)?j.sources:[]).filter(x=>x&&typeof x==='object').slice(0,30).map(x=>({name:str(x.name,60),ok:x.ok===true,n:fin(x.n)?x.n:0,err:str(x.err,60)}));
+  return {v:j.v,updated:fin(j.updated)?j.updated:0,items,fng,calendar,sources};
+}
 function fmtMoney(v){return (v<0?'−$':'$')+Math.abs(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function fmtVol(v){if(!v||!isFinite(v))return '—';const a=Math.abs(v);return '$'+(a>=1e9?(v/1e9).toFixed(2)+'B':a>=1e6?(v/1e6).toFixed(1)+'M':a>=1e3?(v/1e3).toFixed(0)+'K':v.toFixed(0))}
 function fmtPct(x){if(x==null||!isFinite(x))return '—';return (x>0?'+':'')+x.toFixed(2)+'%'}
@@ -753,6 +770,15 @@ function classify(b,h){
   else{cats.add('crypto');if(h.meme||MEME.has(b))cats.add('meme');if(h.ai||AI.has(b))cats.add('ai')}
   return cats;
 }
+// one malformed market from an exchange is skipped instead of dropping that exchange's whole list.
+// Prices must be real positive numbers; impossible 24h changes and volumes are blanked rather than shown.
+function pushMk(out,o){
+  try{if(!o||typeof o.sym!=='string'||!o.sym||!(o.price>0&&o.price<1e12))return;
+    if(!isFinite(o.chg)||Math.abs(o.chg)>1e5)o.chg=NaN;if(!(o.vol>=0&&o.vol<1e15))o.vol=0;
+    if(o.funding!=null&&!(Math.abs(o.funding)<1))o.funding=null;
+    o.base=String(o.base==null?'':o.base);o.quote=String(o.quote==null?'':o.quote);if(!isFinite(o.listed))o.listed=null;if(o.expiry!=null&&!isFinite(+o.expiry))o.expiry=null;
+    out.push(mk(o))}catch(e){}
+}
 function mk(o){
   const bi=baseInfo(o.base);const root=o.root||canonical(bi.root);
   const cats=classify(root,o.hint||{});
@@ -774,30 +800,30 @@ async function getJSON(url,ms){
 async function loadBinance(){
   const B='https://fapi.binance.com/fapi/v1';
   const [info,tick,prem]=await Promise.all([getJSON(B+'/exchangeInfo'),getJSON(B+'/ticker/24hr'),getJSON(B+'/premiumIndex').catch(()=>[])]);
-  const tm=new Map(),fm=new Map();(tick||[]).forEach(t=>tm.set(t.symbol,t));(Array.isArray(prem)?prem:[]).forEach(p=>fm.set(p.symbol,p));
+  const tm=new Map(),fm=new Map();(Array.isArray(tick)?tick:[]).forEach(t=>t&&tm.set(t.symbol,t));(Array.isArray(prem)?prem:[]).forEach(p=>fm.set(p.symbol,p));
   const out=[];
-  for(const s of (info&&info.symbols)||[]){
+  for(const s of Array.isArray(info&&info.symbols)?info.symbols:[]){try{
     if(s.status!=='TRADING')continue;const t=tm.get(s.symbol);if(!t)continue;
     const ct=String(s.contractType||'').toUpperCase(),dated=/QUARTER|MONTH/.test(ct);
     const sub=(s.underlyingSubType||[]).join(' ').toUpperCase(),ut=String(s.underlyingType||'').toUpperCase();
     const hint={meme:/MEME/.test(sub),ai:/\bAI\b/.test(sub),stock:/EQUITY|STOCK/.test(ut+' '+sub),tradfi:/TRADFI/.test(ct+' '+sub)||/COMMODIT|FOREX|METAL/.test(ut+' '+sub)};
     const f=fm.get(s.symbol);
-    out.push(mk({ex:'binance',sym:s.symbol,base:s.baseAsset,quote:s.quoteAsset,price:+t.lastPrice,chg:+t.priceChangePercent,vol:+t.quoteVolume,
-      funding:f&&!dated&&f.lastFundingRate!==''?+f.lastFundingRate:null,listed:s.onboardDate||null,kind:dated?'dated':'perp',expiry:dated?s.deliveryDate:null,hint}));
+    pushMk(out,{ex:'binance',sym:s.symbol,base:s.baseAsset,quote:s.quoteAsset,price:+t.lastPrice,chg:+t.priceChangePercent,vol:+t.quoteVolume,
+      funding:f&&!dated&&f.lastFundingRate!==''?+f.lastFundingRate:null,listed:s.onboardDate||null,kind:dated?'dated':'perp',expiry:dated?s.deliveryDate:null,hint});}catch(e){}
   }
   return out;
 }
 async function loadGate(){
   const G='https://api.gateio.ws/api/v4/futures/usdt';
   const [cons,ticks]=await Promise.all([getJSON(G+'/contracts'),getJSON(G+'/tickers')]);
-  const tm=new Map((ticks||[]).map(t=>[t.contract,t]));const out=[];
-  for(const c of cons||[]){
+  const tm=new Map((Array.isArray(ticks)?ticks:[]).filter(Boolean).map(t=>[t.contract,t]));const out=[];
+  for(const c of Array.isArray(cons)?cons:[]){try{
     if(c.in_delisting||/delist|clos/i.test(c.status||''))continue;const t=tm.get(c.name);if(!t)continue;
     const [base,quote]=String(c.name).split('_');const ctype=String(c.contract_type||c.type_desc||'').toUpperCase();
     const created=c.create_time?c.create_time*1000:(c.launch_time?c.launch_time*1000:null);
     const fr=t.funding_rate!=null&&t.funding_rate!==''?t.funding_rate:c.funding_rate;
-    out.push(mk({ex:'gate',sym:c.name,base,quote,price:+t.last,chg:+t.change_percentage,vol:+(t.volume_24h_quote||t.volume_24h_settle||0),
-      funding:fr!=null&&fr!==''?+fr:null,listed:created,kind:'perp',hint:{stock:/STOCK|EQUITY/.test(ctype),tradfi:/TRADFI|COMMOD|METAL|FOREX/.test(ctype)}}));
+    pushMk(out,{ex:'gate',sym:c.name,base,quote,price:+t.last,chg:+t.change_percentage,vol:+(t.volume_24h_quote||t.volume_24h_settle||0),
+      funding:fr!=null&&fr!==''?+fr:null,listed:created,kind:'perp',hint:{stock:/STOCK|EQUITY/.test(ctype),tradfi:/TRADFI|COMMOD|METAL|FOREX/.test(ctype)}});}catch(e){}
   }
   return out;
 }
@@ -808,21 +834,21 @@ async function bybitInstruments(){
   for(let k=0;k<5;k++){
     const r=await getJSON(BY+'/instruments-info?category=linear&limit=1000'+(cursor?'&cursor='+encodeURIComponent(cursor):''));
     if(!r||r.retCode)throw new Error((r&&r.retMsg)||'No data');
-    list.push(...((r.result&&r.result.list)||[]));cursor=r.result&&r.result.nextPageCursor;if(!cursor)break;
+    const l=r.result&&r.result.list;if(Array.isArray(l))list.push(...l);cursor=r.result&&r.result.nextPageCursor;if(!cursor)break;
   }
   return list;
 }
 async function loadBybit(){
   const [ticks,instruments]=await Promise.all([getJSON(BY+'/tickers?category=linear'),bybitInstruments()]);
   if(!ticks||ticks.retCode)throw new Error((ticks&&ticks.retMsg)||'No data');
-  const tm=new Map(((ticks.result&&ticks.result.list)||[]).map(t=>[t.symbol,t]));const out=[];
-  for(const c of instruments){
+  const tl=ticks.result&&ticks.result.list,tm=new Map((Array.isArray(tl)?tl:[]).filter(Boolean).map(t=>[t.symbol,t]));const out=[];
+  for(const c of instruments){try{
     if(c.status!=='Trading'||c.settleCoin!=='USDT')continue;const t=tm.get(c.symbol);if(!t)continue;
     const dated=/Futures/i.test(c.contractType||'')&&+c.deliveryTime>0,price=+t.lastPrice;if(!(price>0))continue;
     const tags=[c.symbolType].concat(c.tags||[],c.displayName,c.fullName).join(' ').toUpperCase();
-    out.push(mk({ex:'bybit',sym:c.symbol,base:c.baseCoin,quote:c.quoteCoin,price,chg:+t.price24hPcnt*100,vol:+t.turnover24h||0,
+    pushMk(out,{ex:'bybit',sym:c.symbol,base:c.baseCoin,quote:c.quoteCoin,price,chg:+t.price24hPcnt*100,vol:+t.turnover24h||0,
       funding:!dated&&t.fundingRate!=null&&t.fundingRate!==''?+t.fundingRate:null,listed:+c.launchTime||null,kind:dated?'dated':'perp',expiry:dated?+c.deliveryTime:null,
-      hint:{stock:/XSTOCK|\bSTOCK|EQUITY/.test(tags),tradfi:/TRADFI|COMMODIT|METAL|FOREX/.test(tags)}}));
+      hint:{stock:/XSTOCK|\bSTOCK|EQUITY/.test(tags),tradfi:/TRADFI|COMMODIT|METAL|FOREX/.test(tags)}});}catch(e){}
   }
   return out;
 }
@@ -847,8 +873,8 @@ function openWS(name,url,o){
 }
 const feeds={},dirty=new Set(),gateSubs=new Set(),bybitSubs=new Set();
 function tick(id,price,chg,vol){
-  const p=state.byId.get(id);if(!p||!(price>0))return;
-  p.price=price;p.unitPrice=price/(p.mult||1);if(isFinite(chg))p.chg=chg;if(vol!=null&&isFinite(vol)&&vol>0)p.vol=vol;
+  const p=state.byId.get(id);if(!p||!(price>0&&price<1e12))return;
+  p.price=price;p.unitPrice=price/(p.mult||1);if(isFinite(chg)&&Math.abs(chg)<=1e5)p.chg=chg;if(vol!=null&&vol>0&&vol<1e15)p.vol=vol;
   state.lastTick[p.ex]=NOW();dirty.add(id);
   if(current&&current.p===p&&current.feedKind!=='kline')liveTickChart(p.unitPrice);
 }
@@ -1283,6 +1309,7 @@ function renderListInner(force){
   }
   if(state.cat==='setups'){
     const s=setupSets();
+    if(!s.pool){area.innerHTML=`<div class="list"><div class="empty">${state.q?'No busy markets match your search.':'No markets have enough trading right now to check.'} Setups only looks at markets with at least ${fmtVol(HOT_MIN_VOL)} traded in 24 hours.</div></div>`;$('#footnote').textContent='';renderMood(liquid());return}
     if(!s.checked){area.innerHTML=`<div class="list"><div class="empty">Reading charts for the ${s.pool} most traded markets…</div></div>`;$('#footnote').textContent='';renderMood(liquid());return}
     const rows=(arr,word)=>arr.length?arr.map(g=>rowHTML(g)).join(''):`<div class="empty">No ${word} entries right now on ${TF_LABEL[state.tf]} candles.</div>`;
     area.innerHTML='<div id="setEv" hidden></div>'+section('Long entries','var(--up)','Highest confidence first',rows(s.longs,'long'))+section('Short entries','var(--down)','Highest confidence first',rows(s.shorts,'short'));
@@ -1496,7 +1523,7 @@ async function loadNews(force){
   if(news.loading)return;if(!force&&news.data&&NOW()-news.at<4*60000)return;
   news.loading=true;
   try{const r=await fetch(NEWS_URL+'?t='+Math.floor(NOW()/60000));if(!r.ok)throw new Error('HTTP '+r.status);
-    const j=await r.json();if(!j||!Array.isArray(j.items))throw new Error('bad data');news.data=j;news.at=NOW();news.err=null}
+    const j=cleanNews(await r.json());if(!j)throw new Error('bad data');news.data=j;news.at=NOW();news.err=null}
   catch(e){news.err=String(e&&e.message||e)}
   news.loading=false;if(state.cat==='news')renderNews(true);renderMktNews();renderEvGuard();
 }
@@ -1657,7 +1684,11 @@ function simStats(tr,risk){
     if(t.r<=0){streak++;worst=Math.max(worst,streak)}else streak=0}
   return{n,win:wins/n,avgR:sum/n,avg2:sum2/n,pf:sl>0?sw/sl:(sw>0?Infinity:0),ret:eq-1,dd,worst,reach:reach/n,curve,avgBars:bars/n};
 }
-const sim={opts:Object.assign({scope:'top10',tfs:['15m','1h'],plan:'split',minConf:0,fee:0.05,slip:0.02,risk:2,maxHold:96},LS.get('sim',{})),
+const SIM_DEF={scope:'top10',tfs:['15m','1h'],plan:'split',minConf:0,fee:0.05,slip:0.02,risk:2,maxHold:96};
+// saved simulator options: keep only known keys of the right type (a broken saved value falls back to the default)
+function simOpts(saved){const o=Object.assign({},SIM_DEF,{tfs:SIM_DEF.tfs.slice()});if(!saved||typeof saved!=='object')return o;
+  for(const k in SIM_DEF){const v=saved[k];if(k==='tfs'){if(Array.isArray(v)){const t=v.filter(x=>TFS[x]);if(t.length)o.tfs=t}}else if(typeof v===typeof SIM_DEF[k]&&(typeof v!=='number'||isFinite(v)))o[k]=v}return o}
+const sim={opts:simOpts(LS.get('sim',{})),
   running:false,cancel:false,prog:null,result:null,err:null};
 function simMarkets(scope){
   if(scope==='this'){const g=state.gByKey.get(state.selected)||setupPool()[0];return g?[g]:[]}
@@ -2054,7 +2085,7 @@ function setTf(tf){state.tf=tf;LS.set('tf2',tf);renderTf();renderTabs();renderLi
 
 /* ---------- app health: one broken part must not take down the rest ---------- */
 // Errors are kept on this device (last 10) so the owner can copy them to Claude from Settings.
-const errLog=LS.get('errs',[]);let toastT=null;
+const errLog=LS.get('errs',[]).filter(x=>x&&typeof x==='object'&&isFinite(x.t)&&typeof x.t==='number').map(x=>({t:x.t,where:String(x.where||'').slice(0,40),msg:String(x.msg||'').slice(0,300),at:String(x.at||'').slice(0,300)}));let toastT=null;
 function recordErr(where,e){
   const msg=String(e&&(e.message||e.reason&&e.reason.message)||e||'Unknown error').slice(0,300);
   const at=String(e&&e.stack||'').split('\n').slice(1,3).map(x=>x.trim()).join(' | ').slice(0,300);

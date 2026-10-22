@@ -13,6 +13,7 @@ import sys
 import urllib.request
 import xml.etree.ElementTree as ET
 
+MAX_BYTES = 5 * 1024 * 1024
 UA = "Mozilla/5.0 (compatible; FuturesRadarNews/1.0; +https://github.com/876lab/futures-radar)"
 
 # (name, url, topic) — topic: crypto | markets | official
@@ -67,7 +68,10 @@ MARKET_WORDS = re.compile(r"\b(stocks?|stock market|shares|equities|Dow|S&P|Nasd
 def fetch(url, timeout=20):
     req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "application/rss+xml, application/xml, application/json, text/xml, */*"})
     with urllib.request.urlopen(req, timeout=timeout) as r:
-        return r.read()
+        data = r.read(MAX_BYTES + 1)
+    if len(data) > MAX_BYTES:  # a feed this big is broken or hostile; skip it rather than run out of memory
+        raise ValueError("response too large")
+    return data
 
 
 def clean(s, limit=None):
@@ -153,7 +157,8 @@ def build():
             n = 0
             for title, link, d, summary in rows:
                 title = clean(title)
-                if not title or not link:
+                link = (link or "").strip()
+                if not title or not re.match(r"https?://", link, re.I):  # only real web links reach the app
                     continue
                 key = re.sub(r"\W+", "", title.lower())[:80]
                 if key in seen:
@@ -166,7 +171,7 @@ def build():
                 text = f"{title} {body}"
                 if topic == "markets" and not MARKET_WORDS.search(text):
                     continue
-                items.append({"t": title, "u": link.strip(), "s": name, "k": topic, "d": d, "x": body,
+                items.append({"t": title, "u": link[:2000], "s": name, "k": topic, "d": d, "x": body,
                               "c": coins_in(text), "g": tags_in(text)})
                 n += 1
             sources.append({"name": name, "ok": True, "n": n})

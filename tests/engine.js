@@ -51,6 +51,12 @@ ok(gd&&gd.mins===5&&gd.names.join('|')==='CPI m/m|Core CPI m/m','nearest event w
 ok(eventGuard([ev('BOJ Policy Rate','JPY',10*60)],N0)===null,'Japan news ignored by default');
 gd=eventGuard([ev('BOJ Policy Rate','JPY',10*60),ev('Main Refinancing Rate','EUR',10*60)],N0,0,EV_CC_ALL);ok(gd&&gd.mins===10&&gd.cc.join('|')==='JPY|EUR','other countries count when switched on');
 ok(eventGuard([ev('CPI y/y','GBP',60)],N0,0,EV_CC_ALL)===null,'UK still ignored with the wider list');
+// news data cleaner (hostile or broken news.json)
+ok(cleanNews(null)===null&&cleanNews({items:'x'})===null,'news without an item list is rejected');
+let cn=cleanNews({items:[null,5,{t:'ok',d:N0,u:'https://a',c:'BTC',g:['Hack',7,{}],x:{}},{t:'',d:N0},{t:'no date',d:'today'},{t:'x'.repeat(999),d:N0,s:['a']}],
+  calendar:[{t:'CPI',c:'USD',d:N0,i:'High'},{t:'bad',d:'x'},null],fng:{v:'50'},sources:'nope'});
+ok(cn.items.length===2&&cn.items[0].c.length===0&&cn.items[0].g.join()==='Hack'&&cn.items[0].x===''&&cn.items[1].t.length===300&&cn.items[1].s==='','news items cleaned to plain strings and arrays');
+ok(cn.calendar.length===1&&cn.fng===null&&Array.isArray(cn.sources)&&cn.sources.length===0,'calendar, fear & greed and sources cleaned');
 // later-today planner
 let lt=eventsLater([ev('FOMC Statement','USD',5*3600),ev('CPI m/m','USD',2*3600),ev('Core CPI m/m','USD',2*3600),ev('Retail Sales','USD',3*3600,'Medium')],N0,N0+6*3600);
 ok(lt.length===2&&lt[0].d===N0+7200&&lt[0].names.length===2&&lt[1].names[0]==='FOMC Statement','later today: grouped, soonest first, high impact only');

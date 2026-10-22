@@ -21,7 +21,9 @@ async def isolation_check(b):
     """A broken section must show a 'hit a snag' card, be logged in Settings, and leave the other pages working."""
     pg = await b.new_page(viewport={"width": 390, "height": 800})
     await block_exchanges(pg)
-    bad = {"updated": int(time.time()), "items": [None], "sources": []}   # malformed news data
+    # bad news data is now cleaned on arrival, so break the News page another way: its calendar date formatting throws
+    bad = {"updated": int(time.time()), "items": [], "sources": [], "calendar": [{"t": "CPI m/m", "c": "USD", "d": int(time.time()) + 7200, "i": "High"}]}
+    await pg.add_init_script("Date.prototype.toLocaleString=function(){throw new Error('test: deliberately broken News page')}")
     await pg.route("**/news-data/news.json*", lambda r: r.fulfill(body=json.dumps(bad), headers={"access-control-allow-origin": "*", "content-type": "application/json"}))
     await pg.route("**/changes.json*", lambda r: r.fulfill(path=os.path.join(ROOT, "..", "changes.json"), headers={"content-type": "application/json"}))
     errs = []; pg.on("pageerror", lambda e: errs.append(str(e)))

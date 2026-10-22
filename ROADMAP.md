@@ -18,6 +18,7 @@ The working plan for nightly improvement runs. Each run picks the **first unchec
 - Signal engine: `computeSeries` → `analyzeAt(cs,S,L)` → `recommend(an,cs,han,tf)`. Indicators only look backwards; `tests/engine.js` proves it.
 - Simulator: `backtestSeries` + `simTrade` + `simStats`; entries at next candle open, stop first when both touched, fees/slippage both sides.
 - (Parked) Stocks: `scripts/fetch_stocks.py` ran daily in `.github/workflows/stocks.yml` and force-pushes `stocks.json` (yearly company numbers from the SEC XBRL frames API for the S&P 500 and the stock futures in `STOCKS`) to the `stocks-data` branch. The **Picks** page scores them with `qualityCheck` (6 checks; fair price only when a live futures price exists). SEC contact in the User-Agent is the GitHub noreply address, chosen by the owner.
+- Stress/security test: `tests/stress.py` (part of `run.sh`) feeds ~3,000 markets, hostile data, WebSocket floods and tampered storage; keep it passing.
 - Safety nets: `.github/workflows/tests.yml` re-runs `tests/run.sh` on GitHub for every push to main; `.github/workflows/health.yml` runs `tests/health.py` daily against the live site (Binance/Bybit can't be reached from GitHub's US servers and are only noted). In the app, `renderList` and the chart screen catch errors and show a "hit a snag" card; errors are logged on the device (Settings → App health) for the owner to copy to Claude.
 - `changes.json` feeds the in-app **What's new** panel (newest first).
 - Section comments in the script are used by `tests/engine.js` to slice code; keep them.
@@ -59,6 +60,7 @@ The working plan for nightly improvement runs. Each run picks the **first unchec
 - [ ] **Picks (parked by the owner, 21 Oct 2026; do not pick up unless he asks).** Stocks scored on 6 traits shared by great investors. Built and then removed because the SEC blocks GitHub's servers; full code is in commit c701ecd (plus fixes up to d96b7ae). Revive only with a working data route (e.g. download run on the owner's computer).
 - [ ] **Big news on the News calendar by country.** Small: let the News page "Coming up" card follow the same country switch, and add a one-tap "Remind me" that pins the next big release time at the top of Setups.
 - [ ] **Signal forming vs confirmed (low priority).** Information only: show whether the current candle is still forming. He doesn't trade by candle closes, so keep it subtle.
+- [ ] **Security hardening (small, careful).** Add an integrity hash (SRI) to the Lightweight Charts `<script>` tag, computed from the real 4.2.0 file and checked in the GitHub Tests run before going live; then consider a Content-Security-Policy meta tag (it needs `unsafe-inline` for the inline script and styles, so the gain is modest; test the live site on the phone afterwards).
 - [ ] **Performance and accessibility pass.** Check with 1,300+ markets, keyboard use, contrast in both themes.
 
 ## Done
@@ -75,6 +77,8 @@ The working plan for nightly improvement runs. Each run picks the **first unchec
 ## Notes from runs
 
 (Each run adds a dated line here if something was blocked or needs the owner.)
+
+- 2026-10-22: **Stress and security test** (owner request). `tests/stress.py` added to `tests/run.sh`. No XSS found; fixed four robustness flaws (see CHANGELOG). SRI/CSP not done because the chart library could not be downloaded here to compute a verified hash; added to the backlog.
 
 - 2026-10-22: Owner approved the 4-step **win-odds research** plan (backtest with recorded conditions → win-rate tables → win odds on the signal card → opt-in high-odds filter). Goal: more wins at the same 1.5:1 / 3:1 targets, not a higher win rate from smaller targets. Sources: Bitcoin intraday time-series momentum (https://research.birmingham.ac.uk/en/publications/bitcoin-intraday-time-series-momentum/); López de Prado meta-labeling / triple-barrier (https://hudsonthames.org/does-meta-labeling-add-to-signal-efficacy/); Bailey et al., Probability of Backtest Overfitting (https://papers.ssrn.com/abstract=2326253) and Deflated Sharpe Ratio (https://papers.ssrn.com/abstract=2460551); perpetual futures funding (https://arxiv.org/html/2212.06888v5).
 

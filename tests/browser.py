@@ -85,6 +85,14 @@ async def main():
                 await pg.screenshot(path=os.path.join(OUT, "sim.png"), full_page=True)
                 await pg.click("#openHelp"); await pg.wait_for_timeout(300)
                 if not await pg.is_visible("#help"): problems.append("help sheet did not open")
+            # "big news later today" line on Setups: an event 90 min out (skipped late in the local day, when it would fall after midnight)
+            if await pg.evaluate("new Date().getHours() < 22"):
+                fx["calendar"] = [{"t": "FOMC Statement", "c": "USD", "d": int(time.time()) + 5400, "i": "High", "f": "", "p": ""}]
+                await pg.reload(); await pg.wait_for_timeout(2000)
+                await pg.click('[data-nav="setups"]'); await pg.wait_for_timeout(1000)
+                txt = await pg.inner_text("#listArea")
+                if "big news later today" not in txt.lower() or "FOMC Statement" not in txt or "Big US news" in txt: problems.append(f"[{scheme}] setups: 'big news later today' line missing")
+                if scheme == "dark": await pg.screenshot(path=os.path.join(OUT, "setups-later.png"))
             await pg.close()
         await isolation_check(b)
         await b.close()

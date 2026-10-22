@@ -2,6 +2,13 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-10-22 (nightly run)
+- **Big news later today.** On Setups, when a high-impact release is coming later today (local time) but is more than 30 minutes away, a quiet grey line lists the times and names (up to three, grouped by time), so he can plan around it. Within 30 minutes the amber warning takes over as before. Shown only while **Big news warning** is on.
+- **Also count Japan, China and euro-area news** (new switch in Settings → Warnings, off by default). Adds high-impact JPY, CNY and EUR events from the News calendar (e.g. Bank of Japan and ECB rate decisions, top China data) to both the warning and the later-today line; the warning names the country ("Big Japan news at …"). UK and other countries still don't count.
+- New pure function `eventsLater`; `eventGuard` now takes an optional country list and reports the countries. 7 new tests in `tests/engine.js`; the browser test now feeds an FOMC statement 90 minutes out and checks the later-today line on Setups in both themes. Help and the Settings text explain both.
+- Information only: Enter/Hold/Avoid and entry/stop/target maths are unchanged. No new data sources (the news job already keeps high-impact events for all countries).
+- Sources: Bank of Japan rate decisions and the yen carry trade as crypto movers: FXStreet, "How the Bank of Japan wrecked the yen carry trade and crypto markets" (https://www.fxstreet.com/cryptocurrencies/news/how-the-bank-of-japan-wrecked-the-yen-carry-trade-and-crypto-markets-202408060601); Decrypt, "Bitcoin traders brace for Bank of Japan rate hike" (https://decrypt.co/352717/bitcoin-traders-brace-for-bank-of-japan-rate-hike-amid-crypto-sell-off). Calendar data: the existing Forex Factory weekly feed read by `scripts/fetch_news.py`.
+
 ## 2026-10-21 (owner request: Settings only at the top)
 - Removed the Settings button from the bottom bar; the sliders button at the top right opens the Settings page as before.
 

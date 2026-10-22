@@ -48,6 +48,15 @@ gd=eventGuard([ev('Non-Farm Employment Change','USD',-12*60)],N0);ok(gd&&gd.mins
 ok(eventGuard([ev('CPI y/y','GBP',60),ev('Retail Sales','USD',60,'Medium')],N0)===null,'only high-impact US events count');
 gd=eventGuard([ev('FOMC Statement','USD',25*60),ev('CPI m/m','USD',5*60),ev('Core CPI m/m','USD',5*60),ev('CPI m/m','USD',5*60)],N0);
 ok(gd&&gd.mins===5&&gd.names.join('|')==='CPI m/m|Core CPI m/m','nearest event wins and same-minute events group');
+ok(eventGuard([ev('BOJ Policy Rate','JPY',10*60)],N0)===null,'Japan news ignored by default');
+gd=eventGuard([ev('BOJ Policy Rate','JPY',10*60),ev('Main Refinancing Rate','EUR',10*60)],N0,0,EV_CC_ALL);ok(gd&&gd.mins===10&&gd.cc.join('|')==='JPY|EUR','other countries count when switched on');
+ok(eventGuard([ev('CPI y/y','GBP',60)],N0,0,EV_CC_ALL)===null,'UK still ignored with the wider list');
+// later-today planner
+let lt=eventsLater([ev('FOMC Statement','USD',5*3600),ev('CPI m/m','USD',2*3600),ev('Core CPI m/m','USD',2*3600),ev('Retail Sales','USD',3*3600,'Medium')],N0,N0+6*3600);
+ok(lt.length===2&&lt[0].d===N0+7200&&lt[0].names.length===2&&lt[1].names[0]==='FOMC Statement','later today: grouped, soonest first, high impact only');
+ok(eventsLater([ev('CPI m/m','USD',20*60),ev('CPI m/m','USD',-3600)],N0,N0+6*3600).length===0,'inside the warning window or past is not listed');
+ok(eventsLater([ev('CPI m/m','USD',7*3600)],N0,N0+6*3600).length===0,'after midnight is not listed');
+ok(eventsLater([ev('BOJ Policy Rate','JPY',3600)],N0,N0+6*3600).length===0&&eventsLater([ev('BOJ Policy Rate','JPY',3600)],N0,N0+6*3600,0,EV_CC_ALL).length===1,'later today follows the country switch');
 const st=simStats([],2);ok(st.n===0,'empty stats');
 ok(n>50,'backtest produced too few trades: '+n);
 console.log('engine tests: '+pass+' passed, '+fail+' failed ('+n+' simulated trades in '+(Date.now()-t0)+' ms)');

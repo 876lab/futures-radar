@@ -247,6 +247,8 @@ button{cursor:pointer}
 .maxwarn>b{font-family:inherit;font-weight:600}
 .evwarn{background:var(--accent-bg);color:var(--fg);border-left:3px solid var(--accent);border-radius:9px;padding:9px 11px;display:grid;gap:3px;font-size:13.5px}
 .evwarn>b{font-weight:600}.evwarn small{color:var(--muted);font-size:12px}
+.evday{display:grid;gap:3px;font-size:13px;line-height:1.45;color:var(--muted);padding:8px 11px;border:1px solid var(--line);border-radius:9px}.evday .lab{font-size:11px;letter-spacing:.06em;text-transform:uppercase;font-weight:600}.evday b{color:var(--fg);font-weight:600}.evday small{font-size:11.5px}
+#setEv .evday{margin:0 0 10px}
 #setEv .evwarn{margin:0 0 10px}
 
 .chartbox{position:relative;overflow:hidden}
@@ -532,7 +534,8 @@ button.ncoin:hover{border-color:var(--accent)}
           </div>
           <div class="sgrp">
             <h3>Warnings</h3>
-            <div class="swrow" data-sw="evOn"><span class="t"><b id="swEvL">Big news warning</b><span>An amber note on the signal card and Setups when a big US release (CPI, jobs, Fed) is within 30 minutes.</span></span><button type="button" class="switch" role="switch" aria-labelledby="swEvL" aria-checked="true"></button></div>
+            <div class="swrow" data-sw="evOn"><span class="t"><b id="swEvL">Big news warning</b><span>An amber note on the signal card and Setups when a big US release (CPI, jobs, Fed) is within 30 minutes, plus a quiet “later today” line on Setups.</span></span><button type="button" class="switch" role="switch" aria-labelledby="swEvL" aria-checked="true"></button></div>
+            <div class="swrow" data-sw="evAll"><span class="t"><b id="swEvAllL">Also count Japan, China and euro-area news</b><span>Adds big releases like Bank of Japan and ECB rate decisions and top China data, which sometimes move crypto too. Off by default.</span></span><button type="button" class="switch" role="switch" aria-labelledby="swEvAllL" aria-checked="false"></button></div>
           </div>
           <div class="sgrp">
             <h3>Data</h3>
@@ -617,7 +620,7 @@ button.ncoin:hover{border-color:var(--accent)}
       <dt>Stop loss</dt><dd>Where the idea is wrong. Close the trade there, no exceptions.</dd>
       <dt>Targets</dt><dd>Target 1 is 1.5 times your risk, target 2 is 3 times. Many traders take half at target 1 and move the stop to entry.</dd>
       <dt>Confidence</dt><dd>How many signals line up, from 0 to 100. Above 70 is strong agreement.</dd>
-      <dt>Big news warning</dt><dd>An amber note on the signal card and Setups page when a big US release (like CPI, jobs or a Fed decision) is within 30 minutes. Prices often spike both ways then, and stops can fill worse than planned. It never changes the signal.</dd>
+      <dt>Big news warning</dt><dd>An amber note on the signal card and Setups page when a big US release (like CPI, jobs or a Fed decision) is within 30 minutes. Prices often spike both ways then, and stops can fill worse than planned. Earlier in the day, Setups shows a quiet “Big news later today” line with the times so you can plan around them. A second switch also counts Japan, China and euro-area releases (like Bank of Japan or ECB rate decisions). It never changes the signal.</dd>
       <dt>B and S on the chart</dt><dd>Where Supertrend flipped to buy (B) or sell (S).</dd>
     </dl>
     <h3>The indicators</h3>
@@ -687,7 +690,7 @@ const state={
   view:LS.get('view','all'),cat:LS.get('cat3','setups'),sort:LS.get('sort','vol'),q:'',
   watch:new Set(LS.get('watch2',[])),tf:LS.get('tf2','15m'),selected:null,selContract:null,trend:new Map(),scanning:null,
   proxy:LS.get('proxy',''),ind:LS.get('ind3',{ema:false,bb:true,st:true,vol:true,marks:true}),limit:120,loading:false,
-  acct:LS.get('acct',100),evOn:LS.get('evOn',true),navHide:LS.get('navHide',true),risk:LS.get('risk',2),maxLoss:LS.get('maxLoss',0),stream:{},lastTick:{},lastSeen:{}
+  acct:LS.get('acct',100),evOn:LS.get('evOn',true),evAll:LS.get('evAll',false),navHide:LS.get('navHide',true),risk:LS.get('risk',2),maxLoss:LS.get('maxLoss',0),stream:{},lastTick:{},lastSeen:{}
 };
 if(!TFS[state.tf])state.tf='15m';
 if(state.view!=='all'&&!EX[state.view])state.view='all';
@@ -705,13 +708,23 @@ function sizeTrade(acct,riskPct,stopPct,maxLoss){
   if(maxLoss>0&&loss>maxLoss*(1+1e-9)){r.over=true;r.fitLoss=maxLoss;r.fitSize=maxLoss/stopPct;r.fitRisk=maxLoss/acct*100;r.fitLev=r.fitSize/acct}
   return r;
 }
-// economic event guard: the nearest high-impact US event (CPI, jobs, Fed) within `win` seconds before or after now.
-// Events at the same minute are grouped. Returns null when nothing is close. Information only; signals are unchanged.
-function eventGuard(cal,now,win){
-  win=win||1800;let best=null;
-  for(const e of cal||[]){if(!e||e.i!=='High'||e.c!=='USD'||!isFinite(e.d))continue;const dt=e.d-now;if(Math.abs(dt)>win)continue;
-    if(!best||Math.abs(dt)<Math.abs(best.d-now))best={d:e.d,names:[e.t]};else if(e.d===best.d&&!best.names.includes(e.t))best.names.push(e.t)}
+// economic event guard: the nearest high-impact event (CPI, jobs, Fed) within `win` seconds before or after now.
+// `cc` lists the countries that count (default US only). Events at the same minute are grouped.
+// Returns null when nothing is close. Information only; signals are unchanged.
+const EV_CC=['USD'],EV_CC_ALL=['USD','JPY','CNY','EUR'];
+function eventGuard(cal,now,win,cc){
+  win=win||1800;cc=cc||EV_CC;let best=null;
+  for(const e of cal||[]){if(!e||e.i!=='High'||!cc.includes(e.c)||!isFinite(e.d))continue;const dt=e.d-now;if(Math.abs(dt)>win)continue;
+    if(!best||Math.abs(dt)<Math.abs(best.d-now))best={d:e.d,names:[e.t],cc:[e.c]};else if(e.d===best.d){if(!best.names.includes(e.t))best.names.push(e.t);if(!best.cc.includes(e.c))best.cc.push(e.c)}}
   if(!best)return null;best.mins=Math.round((best.d-now)/60);best.until=best.d+win;return best;
+}
+// later-today planner: high-impact events after the warning window (now+win) and before `end` (local midnight),
+// grouped by time, soonest first. Lets him plan around them before the 30-minute warning appears.
+function eventsLater(cal,now,end,win,cc){
+  win=win||1800;cc=cc||EV_CC;const out=[];
+  for(const e of cal||[]){if(!e||e.i!=='High'||!cc.includes(e.c)||!isFinite(e.d)||e.d<=now+win||e.d>=end)continue;
+    const g=out.find(x=>x.d===e.d);if(!g)out.push({d:e.d,names:[e.t],cc:[e.c]});else{if(!g.names.includes(e.t))g.names.push(e.t);if(!g.cc.includes(e.c))g.cc.push(e.c)}}
+  return out.sort((a,b)=>a.d-b.d);
 }
 function fmtMoney(v){return (v<0?'−$':'$')+Math.abs(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function fmtVol(v){if(!v||!isFinite(v))return '—';const a=Math.abs(v);return '$'+(a>=1e9?(v/1e9).toFixed(2)+'B':a>=1e6?(v/1e6).toFixed(1)+'M':a>=1e3?(v/1e3).toFixed(0)+'K':v.toFixed(0))}
@@ -1523,14 +1536,24 @@ function calHTML(cal){
   return `<div class="card cal"><span class="lab">Coming up</span>${up.length?`<ul>${up.map(e=>`<li><span class="when">${esc(when(e.d))}</span><span><i class="imp${e.i==='High'?'':' m'}" title="${esc(e.i)} impact"></i><b>${esc(e.c)}</b> ${esc(e.t)}${e.f||e.p?`<small>${e.f?'Forecast '+esc(e.f):''}${e.f&&e.p?' · ':''}${e.p?'Previous '+esc(e.p):''}</small>`:''}</span></li>`).join('')}</ul>`:'<p>No high-impact events left this week.</p>'}
     <p>Red dot: high impact. Big data releases like CPI, jobs and Fed decisions often move crypto too.</p></div>`;
 }
-function evGuardHTML(){
-  const g=state.evOn&&news.data&&eventGuard(news.data.calendar,NOW()/1000);if(!g)return '';
-  const tm=d=>new Date(d*1000).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}),what=esc(g.names.slice(0,2).join(', '))+(g.names.length>2?' and more':'');
+const CC_NAME={USD:'US',JPY:'Japan',CNY:'China',EUR:'euro-area'};
+function evCC(){return state.evAll?EV_CC_ALL:EV_CC}
+function evWho(cc){return cc.map(c=>CC_NAME[c]||c).join(' & ')}
+function evTm(d){return new Date(d*1000).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}
+function evGuardHTML(day){
+  if(!state.evOn||!news.data)return '';const now=NOW()/1000,g=eventGuard(news.data.calendar,now,0,evCC());
+  if(!g){
+    if(!day)return '';const end=new Date(NOW());end.setHours(24,0,0,0);
+    const L=eventsLater(news.data.calendar,now,end.getTime()/1000,0,evCC());if(!L.length)return '';
+    const one=e=>`<b>${evTm(e.d)}</b> ${esc(e.names.slice(0,2).join(', '))}${e.names.length>2?' and more':''}${state.evAll?` <small>(${esc(evWho(e.cc))})</small>`:''}`;
+    return `<div class="evday" role="note"><span class="lab">Big news later today</span><span>${L.slice(0,3).map(one).join(' · ')}${L.length>3?` · and ${L.length-3} more`:''}</span></div>`;
+  }
+  const what=esc(g.names.slice(0,2).join(', '))+(g.names.length>2?' and more':'');
   const when=g.mins>0?`in ${g.mins} min`:g.mins<0?`${-g.mins} min ago`:'now';
-  return `<div class="evwarn" role="note"><b>Big US news ${g.mins>=0?'at':'came out at'} ${tm(g.d)} (${when}): ${what}.</b><span>Spreads and sudden spikes are common around big releases. Consider waiting until about ${tm(g.until)}.</span><small>From the News calendar. The signal itself does not change.</small></div>`;
+  return `<div class="evwarn" role="note"><b>Big ${esc(evWho(g.cc))} news ${g.mins>=0?'at':'came out at'} ${evTm(g.d)} (${when}): ${what}.</b><span>Spreads and sudden spikes are common around big releases. Consider waiting until about ${evTm(g.until)}.</span><small>From the News calendar. The signal itself does not change.</small></div>`;
 }
 function renderEvGuard(){
-  const h=evGuardHTML();for(const id of ['evGuard','setEv']){const el=document.getElementById(id);if(el&&el._h!==h){el.innerHTML=h;el.hidden=!h;el._h=h}}
+  for(const id of ['evGuard','setEv']){const el=document.getElementById(id);if(!el)continue;const h=evGuardHTML(id==='setEv');if(el._h!==h){el.innerHTML=h;el.hidden=!h;el._h=h}}
 }
 function renderNews(force){
   const area=$('#listArea');if(!force&&$('#newsRoot'))return;
@@ -2118,7 +2141,7 @@ function openSettingsPage(){if(document.body.classList.contains('d-open'))closeD
 $('#openSettings').addEventListener('click',openSettingsPage);
 $('#settingsForm').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
   const sw=b.closest('[data-sw]');
-  if(sw){const k=sw.dataset.sw,on=!state[k];if(k==='compact')setCompact(on);else{state[k]=on;LS.set(k,on)}if(k==='evOn')renderEvGuard();if(k==='navHide')document.body.classList.remove('nav-away');renderSettings()}
+  if(sw){const k=sw.dataset.sw,on=!state[k];if(k==='compact')setCompact(on);else{state[k]=on;LS.set(k,on)}if(k==='evOn'||k==='evAll')renderEvGuard();if(k==='navHide')document.body.classList.remove('nav-away');renderSettings()}
   else if(b.dataset.settf){setTf(b.dataset.settf)}
   else if(b.id==='setHelp')$('#openHelp').click();
   else if(b.dataset.themeSet)setTimeout(renderSettings,0)});

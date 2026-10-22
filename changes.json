@@ -1,4 +1,9 @@
 [
+  {"date": "2026-10-22", "title": "Plan around big news", "items": [
+    "Setups now shows a quiet \"Big news later today\" line with the times of big releases still to come today, so you can plan before the 30-minute warning.",
+    "New switch in Settings: also count big Japan, China and euro-area news, like Bank of Japan or ECB rate decisions. Off by default.",
+    "Signals and stop/target levels have not changed."
+  ]},
   {"date": "2026-10-21", "title": "Bottom bar hides while you scroll", "items": [
     "The bottom bar slides away while you scroll and comes back when you stop.",
     "Don't like it? Settings has a switch to keep the bar on screen.",

@@ -2,6 +2,10 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-10-22 (owner request: pull to refresh)
+- **Pull to refresh.** At the top of any page, pull down: a small pill slides in under the top bar ("Pull to refresh" → "Release to refresh"), and letting go reloads prices exactly like the refresh button (on News it also reloads headlines). Short pulls, sideways swipes (e.g. on the exchange tabs), text boxes, the chart screen and the Help sheet are ignored. The phone's own pull-to-reload is switched off (`overscroll-behavior-y:none`) so the whole page doesn't reload instead. Respects reduce-motion. Help has a "Pull to refresh" entry.
+- Browser test checks a short pull does nothing and a long pull shows "Release to refresh", starts a refresh and then hides.
+
 ## 2026-10-22 (owner request: stress and security test)
 - New `tests/stress.py`, now part of `tests/run.sh`: about 3,000 markets across the three exchanges, hostile data (script payloads in market names, news titles, sources, tags, coins and calendar entries; `javascript:`/`data:` links; NaN/Infinity/negative/empty numbers; malformed candles), WebSocket floods (hundreds of ticker messages a second with junk mixed in), and tampered on-device storage, in both themes, including a simulator run. It fails if any payload runs, a non-web link appears, a JS error is thrown, NaN/undefined shows, or the list is slow. Checked that it catches a deliberately unescaped headline.
 - **No XSS found**: every exchange and news string was already escaped and news links already limited to http(s).

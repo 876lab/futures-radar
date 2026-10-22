@@ -453,10 +453,19 @@ button.ncoin:hover{border-color:var(--accent)}
 .wn h2{margin:0}
 .wn ul{margin:4px 0 0;padding-left:18px;font-size:14px;color:var(--muted);display:grid;gap:2px}
 .wn b{font-size:14.5px}
+/* pull to refresh: a small pill that slides down under the top bar while pulling at the top of a page */
+html,body{overscroll-behavior-y:none}
+.ptr{position:fixed;left:50%;top:0;z-index:8;display:flex;align-items:center;gap:7px;padding:7px 13px 7px 9px;border-radius:999px;background:var(--surface);
+  border:1px solid var(--line);box-shadow:0 4px 14px rgba(0,0,0,.14);color:var(--fg);font-size:12.5px;font-weight:600;white-space:nowrap;pointer-events:none;
+  transform:translate(-50%,-140%);opacity:0}
+.ptr svg{width:18px;height:18px;color:var(--accent);flex:none}
+.ptr.back{transition:transform .25s ease,opacity .25s ease}
+.ptr.busy svg{animation:rot 1s linear infinite}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
+<div class="ptr" id="ptr" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 4v5h-5"/></svg><span id="ptrT">Pull to refresh</span></div>
 <header class="top" id="top">
   <div class="top-in">
     <div class="brand">
@@ -610,6 +619,7 @@ button.ncoin:hover{border-color:var(--accent)}
       <dt>Bottom bar</dt><dd>Markets, Setups, Simulator, News and Starred. Settings is the sliders button at the top right. The bar slides away while you scroll and comes back when you stop; switch that off in Settings to keep it on screen. On a computer the same buttons sit above the list.</dd>
       <dt>Compact</dt><dd>Shows one line per market so more fit on screen.</dd>
       <dt>Swipes on a chart</dt><dd>Swipe in from the left edge, or use your phone's back gesture, to return to the list. Swipe left or right on the signal card to change candle size.</dd>
+      <dt>Pull to refresh</dt><dd>At the top of any page, pull down and let go to reload prices (and headlines on the News page). Same as the refresh button at the top.</dd>
       <dt>Small line on each row</dt><dd>The price over the last 24 hours, green if it ended higher.</dd>
     </dl>
     <h3>The signal</h3>
@@ -2151,6 +2161,28 @@ $('#dStar').addEventListener('click',()=>{if(state.selected)toggleStar(state.sel
 $('#back').addEventListener('click',closeDetail);
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(!$('#help').hidden)$('#help').hidden=true;else closeDetail()}});
 $('#refresh').addEventListener('click',()=>{candleCache.clear();state.trend.clear();loadAll(true).then(()=>{if(state.selected&&state.gByKey.has(state.selected))openGroup(state.selected,true)})});
+// pull to refresh: at the top of a page, pull down and let go to reload prices (and headlines on News), like the refresh button
+function refreshAll(){
+  candleCache.clear();state.trend.clear();
+  return Promise.all([loadAll(true),state.cat==='news'?loadNews(true):null]).then(()=>{if(state.selected&&state.gByKey.has(state.selected)&&document.body.classList.contains('d-open'))openGroup(state.selected,true)});
+}
+(()=>{
+  const el=$('#ptr'),txt=$('#ptrT'),TRIG=64,MAX=110;let y0=null,x0=0,pull=0,on=false,busy=false;
+  const blocked=t=>document.body.classList.contains('d-open')||!$('#help').hidden||(t&&t.closest&&t.closest('input,textarea,select,.switch,canvas'));
+  const show=(d,cls)=>{const top=$('#top').getBoundingClientRect().bottom;el.style.transform=`translate(-50%,${Math.round(top-46+d)}px)`;el.style.opacity=Math.min(1,d/40);
+    el.querySelector('svg').style.rotate=cls==='busy'?'':Math.round(d*3)+'deg'};
+  const hide=()=>{el.classList.add('back');el.classList.remove('busy');el.style.transform='translate(-50%,-140%)';el.style.opacity=0;setTimeout(()=>el.classList.remove('back'),260)};
+  document.addEventListener('touchstart',e=>{y0=null;if(busy||e.touches.length!==1||window.scrollY>0||blocked(e.target))return;y0=e.touches[0].clientY;x0=e.touches[0].clientX;pull=0;on=false},{passive:true});
+  document.addEventListener('touchmove',e=>{if(y0==null)return;const t=e.touches[0],dy=t.clientY-y0,dx=t.clientX-x0;
+    if(!on){if(Math.abs(dx)>10&&Math.abs(dx)>Math.abs(dy)){y0=null;return}if(dy<8||window.scrollY>0)return;on=true;el.classList.remove('back')}
+    pull=Math.max(0,Math.min(MAX,(dy-8)*0.5));txt.textContent=pull>=TRIG?'Release to refresh':'Pull to refresh';show(pull)},{passive:true});
+  const end=()=>{if(y0==null)return;y0=null;if(!on)return;on=false;
+    if(pull<TRIG){hide();return}
+    busy=true;el.classList.add('back','busy');txt.textContent=state.cat==='news'?'Refreshing prices and news…':'Refreshing prices…';show(TRIG,'busy');
+    const t0=Date.now();Promise.resolve(refreshAll()).catch(()=>{}).then(()=>setTimeout(()=>{busy=false;hide()},Math.max(0,600-(Date.now()-t0))));};
+  document.addEventListener('touchend',end,{passive:true});document.addEventListener('touchcancel',()=>{if(y0!=null&&on){y0=null;on=false;hide()}else y0=null},{passive:true});
+})();
+
 $('#openHelp').addEventListener('click',()=>{$('#help').hidden=false;$('#help .sheet').scrollTop=0;if(changes){LS.set('seenChanges',changes[0].date+'|'+changes[0].title);$('#newDot').hidden=true}});
 $('#errBox').addEventListener('click',e=>{const b=e.target.closest('[data-err]');if(!b)return;
   if(b.dataset.err==='clear'){errLog.length=0;LS.set('errs',[]);renderErrBox();return}

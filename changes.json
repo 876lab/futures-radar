@@ -1,4 +1,9 @@
 [
+  {"date": "2026-10-22", "title": "Pull to refresh", "items": [
+    "At the top of any page, pull down and let go to refresh prices.",
+    "On the News page it refreshes the headlines too.",
+    "The refresh button at the top still works the same way."
+  ]},
   {"date": "2026-10-22", "title": "Stress and safety check", "items": [
     "The app was tested with about 3,000 markets, a flood of live prices and deliberately broken or harmful data. No way to run harmful code was found.",
     "Fixed: one bad market from an exchange could hide that whole exchange. Now only the bad market is skipped.",

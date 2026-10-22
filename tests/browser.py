@@ -38,6 +38,33 @@ async def isolation_check(b):
     if errs: problems.append("isolation: uncaught JS error: " + errs[0])
     await pg.close()
 
+async def pull_check(b):
+    """Pull to refresh: a short pull does nothing; a long pull at the top shows 'Release to refresh' and reloads."""
+    pg = await b.new_page(viewport={"width": 390, "height": 800}, has_touch=True, is_mobile=True)
+    await block_exchanges(pg)
+    await pg.route("**/news-data/news.json*", lambda r: r.fulfill(path=FIX, headers={"access-control-allow-origin": "*", "content-type": "application/json"}))
+    errs = []; pg.on("pageerror", lambda e: errs.append(str(e)))
+    await pg.goto("file://" + PAGE); await pg.wait_for_timeout(2500)
+    await pg.evaluate("""window.__fire=(type,y)=>{const t=new Touch({identifier:1,target:document.body,clientX:200,clientY:y});
+      document.body.dispatchEvent(new TouchEvent(type,{touches:type==='touchend'?[]:[t],changedTouches:[t],bubbles:true,cancelable:true}))};
+      window.__pull=(d)=>{__fire('touchstart',150);for(let y=150;y<=150+d;y+=10)__fire('touchmove',y)}""")
+    await pg.evaluate("__pull(60)")
+    if "Release" in await pg.inner_text("#ptr"): problems.append("pull to refresh: a short pull already says release")
+    await pg.evaluate("__fire('touchend',210)"); await pg.wait_for_timeout(100)
+    if await pg.evaluate("document.getElementById('ptr').classList.contains('busy')"): problems.append("pull to refresh: a short pull refreshed")
+    await pg.wait_for_timeout(400)
+    await pg.evaluate("__pull(220)")
+    if "Release to refresh" not in await pg.inner_text("#ptr"): problems.append("pull to refresh: long pull does not say 'Release to refresh'")
+    if scheme_shot: await pg.screenshot(path=os.path.join(OUT, "pull.png"))
+    await pg.evaluate("__fire('touchend',370)"); await pg.wait_for_timeout(50)
+    if "Refreshing" not in await pg.inner_text("#ptr"): problems.append("pull to refresh: release did not start a refresh")
+    await pg.wait_for_timeout(1500)
+    if await pg.evaluate("getComputedStyle(document.getElementById('ptr')).opacity") != "0": problems.append("pull to refresh: indicator did not go away")
+    if not await pg.locator(".row").count() and "Setups" not in await pg.inner_text("#nav"): problems.append("pull to refresh: page empty after refresh")
+    for e in errs: problems.append("pull to refresh: JS error: " + e)
+    await pg.close()
+scheme_shot = True
+
 async def main():
     async with async_playwright() as p:
         b = await p.chromium.launch()
@@ -97,6 +124,7 @@ async def main():
                 if scheme == "dark": await pg.screenshot(path=os.path.join(OUT, "setups-later.png"))
             await pg.close()
         await isolation_check(b)
+        await pull_check(b)
         await b.close()
 
 asyncio.run(main())

@@ -66,6 +66,9 @@ The working plan for nightly improvement runs. Each run picks the **first unchec
 - [ ] **Monetization step 4: exchange referral buttons (blocked: owner's referral codes and a check of each exchange's affiliate terms).** "Trade this on Gate / Binance / Coinbase" on the chart screen with his codes, plus a one-line disclosure that he may earn a commission. Hidden until codes are set.
 - [ ] **Monetization step 5: free vs paid tier, accounts and payments (blocked: owner's login decision, legal advice and a 60–90 day track record; do not build).** Plan in `MONETIZATION.md`: paid features served from a server, payments via Lemon Squeezy (pays out to Jamaica) and/or USDT.
 - [ ] **Monetization step 6: landing page and launch (blocked until step 5).**
+- [ ] **Real app, step A: compliance wording review (blocked: owner's lawyer).** Before the stores, a lawyer reviews the wording so the app stays general and impersonal (the same reading for everyone, never tailored to a user's own positions). Likely changes to discuss: labels like "Long setup / Short setup / Wait / No setup" instead of "Enter long / Hold"; the sizing box framed as a calculator; risk warnings; country limits (e.g. US and UK users, where offshore perpetuals and retail crypto derivatives are restricted).
+- [ ] **Real app, step B: store readiness (blocked: company registration, D-U-N-S number, store accounts).** Privacy policy and terms pages, support contact, in-app and web account deletion (once accounts exist), Google Play Financial features declaration, Apple App Privacy answers, honest screenshots.
+- [ ] **Real app, step C: native wrapper (blocked until A and B).** Package the web app for iOS and Android (e.g. Capacitor) with native value beyond the website (push alerts, home-screen widget) so it isn't rejected as a repackaged website; subscriptions bought inside the apps go through Apple/Google billing.
 - [ ] **Signal forming vs confirmed (low priority).** Information only: show whether the current candle is still forming. He doesn't trade by candle closes, so keep it subtle.
 - [ ] **Security hardening (small, careful).** Add an integrity hash (SRI) to the Lightweight Charts `<script>` tag, computed from the real 4.2.0 file and checked in the GitHub Tests run before going live; then consider a Content-Security-Policy meta tag (it needs `unsafe-inline` for the inline script and styles, so the gain is modest; test the live site on the phone afterwards).
 - [ ] **Performance and accessibility pass.** Check with 1,300+ markets, keyboard use, contrast in both themes.
@@ -84,6 +87,8 @@ The working plan for nightly improvement runs. Each run picks the **first unchec
 ## Notes from runs
 
 (Each run adds a dated line here if something was blocked or needs the owner.)
+
+- 2026-10-22: Goal set to become a real app on the App Store and Google Play. Steps A–C added (all wait for the owner: lawyer, company, store accounts). Owner will also upgrade to a paid GitHub plan on Saturday 24 Oct; note that GitHub Pages sites stay public even from a private repository, so paid features still need accounts and a server.
 
 - 2026-10-22: Owner approved the **monetization track** (see `MONETIZATION.md`). Steps 1–2 (track record, About/disclaimer) are buildable now; steps 3–6 wait for him.
 

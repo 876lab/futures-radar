@@ -37,7 +37,7 @@ The working plan for nightly improvement runs. Each run picks the **first unchec
 
 ## Backlog (top = next)
 
-- [ ] **TONIGHT (owner approved 23 Oct 2026): neutral wording + Terms, Risk and Privacy pages.** The owner asked for this specific item in the 24 Oct run; it may run larger than the usual 300-line limit. **Text and labels only: do not change any signal logic, scores, thresholds or maths.**
+- [ ] **TONIGHT (owner approved 23 Oct 2026): neutral wording + Terms, Risk and Privacy pages.** The owner asked for this specific item in the run at 1:20am on 23 Oct; it may run larger than the usual 300-line limit. **Text and labels only: do not change any signal logic, scores, thresholds or maths.**
   1. **Neutral wording everywhere** (rows, Setups, chart screen, Simulator, help, changes.json going forward). The app describes what the chart shows; it never tells the user what to do.
      - "Enter long" → **Long setup**; "Enter short" → **Short setup**; "Hold" → **Wait** (trend intact but price stretched / no fresh trigger); "Avoid" / "Avoid for now" → **No setup**. Row tags: Long / Short / Wait / No setup.
      - "Signal · 15m candles" → **Chart reading · 15m candles**. "Confidence" → **Agreement** (how many indicators line up, 0–100); keep the number.
@@ -106,7 +106,7 @@ The working plan for nightly improvement runs. Each run picks the **first unchec
 
 (Each run adds a dated line here if something was blocked or needs the owner.)
 
-- 2026-10-23: Owner approved the neutral wording and draft Terms/Risk/Privacy pages for the 24 Oct run (top of backlog). Legal review by his lawyer still pending.
+- 2026-10-23: Owner approved the neutral wording and draft Terms/Risk/Privacy pages for the 1:20am run on 23 Oct (top of backlog). Legal review by his lawyer still pending.
 
 - 2026-10-22: Goal set to become a real app on the App Store and Google Play. Steps A–C added (all wait for the owner: lawyer, company, store accounts). Owner will also upgrade to a paid GitHub plan on Saturday 24 Oct; note that GitHub Pages sites stay public even from a private repository, so paid features still need accounts and a server.
 

@@ -90,6 +90,7 @@ The working plan for nightly improvement runs. Each run picks the **first unchec
 - [ ] **Real app, step C: native wrapper (blocked until A and B).** Package the web app for iOS and Android (e.g. Capacitor) with native value beyond the website (push alerts, home-screen widget) so it isn't rejected as a repackaged website; subscriptions bought inside the apps go through Apple/Google billing.
 - [ ] **Signal forming vs confirmed (low priority).** Information only: show whether the current candle is still forming. He doesn't trade by candle closes, so keep it subtle.
 - [ ] **Security hardening (small, careful).** Add an integrity hash (SRI) to the Lightweight Charts `<script>` tag, computed from the real 4.2.0 file and checked in the GitHub Tests run before going live; then consider a Content-Security-Policy meta tag (it needs `unsafe-inline` for the inline script and styles, so the gain is modest; test the live site on the phone afterwards).
+- [ ] **Delisting follow-ups (small).** Optional in-app notice when a starred market gets a delisting date; consider the exchanges' public announcement feeds for earlier warning (check each one's official docs and CORS first).
 - [ ] **Performance and accessibility pass.** Check with 1,300+ markets, keyboard use, contrast in both themes.
 
 ## Done
@@ -101,6 +102,7 @@ The working plan for nightly improvement runs. Each run picks the **first unchec
 - [x] Inter font; bottom tab bar; compact rows; sparklines; swipe/back; sticky search; light/dark switch
 - [x] News page (headlines, Fear & Greed, calendar, X links) and per-market headlines
 - [x] Automated test suite (`tests/run.sh`) and What's new panel
+- [x] Delisting tab: scheduled delistings from Binance (`deliveryDate`), Bybit (`deliveryTime`) and Gate (`delisting_time`/`delisted_time`), row tag and chart-screen note (2026-10-23, owner request)
 - [x] Safety nets: tests on GitHub, daily live health check, broken sections isolated with an App health log (2026-10-21)
 
 ## Notes from runs

@@ -20,6 +20,19 @@ for(const p of state.pairs.slice(0,8))for(const tf of ['15m','1h']){
     // neutral wording: the reading describes the chart, never tells the user what to do (labels only; rules unchanged)
     ok(({long:'Long setup',short:'Short setup',hold:'Wait',avoid:'No setup'})[ra.rec]===ra.headline,'neutral headline for '+ra.rec+': '+ra.headline);
     ok(!/\b(buy|sell|you should|hold\.|take profit)\b/i.test(ra.text),'imperative wording in reading text: '+ra.text)}}
+// delisting dates from the exchanges' market lists
+{const now=Date.UTC(2026,9,23),D=864e5,di=delistInfo;
+ok(di('binance',{contractType:'PERPETUAL',deliveryDate:4133404800000},now)===null,'binance: 2100 placeholder is not a delisting');
+ok(di('binance',{contractType:'PERPETUAL',deliveryDate:now+5*D},now).at===now+5*D,'binance: perpetual deliveryDate before 2100 is the delisting time');
+ok(di('binance',{contractType:'CURRENT_QUARTER',deliveryDate:now+5*D},now)===null,'binance: quarterly expiry is not a delisting');
+ok(di('binance',{contractType:'PERPETUAL',deliveryDate:now-D},now)===null,'binance: past date ignored');
+ok(di('bybit',{contractType:'LinearPerpetual',deliveryTime:'0'},now)===null,'bybit: 0 means no delisting');
+ok(di('bybit',{contractType:'LinearPerpetual',deliveryTime:String(now+3*D)},now).at===now+3*D,'bybit: perpetual deliveryTime is the delisting time');
+ok(di('bybit',{contractType:'LinearFutures',deliveryTime:String(now+3*D)},now)===null,'bybit: dated futures delivery is not a delisting');
+let g=di('gate',{delisting_time:(now+2*D)/1000,delisted_time:(now+3*D)/1000},now);ok(g&&g.at===now+3*D&&g.ro===now+2*D,'gate: delisted_time with reduce-only from delisting_time');
+g=di('gate',{delisting_time:0,delisted_time:0},now);ok(g===null,'gate: zero times mean no delisting');
+g=di('gate',{delisting_time:(now+2*D)/1000},now);ok(g&&g.at===now+2*D&&g.ro===null,'gate: only reduce-only time known');
+ok(di('gate',{delisted_time:'junk'},now)===null&&di('binance',null,now)===null&&di('bybit',{deliveryTime:now+3000*D},now)===null,'junk, missing and far-future values ignored');}
 // 2. trade rules
 const C=(o,h,l,c)=>({time:0,open:o,high:h,low:l,close:c,volume:1}),base={plan:'tp1',fee:0,slip:0,maxHold:50},L1={dir:1,conf:60,levels:{R:1}},S1={dir:-1,conf:60,levels:{R:1}};
 let t=simTrade([C(100,100,100,100),C(100,100.5,99.5,100.2),C(100.2,101.6,100,101.4),C(101,101,101,101)],0,L1,base);ok(t.how==='target'&&Math.abs(t.r-1.5)<1e-9,'long target 1');

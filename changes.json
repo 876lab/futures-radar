@@ -1,4 +1,9 @@
 [
+  {"date": "2026-10-23", "title": "Delisting list", "items": [
+    "New Delisting tab on Markets: coins Binance, Gate or Bybit plan to delist, with the exchange and the date, soonest first.",
+    "Those coins get a red Delisting tag, and their chart screen shows the date at the top.",
+    "Exchanges usually close open positions at the delisting time, so it's worth checking before holding one."
+  ]},
   {"date": "2026-10-23", "title": "Clearer wording and legal pages", "items": [
     "'Enter long' is now 'Long setup', 'Enter short' is 'Short setup', 'Hold' is 'Wait' and 'Avoid' is 'No setup'. Same rules, clearer wording.",
     "'Confidence' is now 'Agreement' (same number), and 'Size this trade' is now the 'Position size calculator'.",

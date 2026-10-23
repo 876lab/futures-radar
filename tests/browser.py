@@ -138,6 +138,22 @@ async def main():
                 for old in ("Enter long", "Enter short", "Avoid for now", "Long entries", "Confidence", "confidence"):
                     if old in txt: problems.append(f"[{scheme}] {nav}: old wording '{old}' still shown")
                 if scheme == "dark": await pg.screenshot(path=os.path.join(OUT, f"{nav}.png"))
+            # Delisting tab: the two sample delistings, soonest first, with exchange and date; the chart screen warns
+            await pg.click('[data-cat="delist"]'); await pg.wait_for_timeout(500)
+            txt = await pg.inner_text("#listArea")
+            if "ZKJ" not in txt or "KAITO" not in txt or "Binance" not in txt or "Gate" not in txt or "Delists" not in txt: problems.append(f"[{scheme}] delisting tab: sample delistings missing")
+            elif txt.index("ZKJ") > txt.index("KAITO"): problems.append(f"[{scheme}] delisting tab: not soonest first")
+            if "reduce-only from" not in txt: problems.append(f"[{scheme}] delisting tab: Gate reduce-only time missing")
+            for bad in ("undefined", "NaN", "Invalid Date"):
+                if bad in txt: problems.append(f"[{scheme}] delisting tab: shows '{bad}'")
+            if scheme == "dark": await pg.screenshot(path=os.path.join(OUT, "delisting.png"))
+            await pg.click(".dlrow"); await pg.wait_for_timeout(1200)
+            if "will delist" not in await pg.inner_text("#dlBox"): problems.append(f"[{scheme}] chart screen: delisting warning missing")
+            if scheme == "dark": await pg.screenshot(path=os.path.join(OUT, "delisting-chart.png"))
+            await pg.go_back(); await pg.wait_for_timeout(500)
+            await pg.click('[data-cat="all"]'); await pg.wait_for_timeout(400)
+            if not await pg.locator(".row .tag.dl").count(): problems.append(f"[{scheme}] markets: Delisting tag missing on rows")
+            await pg.click('[data-cat="hot"]'); await pg.wait_for_timeout(300)
             await pg.click("#openSettings"); await pg.wait_for_timeout(500)
             st = await pg.inner_text("#settings")
             if "max loss per trade" not in st.lower() or "big news warning" not in st.lower(): problems.append(f"[{scheme}] settings page incomplete")

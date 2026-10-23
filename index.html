@@ -139,6 +139,10 @@ button{cursor:pointer}
 .pill.up{background:var(--up-bg);color:var(--up)} .pill.down{background:var(--down-bg);color:var(--down)} .pill.flat{background:var(--flat-bg);color:var(--muted)}
 .tag{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:2px 6px;border-radius:5px;background:var(--surface-2);color:var(--muted)}
 .tag.new{background:var(--accent);color:var(--accent-ink)}
+.tag.dl{background:var(--down-bg);color:var(--down)}
+.dlwhen{font-size:12.5px;color:var(--fg)} .dlwhen b{color:var(--down);font-weight:600}
+.dlwarn{border:1px solid var(--down);background:var(--down-bg);border-radius:var(--r);padding:10px 12px;font-size:13px;display:grid;gap:2px}
+.dlwarn span{color:var(--muted);font-size:12.5px}
 .multi{font-weight:600;color:var(--fg)}
 .rec{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;padding:2px 8px;border-radius:5px;white-space:nowrap;letter-spacing:.02em}
 .rec svg{width:10px;height:10px}
@@ -595,6 +599,7 @@ html,body{overscroll-behavior-y:none}
             <button class="star" id="dStar" aria-pressed="false" aria-label="Star this market"></button>
           </div>
           <div class="d-price"><span class="p" id="dPrice"></span><span class="pill" id="dChg"></span><span class="src" id="dSrc"></span></div>
+          <div id="dlBox" hidden></div>
           <div class="toolrow">
             <div class="seg" id="tfSeg" role="group" aria-label="Candle size"></div>
             <span class="chartsrc" id="chartSrc"></span>
@@ -634,6 +639,7 @@ html,body{overscroll-behavior-y:none}
       <dt>Compact</dt><dd>Shows one line per market so more fit on screen.</dd>
       <dt>Swipes on a chart</dt><dd>Swipe in from the left edge, or use your phone's back gesture, to return to the list. Swipe left or right on the chart reading to change candle size.</dd>
       <dt>Pull to refresh</dt><dd>At the top of any page, pull down and let go to reload prices (and headlines on the News page). Same as the refresh button at the top.</dd>
+      <dt>Delisting tab</dt><dd>Markets that Binance, Gate or Bybit has scheduled for delisting, with the exchange and the date in your local time, soonest first. Those markets also get a red Delisting tag, and their chart screen shows the date. Exchanges usually close open positions at the delisting time; on Gate only closing trades are allowed from the reduce-only time.</dd>
       <dt>Small line on each row</dt><dd>The price over the last 24 hours, green if it ended higher.</dd>
     </dl>
     <h3>The chart reading</h3>
@@ -697,7 +703,7 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 
 const EX={binance:{name:'Binance'},gate:{name:'Gate'},bybit:{name:'Bybit'}};
 const EXK=Object.keys(EX);
-const CATS=[['hot','Hot'],['all','All'],['new','New'],['crypto','Crypto'],['meme','Meme'],['ai','AI'],['stocks','Stocks'],['tradfi','TradFi'],['dated','Expiring']];
+const CATS=[['hot','Hot'],['all','All'],['new','New'],['crypto','Crypto'],['meme','Meme'],['ai','AI'],['stocks','Stocks'],['tradfi','TradFi'],['dated','Expiring'],['delist','Delisting']];
 const MKT_CATS=CATS.map(c=>c[0]),PAGES=['setups','sim','news','watch','settings'];
 const CAT_DESC={settings:'Your preferences. Changes save on this device straight away.',news:'Headlines that can move markets, refreshed every 15 minutes, plus market mood and upcoming economic events.',hot:'The biggest movers and most traded markets over the last 24 hours.',
   sim:'See how the app\'s long and short setups would have played out on past prices.',
@@ -706,7 +712,8 @@ const CAT_DESC={settings:'Your preferences. Changes save on this device straight
   all:'Every futures market. A coin listed on several exchanges shows once, with all its exchanges inside.',new:'Listed in the last 30 days. New markets can swing hard.',
   crypto:'Coins and tokens.',meme:'Community and joke coins. Expect big swings.',ai:'Tokens tied to AI projects.',
   stocks:'Futures that follow company shares such as Tesla or Nvidia.',tradfi:'Traditional markets: gold, silver, oil, stock indexes and currencies.',
-  dated:'Contracts that settle on a set date. Everything else is a perpetual that never expires.'};
+  dated:'Contracts that settle on a set date. Everything else is a perpetual that never expires.',
+  delist:'Markets an exchange has scheduled for delisting, soonest first, with the date in your local time. Exchanges usually close any open positions at that time.'};
 const TFS={'5m':300,'15m':900,'1h':3600,'4h':14400,'1d':86400};
 const TF_LABEL={'5m':'5m','15m':'15m','1h':'1H','4h':'4H','1d':'1D'};
 const HTF={'5m':'15m','15m':'1h','1h':'4h','4h':'1d','1d':null};
@@ -818,7 +825,7 @@ function pushMk(out,o){
   try{if(!o||typeof o.sym!=='string'||!o.sym||!(o.price>0&&o.price<1e12))return;
     if(!isFinite(o.chg)||Math.abs(o.chg)>1e5)o.chg=NaN;if(!(o.vol>=0&&o.vol<1e15))o.vol=0;
     if(o.funding!=null&&!(Math.abs(o.funding)<1))o.funding=null;
-    o.base=String(o.base==null?'':o.base);o.quote=String(o.quote==null?'':o.quote);if(!isFinite(o.listed))o.listed=null;if(o.expiry!=null&&!isFinite(+o.expiry))o.expiry=null;
+    o.base=String(o.base==null?'':o.base);o.quote=String(o.quote==null?'':o.quote);if(!isFinite(o.listed))o.listed=null;if(o.expiry!=null&&!isFinite(+o.expiry))o.expiry=null;if(o.delist!=null&&!isFinite(+o.delist))o.delist=o.delistRo=null;
     out.push(mk(o))}catch(e){}
 }
 function mk(o){
@@ -829,6 +836,17 @@ function mk(o){
   const key=o.kind==='dated'&&o.expiry?root+'@'+ymd(o.expiry):root;
   return Object.assign({},o,{id:o.ex+':'+o.sym,root,mult:bi.mult,unitPrice:o.price/bi.mult,key,cats,isNew:!!o.isNew||!!listedNew,
     search:(o.sym+' '+root+' '+(NAMES[root]||'')+' '+(o.alias||'')).toUpperCase()});
+}
+// Scheduled delisting from each exchange's own market list (ms timestamps, or null).
+// Binance: a perpetual's deliveryDate moves from the 2100 placeholder (4133404800000) to the delisting time.
+// Bybit V5: deliveryTime on a perpetual is its delisting time (0 otherwise). Gate: delisting_time = reduce-only from, delisted_time = removed (seconds).
+function delistInfo(ex,c,now){
+  if(!c||typeof c!=='object')return null;const ok=t=>isFinite(t)&&t>now&&t<now+730*DAY;
+  if(ex==='binance'){if(/QUARTER|MONTH/i.test(String(c.contractType||'')))return null;const t=+c.deliveryDate;return ok(t)&&t<4133404800000?{at:t,ro:null}:null}
+  if(ex==='bybit'){if(/Futures/i.test(String(c.contractType||'')))return null;const t=+c.deliveryTime;return ok(t)?{at:t,ro:null}:null}
+  if(ex==='gate'){const at=+c.delisted_time*1000,ro=+c.delisting_time*1000;
+    if(ok(at))return {at,ro:ok(ro)&&ro<at?ro:null};if(ok(ro))return {at:ro,ro:null};return null}
+  return null;
 }
 function typeTag(c){if(c.has('stocks'))return 'Stock';if(c.has('tradfi'))return 'TradFi';if(c.has('meme'))return 'Meme';if(c.has('ai'))return 'AI';return 'Crypto'}
 
@@ -851,21 +869,24 @@ async function loadBinance(){
     const hint={meme:/MEME/.test(sub),ai:/\bAI\b/.test(sub),stock:/EQUITY|STOCK/.test(ut+' '+sub),tradfi:/TRADFI/.test(ct+' '+sub)||/COMMODIT|FOREX|METAL/.test(ut+' '+sub)};
     const f=fm.get(s.symbol);
     pushMk(out,{ex:'binance',sym:s.symbol,base:s.baseAsset,quote:s.quoteAsset,price:+t.lastPrice,chg:+t.priceChangePercent,vol:+t.quoteVolume,
-      funding:f&&!dated&&f.lastFundingRate!==''?+f.lastFundingRate:null,listed:s.onboardDate||null,kind:dated?'dated':'perp',expiry:dated?s.deliveryDate:null,hint});}catch(e){}
+      funding:f&&!dated&&f.lastFundingRate!==''?+f.lastFundingRate:null,listed:s.onboardDate||null,kind:dated?'dated':'perp',expiry:dated?s.deliveryDate:null,delist:(delistInfo('binance',s,NOW())||{}).at||null,hint});}catch(e){}
   }
   return out;
 }
 async function loadGate(){
   const G='https://api.gateio.ws/api/v4/futures/usdt';
   const [cons,ticks]=await Promise.all([getJSON(G+'/contracts'),getJSON(G+'/tickers')]);
-  const tm=new Map((Array.isArray(ticks)?ticks:[]).filter(Boolean).map(t=>[t.contract,t]));const out=[];
+  const tm=new Map((Array.isArray(ticks)?ticks:[]).filter(Boolean).map(t=>[t.contract,t]));const out=[],extra=[];out.delistOnly=extra;
   for(const c of Array.isArray(cons)?cons:[]){try{
-    if(c.in_delisting||/delist|clos/i.test(c.status||''))continue;const t=tm.get(c.name);if(!t)continue;
+    const dl=delistInfo('gate',c,NOW());
+    if(c.in_delisting||/delist|clos/i.test(c.status||'')){const t=tm.get(c.name);if(dl&&typeof c.name==='string'){const b=String(c.name).split('_')[0];
+      extra.push({ex:'gate',sym:c.name.slice(0,40),root:canonical(baseInfo(b).root).slice(0,30),at:dl.at,ro:dl.ro,price:t&&+t.last>0?+t.last/baseInfo(b).mult:null,chg:t&&isFinite(+t.change_percentage)?+t.change_percentage:null,id:null})}continue}
+    const t=tm.get(c.name);if(!t)continue;
     const [base,quote]=String(c.name).split('_');const ctype=String(c.contract_type||c.type_desc||'').toUpperCase();
     const created=c.create_time?c.create_time*1000:(c.launch_time?c.launch_time*1000:null);
     const fr=t.funding_rate!=null&&t.funding_rate!==''?t.funding_rate:c.funding_rate;
     pushMk(out,{ex:'gate',sym:c.name,base,quote,price:+t.last,chg:+t.change_percentage,vol:+(t.volume_24h_quote||t.volume_24h_settle||0),
-      funding:fr!=null&&fr!==''?+fr:null,listed:created,kind:'perp',hint:{stock:/STOCK|EQUITY/.test(ctype),tradfi:/TRADFI|COMMOD|METAL|FOREX/.test(ctype)}});}catch(e){}
+      funding:fr!=null&&fr!==''?+fr:null,listed:created,kind:'perp',delist:dl?dl.at:null,delistRo:dl?dl.ro:null,hint:{stock:/STOCK|EQUITY/.test(ctype),tradfi:/TRADFI|COMMOD|METAL|FOREX/.test(ctype)}});}catch(e){}
   }
   return out;
 }
@@ -889,7 +910,7 @@ async function loadBybit(){
     const dated=/Futures/i.test(c.contractType||'')&&+c.deliveryTime>0,price=+t.lastPrice;if(!(price>0))continue;
     const tags=[c.symbolType].concat(c.tags||[],c.displayName,c.fullName).join(' ').toUpperCase();
     pushMk(out,{ex:'bybit',sym:c.symbol,base:c.baseCoin,quote:c.quoteCoin,price,chg:+t.price24hPcnt*100,vol:+t.turnover24h||0,
-      funding:!dated&&t.fundingRate!=null&&t.fundingRate!==''?+t.fundingRate:null,listed:+c.launchTime||null,kind:dated?'dated':'perp',expiry:dated?+c.deliveryTime:null,
+      funding:!dated&&t.fundingRate!=null&&t.fundingRate!==''?+t.fundingRate:null,listed:+c.launchTime||null,kind:dated?'dated':'perp',expiry:dated?+c.deliveryTime:null,delist:dated?null:(delistInfo('bybit',c,NOW())||{}).at||null,
       hint:{stock:/XSTOCK|\bSTOCK|EQUITY/.test(tags),tradfi:/TRADFI|COMMODIT|METAL|FOREX/.test(tags)}});}catch(e){}
   }
   return out;
@@ -1114,7 +1135,7 @@ function demoPairs(){
    ['binance','TSLAUSDT','TSLA','USDT',262.8,190e6,0.0001,'perp',20,0.0008,0.007,{stock:1}],
    ['binance','NVDAUSDT','NVDA','USDT',141.3,120e6,0.00005,'perp',18,-0.0005,0.006,{stock:1}],
    ['binance','BTCUSDT_261225','BTC','USDT',98410,410e6,null,'dated',90,0.0007,0.0045,{exp:U(2026,11,25,8)}],
-   ['binance','ZKJUSDT','ZKJ','USDT',0.6831,95e6,0.0004,'perp',6,0.0045,0.022,{}],
+   ['binance','ZKJUSDT','ZKJ','USDT',0.6831,95e6,0.0004,'perp',6,0.0045,0.022,{dl:6}],
    ['gate','BTC_USDT','BTC','USDT',97236,4.1e9,0.0001,'perp',900,0.0007,0.0045,{}],
    ['gate','ETH_USDT','ETH','USDT',3618,2.2e9,0.0001,'perp',900,0.0009,0.006,{}],
    ['gate','SOL_USDT','SOL','USDT',184.5,620e6,0.00011,'perp',900,-0.0006,0.008,{}],
@@ -1126,7 +1147,7 @@ function demoPairs(){
    ['gate','AAPLX_USDT','AAPLX','USDT',231.6,42e6,0.00004,'perp',12,0.0003,0.004,{}],
    ['gate','NVDAX_USDT','NVDAX','USDT',141.25,38e6,0.00004,'perp',12,-0.0005,0.006,{}],
    ['gate','XAU_USDT','XAU','USDT',2683.9,88e6,0.00003,'perp',45,0.0003,0.002,{}],
-   ['gate','KAITO_USDT','KAITO','USDT',1.742,61e6,0.0006,'perp',9,-0.004,0.02,{}],
+   ['gate','KAITO_USDT','KAITO','USDT',1.742,61e6,0.0006,'perp',9,-0.004,0.02,{dl:13,ro:12}],
    ['bybit','BTCUSDT','BTC','USDT',97251,3.4e9,0.0001,'perp',2000,0.0007,0.0045,{}],
    ['bybit','ETHUSDT','ETH','USDT',3620,1.6e9,0.0001,'perp',2000,0.0009,0.006,{}],
    ['bybit','SOLUSDT','SOL','USDT',184.6,700e6,0.0001,'perp',1200,-0.0006,0.008,{}],
@@ -1139,6 +1160,7 @@ function demoPairs(){
     const p=mk({ex,sym,base,root:x.root,quote,price,vol,funding:fund,kind,listed:NOW()-ageDays*DAY,expiry:x.exp||null,
       venue:'',hint:{meme:!!x.meme,ai:!!x.ai,stock:!!x.stock,tradfi:!!x.tradfi},chg:0});
     p.demo=true;p.drift=drift;p.dvol=dvol;
+    if(x.dl){p.delist=NOW()+x.dl*DAY;if(x.ro)p.delistRo=NOW()+x.ro*DAY}
     const cs=demoCandles(p,'1h');p.chg=(cs[cs.length-1].close/cs[cs.length-25].close-1)*100;
     return p;
   });
@@ -1181,7 +1203,7 @@ async function loadAll(manual,quiet){
   const L={binance:loadBinance,gate:loadGate,bybit:loadBybit};
   const res=await Promise.allSettled(EXK.map(k=>L[k]()));
   let pairs=[];const errs={};
-  res.forEach((r,i)=>{const k=EXK[i];if(r.status==='fulfilled'&&r.value.length){state.status[k]='ok';pairs=pairs.concat(r.value)}
+  res.forEach((r,i)=>{const k=EXK[i];if(r.status==='fulfilled'&&r.value.length){state.status[k]='ok';pairs=pairs.concat(r.value);state.delistX=(state.delistX||[]).filter(d=>d.ex!==k).concat(r.value.delistOnly||[])}
     else{if(!(quiet&&state.status[k]==='ok'&&feeds[k]&&feeds[k].ready))state.status[k]='err';errs[k]=r.reason?String(r.reason.message||r.reason):'No data'}});
   state.errors=Object.fromEntries(Object.entries(errs).filter(([k])=>state.status[k]==='err'));
   let changed=true;
@@ -1190,7 +1212,7 @@ async function loadAll(manual,quiet){
       // update existing markets in place so the list doesn't jump
       const seen=new Set(),okEx=new Set(EXK.filter(k=>!errs[k]));let added=0;
       for(const np of pairs){const old=state.byId.get(np.id);seen.add(np.id);
-        if(old){old.price=np.price;old.unitPrice=np.unitPrice;old.chg=np.chg;old.vol=np.vol;old.funding=np.funding}else{state.pairs.push(np);added++}}
+        if(old){old.price=np.price;old.unitPrice=np.unitPrice;old.chg=np.chg;old.vol=np.vol;old.funding=np.funding;old.delist=np.delist;old.delistRo=np.delistRo}else{state.pairs.push(np);added++}}
       const before=state.pairs.length;state.pairs=state.pairs.filter(p=>seen.has(p.id)||!okEx.has(p.ex));
       changed=added>0||state.pairs.length!==before;
     }else state.pairs=pairs;
@@ -1234,7 +1256,24 @@ function setupSets(){
   const bc=(a,b)=>sigOf(b).conf-sigOf(a).conf;
   return{longs:longs.sort(bc),shorts:shorts.sort(bc),checked:pool.filter(g=>sigOf(g)).length,pool:pool.length};
 }
+// every scheduled delisting for the current exchange switch and search, soonest first
+function delistSets(){
+  const now=NOW(),src=state.view==='all'?state.pairs:state.pairs.filter(p=>p.ex===state.view);
+  const a=src.filter(p=>p.delist>now).map(p=>({ex:p.ex,sym:p.sym,root:p.root,at:p.delist,ro:p.delistRo||null,price:p.unitPrice,chg:p.chg,id:p.id,key:p.key,name:NAMES[p.root]||''}));
+  const b=state.mode==='live'?(state.delistX||[]).filter(d=>d.at>now&&(state.view==='all'||d.ex===state.view)):[];
+  return a.concat(b).filter(d=>!state.q||(d.sym+' '+d.root+' '+d.name).toUpperCase().includes(state.q)).sort((x,y)=>x.at-y.at);
+}
+function dlWhen(t){const d=Math.ceil((t-NOW())/DAY),h=Math.round((t-NOW())/36e5);
+  return new Date(t).toLocaleString([],{day:'numeric',month:'short',year:'numeric',hour:'numeric',minute:'2-digit'})+' ('+(h<24?'in '+plural(Math.max(1,h),'hour'):'in '+plural(d,'day'))+')'}
+function dlRowHTML(d){
+  const g=d.key&&state.gByKey.get(d.key),open=!!g;
+  return `<div class="row dlrow" ${open?`data-dkey="${esc(d.key)}" data-cid="${esc(d.id)}" role="button" tabindex="0"`:''}>
+    <span></span><div class="r-main"><div class="r-top"><span class="tk">${esc(d.root)}</span><span class="fn">${esc(EX[d.ex].name)} · ${esc(d.sym)}</span></div>
+    <div class="r-sub"><span class="dlwhen">Delists <b>${esc(dlWhen(d.at))}</b>${d.ro?` · reduce-only from ${esc(new Date(d.ro).toLocaleString([],{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}))}`:''}${open?'':' · closing positions only'}</span></div></div>
+    <span></span><div class="r-right">${d.price>0?`<span class="r-price">${fmtUsd(d.price)}</span>`:''}${d.chg!=null&&isFinite(d.chg)?`<span class="pill ${pctCls(d.chg)}">${fmtPct(d.chg)}</span>`:''}</div></div>`;
+}
 function listTargets(){
+  if(state.cat==='delist')return [];
   if(state.cat==='hot'){const h=hotSets();const seen=new Set(),out=[];[...h.gain,...h.lose,...h.active].forEach(g=>{if(!seen.has(g.key)){seen.add(g.key);out.push(g)}});return out}
   if(state.cat==='setups'){const s=setupSets();return s.longs.length||s.shorts.length?[...s.longs,...s.shorts]:setupPool()}
   if(state.cat==='sim'||state.cat==='news'||state.cat==='settings')return setupPool();
@@ -1279,7 +1318,7 @@ function renderVenues(){
 }
 function renderTabs(){
   const base=state.groups.filter(matchesQ);
-  const count=c=>{if(c==='hot'||c==='sim')return '';if(c==='setups'){const s=setupSets();return s.checked?s.longs.length+s.shorts.length:''}
+  const count=c=>{if(c==='hot'||c==='sim')return '';if(c==='delist')return delistSets().length;if(c==='setups'){const s=setupSets();return s.checked?s.longs.length+s.shorts.length:''}
     return c==='watch'?base.filter(g=>state.watch.has(g.key)).length:c==='all'?base.length:base.filter(g=>g.cats.has(c)).length};
   $('#tabs').innerHTML=CATS.map(([k,l])=>{const n=count(k);return `<button class="tab" role="tab" data-cat="${k}" aria-selected="${state.cat===k}">${k==='hot'?FLAME:''}${l}${n!==''?`<span class="ct">${n}</span>`:''}</button>`}).join('');
   const d=$('#tabdesc');d.textContent=(CAT_DESC[state.cat]||'')+(state.cat==='setups'?` Using ${TF_LABEL[state.tf]} candles; change it on any chart.`:'');
@@ -1299,7 +1338,7 @@ function applyChrome(){
   $('#tabs').hidden=pg!=='markets';
   $('#bar2').hidden=pg==='sim'||pg==='news'||pg==='settings';
   $('#settings').hidden=pg!=='settings';$('#listArea').hidden=$('#footnote').hidden=pg==='settings';
-  $('#sortWrap').hidden=!((pg==='markets'&&state.cat!=='hot')||pg==='watch');
+  $('#sortWrap').hidden=!((pg==='markets'&&state.cat!=='hot'&&state.cat!=='delist')||pg==='watch');
   $('#q').placeholder=pg==='news'?'Search headlines, e.g. ETF, Solana, Fed':'Search, e.g. bitcoin, gold, TSLA';
 }
 function goPage(k){
@@ -1315,6 +1354,7 @@ function rowHTML(g,opt){
   if(s)sub.push(recPill(s));
   sub.push(`<span class="tag">${typeTag(g.cats)}</span>`);
   if(g.isNew)sub.push('<span class="tag new">New</span>');
+  if(g.members.some(p=>p.delist>NOW()))sub.push('<span class="tag dl">Delisting</span>');
   if(state.view==='all'){const names=g.exs.map(k=>EX[k].name).join(', ');sub.push(g.exs.length>1?`<span class="multi" title="${esc(names)}">${g.exs.length} exchanges</span>`:`<span>${esc(names)}</span>`)}
   sub.push(`<span class="num">Vol ${fmtVol(g.vol)}</span>`);
   const bar=opt.max?`<div class="mbar"><i style="width:${Math.max(3,Math.min(100,Math.abs(g.chg)/opt.max*100)).toFixed(1)}%;background:var(--${g.chg>=0?'up':'down'})"></i></div>`:'';
@@ -1347,6 +1387,13 @@ function renderListInner(force){
     area.innerHTML=section('Biggest gainers','var(--up)','Last 24 hours',rows(h.gain,max))+section('Biggest losers','var(--down)','Last 24 hours',rows(h.lose,max))+section('Most traded','var(--accent)','By 24h volume',rows(h.active,amax));
     renderMood(liquid());
     $('#footnote').textContent=`Only markets with at least ${fmtVol(HOT_MIN_VOL)} traded in 24 hours. Tags show the chart reading on ${TF_LABEL[state.tf]} candles.`;
+    return;
+  }
+  if(state.cat==='delist'){
+    const L=delistSets();
+    area.innerHTML=L.length?section('Scheduled delistings','var(--down)','Soonest first',L.map(dlRowHTML).join('')):`<div class="list"><div class="empty">${state.q?'No scheduled delistings match your search.':'No delistings scheduled right now'+(state.view==='all'?' on Binance, Gate or Bybit':' on '+EX[state.view].name)+'.'}</div></div>`;
+    renderMood([]);
+    $('#footnote').textContent='Dates come from each exchange\'s own market list and can appear a little after the announcement. Check the exchange\'s notice for details.';
     return;
   }
   if(state.cat==='setups'){
@@ -2003,6 +2050,8 @@ function refreshDetailHead(){
   const meta=[`<span class="tag">${typeTag(g.cats)}</span>`,`<span>${g.kind==='dated'&&g.expiry?'Expires '+dateStr(g.expiry):'Perpetual'}</span>`];
   if(g.isNew)meta.push(`<span class="tag new">New</span>${g.listed?`<span>listed ${ago(g.listed)}</span>`:''}`);
   if(p.demo)meta.push('<span class="tag">Sample</span>');
+  const dls=g.members.filter(m=>m.delist>NOW()).sort((a,b)=>a.delist-b.delist);
+  if(dls.length)meta.push('<span class="tag dl">Delisting</span>');
   $('#dMeta').innerHTML=meta.join('');
   $('#dPrice').textContent=fmtUsd(p.unitPrice);
   const c=$('#dChg');c.className='pill '+pctCls(p.chg);c.textContent=fmtPct(p.chg)+' 24h';
@@ -2017,6 +2066,7 @@ function refreshDetailHead(){
     const third=p.kind==='dated'&&p.expiry?['Expires',dateStr(p.expiry)]:p.listed?['Listed',ago(p.listed)]:['Exchange',EX[p.ex].name];
     box.innerHTML=`<dl class="stats">${[['24h volume',fmtVol(p.vol)],['Funding',p.funding!=null?fmtFund(p.funding):'—'],third].map(([a,b])=>`<div><dt>${a}</dt><dd title="${esc(b)}">${esc(b)}</dd></div>`).join('')}</dl>`;
   }
+  const dlb=$('#dlBox');dlb.hidden=!dls.length;dlb.innerHTML=!dls.length?'':`<div class="dlwarn" role="note">${dls.map(m=>`<b>${esc(EX[m.ex].name)} will delist ${esc(m.sym)} on ${esc(dlWhen(m.delist))}.</b>`).join('')}<span>Exchanges usually close any open positions at that time${dls.some(m=>m.delistRo)?'; Gate allows only closing trades from the reduce-only time':''}. Check the exchange's notice for details.</span></div>`;
   $('#chartSrc').innerHTML=`${EX[p.ex].name} ${p.kind==='dated'?'expiring':'perpetual'}${state.simShow&&state.simShow.id===p.id&&state.simShow.tf===state.tf?` · <b style="color:var(--accent)">${state.simShow.trades.length} simulated trades</b>`:''}<span id="liveTag" hidden> · <i class="dot stream" style="vertical-align:middle"></i> live candles</span>`;
   document.querySelectorAll('.row').forEach(r=>r.classList.toggle('sel-on',r.dataset.key===state.selected));
   renderMktNews();
@@ -2175,8 +2225,8 @@ listArea.addEventListener('click',e=>{if(e.target.closest('[data-snag]')){render
 function openCoin(e){const c=e.target.closest('[data-coin]');if(!c)return false;state.simShow=null;openGroup(c.dataset.coin);return true}
 $('#mktNews').addEventListener('click',e=>{openCoin(e)});
 listArea.addEventListener('click',e=>{if(openCoin(e))return;const sr=e.target.closest('tr.simrow');if(sr){openSimMarket(sr.dataset.key,sr.dataset.id,sr.dataset.tf);return}
-  const s=e.target.closest('[data-star]');if(s){e.stopPropagation();toggleStar(s.dataset.star);return}const r=e.target.closest('.row');if(r){state.simShow=null;openGroup(r.dataset.key)}});
-listArea.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.classList.contains('row')){e.preventDefault();openGroup(e.target.dataset.key)}});
+  const s=e.target.closest('[data-star]');if(s){e.stopPropagation();toggleStar(s.dataset.star);return}const r=e.target.closest('.row');if(r){state.simShow=null;openGroup(r.dataset.key||r.dataset.dkey,false,r.dataset.cid)}});
+listArea.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.classList.contains('row')){e.preventDefault();openGroup(e.target.dataset.key||e.target.dataset.dkey,false,e.target.dataset.cid)}});
 $('#venues').addEventListener('click',e=>{const b=e.target.closest('[data-view]');if(!b)return;state.view=b.dataset.view;LS.set('view',state.view);state.limit=120;buildGroups();renderVenues();renderTabs();renderList();
   if(state.selected&&state.gByKey.has(state.selected))openGroup(state.selected,true);else if(matchMedia('(min-width:980px)').matches){const v=listTargets();if(v.length)openGroup(v[0].key,true)}
   scan(SETUP_POOL)});

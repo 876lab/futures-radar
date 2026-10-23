@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0B1017">
+<title>Privacy Notice · Futures Radar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<script>try{var t=JSON.parse(localStorage.getItem('fradar:theme'));if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+<style>
+:root{color-scheme:light;
+  --bg:#EEF1F5; --surface:#FFFFFF; --surface-2:#E7EBF0; --line:#D6DCE4;
+  --fg:#0F1824; --muted:#56616F; --accent:#B4650A; --accent-ink:#FFFFFF; --accent-bg:#F8EBD9; --down:#C9363F; --down-bg:#F8E0E2;
+  --f-body:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0B1017; --surface:#121923; --surface-2:#1A2330; --line:#243041;
+  --fg:#E6ECF3; --muted:#8F9BAC; --accent:#F0A63E; --accent-ink:#1A1206; --accent-bg:#33240F; --down:#EE5D66; --down-bg:#3A1A1F; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#0B1017; --surface:#121923; --surface-2:#1A2330; --line:#243041;
+  --fg:#E6ECF3; --muted:#8F9BAC; --accent:#F0A63E; --accent-ink:#1A1206; --accent-bg:#33240F; --down:#EE5D66; --down-bg:#3A1A1F; color-scheme:dark }
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+.top{position:sticky;top:0;z-index:2;background:var(--surface);border-bottom:1px solid var(--line);padding:10px max(16px,env(safe-area-inset-right,0px)) 10px max(16px,env(safe-area-inset-left,0px));padding-top:max(10px,env(safe-area-inset-top,0px))}
+.top-in{max-width:720px;margin:0 auto;display:flex;align-items:center;gap:10px;min-height:36px}
+.back{display:inline-flex;align-items:center;gap:4px;color:var(--fg);text-decoration:none;font-weight:600;font-size:14px;border:1px solid var(--line);border-radius:9px;padding:6px 10px;background:var(--surface)}
+.brand{font-weight:700;font-size:16px;margin-left:auto}
+main{max-width:720px;margin:0 auto;padding:20px 16px 48px}
+h1{font-size:24px;line-height:1.2;margin:0 0 8px;letter-spacing:-.01em}
+h2{font-size:17px;margin:28px 0 6px}
+p,li{color:var(--fg)} p{margin:8px 0} ul{padding-left:20px;margin:8px 0} li{margin:4px 0}
+.meta{color:var(--muted);font-size:13px;margin:0 0 16px}
+.draft{background:var(--accent-bg);border:1px solid var(--accent);border-radius:12px;padding:10px 12px;font-size:13.5px;margin:0 0 18px}
+.key{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:12px 0}
+.key p{margin:4px 0}
+a{color:var(--accent)}
+.foot{margin-top:36px;padding-top:16px;border-top:1px solid var(--line);color:var(--muted);font-size:13px;display:flex;gap:14px;flex-wrap:wrap}
+.foot a{color:var(--muted)}
+</style>
+</head>
+<body>
+<header class="top"><div class="top-in"><a class="back" href="./">&#8249; Back to the app</a><span class="brand">Futures Radar</span></div></header>
+<main>
+<h1>Privacy Notice</h1>
+<p class="meta">Last updated 23 October 2026 · Version 0.1 (draft, pending legal review)</p>
+<p class="draft"><b>Draft.</b> This page is a first version written in plain language and has not yet been reviewed by a lawyer. It may change.</p>
+<div class="key"><p><b>In short:</b> Futures Radar has no accounts and no analytics today. Your settings and starred markets stay on your device. To show prices, charts, news and fonts, your device connects directly to a few outside services, which can see your device's IP address.</p></div>
+
+<h2>What we collect</h2>
+<p>Nothing on our own servers. The app has no sign-up, no accounts, no analytics, no advertising and no tracking cookies.</p>
+
+<h2>What stays on your device</h2>
+<p>The app saves your settings (for example theme, candle size, account size, risk %, max loss, warnings), your starred markets, simulator options, whether you have accepted these pages, and a short log of app errors in your browser's local storage on your device. It is not sent to us. You can remove it by clearing this site's data in your browser. The error log is only shared if you copy it yourself (Settings → App health).</p>
+
+<h2>Services your device connects to</h2>
+<p>To work, the app asks these services for data directly from your device. Like any website, they can see your device's IP address and basic browser details, and they handle that under their own privacy policies:</p>
+<ul>
+<li><b>Binance, Gate and Bybit</b> public market data (market lists, prices, candles, live price streams).</li>
+<li><b>GitHub</b> (raw.githubusercontent.com and GitHub Pages), which hosts the app and the news file.</li>
+<li><b>Google Fonts</b>, for the Inter font.</li>
+<li><b>jsDelivr</b>, for the chart library.</li>
+<li>A <b>relay address</b>, only if you enter one yourself in Settings.</li>
+</ul>
+<p>Links you open (for example a news article or X) take you to those sites, which have their own policies.</p>
+
+<h2>Imported files</h2>
+<p>If the app lets you load a file (for example a trade history export), it is read on your device and not uploaded.</p>
+
+<h2>Children</h2>
+<p>The app is not meant for anyone under 18.</p>
+
+<h2>Changes</h2>
+<p>If accounts, analytics or anything else that handles personal data is added later, this notice will be updated first and the date and version at the top will change.</p>
+
+<h2>Contact</h2>
+<p>Contact details coming soon.</p>
+
+<nav class="foot" aria-label="Legal pages"><a href="terms.html">Terms of Use</a><a href="risk.html">Risk Disclosure</a><a href="privacy.html">Privacy Notice</a><a href="./">Back to the app</a></nav>
+</main>
+</body>
+</html>

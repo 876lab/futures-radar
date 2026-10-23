@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0B1017">
+<title>Risk Disclosure · Futures Radar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<script>try{var t=JSON.parse(localStorage.getItem('fradar:theme'));if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+<style>
+:root{color-scheme:light;
+  --bg:#EEF1F5; --surface:#FFFFFF; --surface-2:#E7EBF0; --line:#D6DCE4;
+  --fg:#0F1824; --muted:#56616F; --accent:#B4650A; --accent-ink:#FFFFFF; --accent-bg:#F8EBD9; --down:#C9363F; --down-bg:#F8E0E2;
+  --f-body:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0B1017; --surface:#121923; --surface-2:#1A2330; --line:#243041;
+  --fg:#E6ECF3; --muted:#8F9BAC; --accent:#F0A63E; --accent-ink:#1A1206; --accent-bg:#33240F; --down:#EE5D66; --down-bg:#3A1A1F; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#0B1017; --surface:#121923; --surface-2:#1A2330; --line:#243041;
+  --fg:#E6ECF3; --muted:#8F9BAC; --accent:#F0A63E; --accent-ink:#1A1206; --accent-bg:#33240F; --down:#EE5D66; --down-bg:#3A1A1F; color-scheme:dark }
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+.top{position:sticky;top:0;z-index:2;background:var(--surface);border-bottom:1px solid var(--line);padding:10px max(16px,env(safe-area-inset-right,0px)) 10px max(16px,env(safe-area-inset-left,0px));padding-top:max(10px,env(safe-area-inset-top,0px))}
+.top-in{max-width:720px;margin:0 auto;display:flex;align-items:center;gap:10px;min-height:36px}
+.back{display:inline-flex;align-items:center;gap:4px;color:var(--fg);text-decoration:none;font-weight:600;font-size:14px;border:1px solid var(--line);border-radius:9px;padding:6px 10px;background:var(--surface)}
+.brand{font-weight:700;font-size:16px;margin-left:auto}
+main{max-width:720px;margin:0 auto;padding:20px 16px 48px}
+h1{font-size:24px;line-height:1.2;margin:0 0 8px;letter-spacing:-.01em}
+h2{font-size:17px;margin:28px 0 6px}
+p,li{color:var(--fg)} p{margin:8px 0} ul{padding-left:20px;margin:8px 0} li{margin:4px 0}
+.meta{color:var(--muted);font-size:13px;margin:0 0 16px}
+.draft{background:var(--accent-bg);border:1px solid var(--accent);border-radius:12px;padding:10px 12px;font-size:13.5px;margin:0 0 18px}
+.key{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:12px 0}
+.key p{margin:4px 0}
+a{color:var(--accent)}
+.foot{margin-top:36px;padding-top:16px;border-top:1px solid var(--line);color:var(--muted);font-size:13px;display:flex;gap:14px;flex-wrap:wrap}
+.foot a{color:var(--muted)}
+</style>
+</head>
+<body>
+<header class="top"><div class="top-in"><a class="back" href="./">&#8249; Back to the app</a><span class="brand">Futures Radar</span></div></header>
+<main>
+<h1>Risk Disclosure</h1>
+<p class="meta">Last updated 23 October 2026 · Version 0.1 (draft, pending legal review)</p>
+<p class="draft"><b>Draft.</b> This page is a first version written in plain language and has not yet been reviewed by a lawyer. It may change.</p>
+<div class="key"><p><b>In short:</b> crypto futures are very high risk. With leverage you can lose your whole deposit quickly, and sometimes more than you expected. Only trade money you can afford to lose. Futures Radar is general information, not advice.</p></div>
+
+<h2>Leverage</h2>
+<p>Futures let you control a position much larger than the money you put up. A small price move against you becomes a large loss on your deposit. At 10× leverage, a 10% move against you can wipe out the margin for that trade.</p>
+
+<h2>Liquidation</h2>
+<p>If losses use up your margin, the exchange can close (liquidate) your position automatically, often at a bad price and with extra fees. This can happen fast, before you can react.</p>
+
+<h2>Volatility and price gaps</h2>
+<p>Crypto prices can move very sharply in minutes, especially around big news. Prices can jump past your stop, so a stop loss is not guaranteed to fill at its price. Losses can be larger than the stop you planned.</p>
+
+<h2>Funding fees</h2>
+<p>Perpetual futures charge or pay a funding fee between longs and shorts every few hours. Over a multi-hour or multi-day hold these fees can add up and eat into results.</p>
+
+<h2>Fees and slippage</h2>
+<p>Trading fees are charged when you open and close. In fast or thin markets you may get a worse price than shown (slippage). Both reduce your results and are not always shown in the app.</p>
+
+<h2>Exchange risk</h2>
+<p>Exchanges can go down, freeze withdrawals, change rules, delist markets, be hacked or fail. Crypto held on an exchange is usually not protected like a bank deposit.</p>
+
+<h2>Losing more than you expect</h2>
+<p>Through gaps, liquidation, fees, mistakes or outages, a single trade can cost far more than you planned. One very large loss can erase many winning trades.</p>
+
+<h2>Limits of chart readings, backtests and simulations</h2>
+<ul>
+<li>Chart readings come from rules applied to past prices. They are often wrong, and every market and candle size behaves differently.</li>
+<li>The simulator replays past prices with simplified assumptions (for example, entry at the next candle's open and fixed fees). Real trading differs: fills, fees, funding, delays and your own decisions change results.</li>
+<li>Results on past data can look better than reality because rules can fit the past by chance.</li>
+<li><b>Past results do not guarantee future results.</b></li>
+</ul>
+
+<h2>Data can be wrong or late</h2>
+<p>Prices, news and calendar times come from third parties (the Binance, Gate and Bybit exchanges (prices, candles, funding and market lists), crypto and financial news sites, the US Federal Reserve and the US SEC (headlines), an economic calendar feed, and a market-mood (Fear &amp; Greed) index) and can be delayed, missing or wrong.</p>
+
+<h2>Only trade money you can afford to lose</h2>
+<p>Never trade with money you need for living costs, debts or savings. Consider getting independent advice from a licensed professional. If trading is causing you stress or financial trouble, step back and talk to someone you trust.</p>
+
+<nav class="foot" aria-label="Legal pages"><a href="terms.html">Terms of Use</a><a href="risk.html">Risk Disclosure</a><a href="privacy.html">Privacy Notice</a><a href="./">Back to the app</a></nav>
+</main>
+</body>
+</html>

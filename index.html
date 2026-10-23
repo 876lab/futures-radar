@@ -278,6 +278,15 @@ button{cursor:pointer}
 .sig .dt{display:block;color:var(--muted);font-size:12.5px}
 .fine{font-size:12px;color:var(--muted);margin:0;max-width:70ch}
 .fine a{color:inherit}
+/* legal: note under the chart reading, links, first-launch sheet */
+.legalnote{margin:0;font-size:12px;color:var(--muted);border-top:1px solid var(--line);padding-top:10px}
+.legalnote a{color:inherit}
+.calc-note{margin:0;font-size:12px}
+.legallinks{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:13.5px;font-weight:600}
+.legallinks a{color:var(--accent)}
+.legal-pts{margin:0;padding-left:20px;display:grid;gap:8px;font-size:14px}
+#legal .sheet{display:grid;gap:14px}
+#legal .acts .btn{padding:10px 18px;font-size:14.5px}
 
 /* Sheets */
 .sheet-bg{position:fixed;inset:0;z-index:40;background:rgb(5 10 18 / .5);display:grid;place-items:end center}
@@ -529,22 +538,22 @@ html,body{overscroll-behavior-y:none}
           </div>
           <div class="sgrp">
             <h3>Trading</h3>
-            <div class="fld"><span class="lab">Candle size for signals and Setups</span><div class="opts" id="setTf"></div></div>
+            <div class="fld"><span class="lab">Candle size for chart readings and Setups</span><div class="opts" id="setTf"></div></div>
             <p>You can also change this on any chart. 1H and 4H suit trades held for several hours.</p>
             <div class="inrow">
               <label for="setAcct">Account size ($)<input id="setAcct" type="number" inputmode="decimal" min="1" step="any"></label>
               <label for="setRisk">Risk per trade (%)<input id="setRisk" type="number" inputmode="decimal" min="0.1" max="100" step="0.1"></label>
             </div>
-            <p>Used by <b>Size this trade</b> on the signal card. Many traders risk 1–2% of the account per trade.</p>
+            <p>Used by the <b>Position size calculator</b> on the chart screen. Many traders risk 1–2% of the account per trade.</p>
             <div>
               <label for="maxLoss">Max loss per trade (USDT)</label>
               <input id="maxLoss" type="number" inputmode="decimal" min="0" step="any" placeholder="Off">
             </div>
-            <p>The most you will let one trade lose if it hits the stop. A good start is about twice your average losing trade (Gate shows this in your position history). <b>Size this trade</b> then warns in red when a plan would lose more, and shows a smaller size that fits. Leave empty to switch off.</p>
+            <p>The most you will let one trade lose if it hits the stop. A good start is about twice your average losing trade (Gate shows this in your position history). The <b>Position size calculator</b> then warns in red when a plan would lose more, and shows the size that fits your limit. Leave empty to switch off.</p>
           </div>
           <div class="sgrp">
             <h3>Warnings</h3>
-            <div class="swrow" data-sw="evOn"><span class="t"><b id="swEvL">Big news warning</b><span>An amber note on the signal card and Setups when a big US release (CPI, jobs, Fed) is within 30 minutes, plus a quiet “later today” line on Setups.</span></span><button type="button" class="switch" role="switch" aria-labelledby="swEvL" aria-checked="true"></button></div>
+            <div class="swrow" data-sw="evOn"><span class="t"><b id="swEvL">Big news warning</b><span>An amber note on the chart reading and Setups when a big US release (CPI, jobs, Fed) is within 30 minutes, plus a quiet “later today” line on Setups.</span></span><button type="button" class="switch" role="switch" aria-labelledby="swEvL" aria-checked="true"></button></div>
             <div class="swrow" data-sw="evAll"><span class="t"><b id="swEvAllL">Also count Japan, China and euro-area news</b><span>Adds big releases like Bank of Japan and ECB rate decisions and top China data, which sometimes move crypto too. Off by default.</span></span><button type="button" class="switch" role="switch" aria-labelledby="swEvAllL" aria-checked="false"></button></div>
           </div>
           <div class="sgrp">
@@ -563,6 +572,11 @@ html,body{overscroll-behavior-y:none}
             <div id="errBox"></div>
           </div>
           <div class="sgrp">
+            <h3>About &amp; legal</h3>
+            <p>Futures Radar shows general market analysis and learning tools, the same for everyone. It is not financial advice.</p>
+            <div class="legallinks"><a href="terms.html">Terms of Use</a><a href="risk.html">Risk Disclosure</a><a href="privacy.html">Privacy Notice</a></div>
+          </div>
+          <div class="sgrp">
             <h3>Help</h3>
             <p id="setAbout"></p>
             <div class="acts" style="justify-content:flex-start"><button type="button" class="btn" id="setHelp">How to read this app and what's new</button></div>
@@ -571,9 +585,9 @@ html,body{overscroll-behavior-y:none}
       </div>
     </section>
 
-    <section class="detail" id="detail" aria-label="Chart and signal">
+    <section class="detail" id="detail" aria-label="Chart and chart reading">
       <div class="d-in">
-        <div class="d-empty" id="dEmpty">Pick a market to see its signal and chart.</div>
+        <div class="d-empty" id="dEmpty">Pick a market to see its chart reading and chart.</div>
         <div id="dBody" hidden style="display:contents">
           <div class="d-head">
             <button class="back" id="back" aria-label="Back to list"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M15 18 9 12l6-6"/></svg>Back</button>
@@ -602,7 +616,7 @@ html,body{overscroll-behavior-y:none}
           <div class="card mnews" id="mktNews"></div>
           <div id="venueBox"></div>
           <details class="card more" id="trendMore"><summary>Trend details</summary><div id="signals"></div></details>
-          <p class="fine">Signals come from chart math on past prices and can be wrong. Always set the stop loss. Charts drawn with <a href="https://www.tradingview.com/lightweight-charts/" target="_blank" rel="noopener">TradingView Lightweight Charts</a>.</p>
+          <p class="fine">Chart readings come from chart math on past prices and can be wrong. Charts drawn with <a href="https://www.tradingview.com/lightweight-charts/" target="_blank" rel="noopener">TradingView Lightweight Charts</a>.</p>
         </div>
       </div>
     </section>
@@ -618,20 +632,22 @@ html,body{overscroll-behavior-y:none}
     <dl>
       <dt>Bottom bar</dt><dd>Markets, Setups, Simulator, News and Starred. Settings is the sliders button at the top right. The bar slides away while you scroll and comes back when you stop; switch that off in Settings to keep it on screen. On a computer the same buttons sit above the list.</dd>
       <dt>Compact</dt><dd>Shows one line per market so more fit on screen.</dd>
-      <dt>Swipes on a chart</dt><dd>Swipe in from the left edge, or use your phone's back gesture, to return to the list. Swipe left or right on the signal card to change candle size.</dd>
+      <dt>Swipes on a chart</dt><dd>Swipe in from the left edge, or use your phone's back gesture, to return to the list. Swipe left or right on the chart reading to change candle size.</dd>
       <dt>Pull to refresh</dt><dd>At the top of any page, pull down and let go to reload prices (and headlines on the News page). Same as the refresh button at the top.</dd>
       <dt>Small line on each row</dt><dd>The price over the last 24 hours, green if it ended higher.</dd>
     </dl>
-    <h3>The signal</h3>
+    <h3>The chart reading</h3>
+    <p>The app describes what the chart shows using fixed rules. It is the same for everyone and is not advice or an instruction to trade.</p>
     <dl>
-      <dt>Enter long</dt><dd>The trend is up, the bigger timeframe agrees, and there's a fresh buy trigger without price being stretched. Buy in the entry zone and set the stop.</dd>
-      <dt>Enter short</dt><dd>The same, pointing down. You profit if price falls.</dd>
-      <dt>Hold</dt><dd>A trend is in place but this isn't a good spot to open a new trade, usually because price has already run. If you're in, stay in. If not, wait for the "better entry" price.</dd>
-      <dt>Avoid</dt><dd>No clear trend, or the short and bigger timeframes disagree. Sitting out is a position too.</dd>
-      <dt>Stop loss</dt><dd>Where the idea is wrong. Close the trade there, no exceptions.</dd>
-      <dt>Targets</dt><dd>Target 1 is 1.5 times your risk, target 2 is 3 times. Many traders take half at target 1 and move the stop to entry.</dd>
-      <dt>Confidence</dt><dd>How many signals line up, from 0 to 100. Above 70 is strong agreement.</dd>
-      <dt>Big news warning</dt><dd>An amber note on the signal card and Setups page when a big US release (like CPI, jobs or a Fed decision) is within 30 minutes. Prices often spike both ways then, and stops can fill worse than planned. Earlier in the day, Setups shows a quiet “Big news later today” line with the times so you can plan around them. A second switch also counts Japan, China and euro-area releases (like Bank of Japan or ECB rate decisions). It never changes the signal.</dd>
+      <dt>Long setup</dt><dd>The trend is up, the bigger timeframe agrees, and there's a fresh trigger (or a pullback that held) without price being stretched. The entry zone, stop and targets are shown.</dd>
+      <dt>Short setup</dt><dd>The same, pointing down. A short gains if price falls.</dd>
+      <dt>Wait</dt><dd>A trend is in place but there's no fresh trigger, or price has already run far from its average. The chart shows a "better entry" area and where the trend would break.</dd>
+      <dt>No setup</dt><dd>No clear trend, or the short and bigger timeframes disagree.</dd>
+      <dt>Stop loss</dt><dd>The level where the setup is proven wrong.</dd>
+      <dt>Targets</dt><dd>Target 1 is 1.5 times the risk, target 2 is 3 times. A common approach is to close half at target 1 and move the stop to entry.</dd>
+      <dt>Agreement</dt><dd>How many indicators line up, from 0 to 100. Above 70 is strong agreement. It is not a probability of winning.</dd>
+      <dt>Position size calculator</dt><dd>Works out a position size from your own account size and risk %. A calculator using your own numbers, not a recommendation.</dd>
+      <dt>Big news warning</dt><dd>An amber note on the chart reading and Setups page when a big US release (like CPI, jobs or a Fed decision) is within 30 minutes. Prices often spike both ways then, and stops can fill worse than planned. Earlier in the day, Setups shows a quiet “Big news later today” line with the times so you can plan around them. A second switch also counts Japan, China and euro-area releases (like Bank of Japan or ECB rate decisions). It never changes the chart reading.</dd>
       <dt>B and S on the chart</dt><dd>Where Supertrend flipped to buy (B) or sell (S).</dd>
     </dl>
     <h3>The indicators</h3>
@@ -646,7 +662,23 @@ html,body{overscroll-behavior-y:none}
       <dt>News</dt><dd>Headlines from crypto and financial news sites, the Federal Reserve and the SEC, refreshed every 15 minutes. Fear &amp; Greed sums up market mood from 0 (extreme fear) to 100 (extreme greed).</dd>
       <dt>Live</dt><dd>The dot at the top shows how fresh prices are. "Live · now" means ticks are streaming in. "Delayed" means no tick for 30 seconds; the app reconnects on its own.</dd>
     </dl>
+    <h3>About &amp; legal</h3>
+    <p>Futures Radar shows general market analysis and learning tools, the same for everyone. It is not financial advice, and futures trading is high risk.</p>
+    <div class="legallinks"><a href="terms.html">Terms of Use</a><a href="risk.html">Risk Disclosure</a><a href="privacy.html">Privacy Notice</a></div>
     <div class="acts"><button type="button" class="btn primary" data-close="help">Got it</button></div>
+  </div>
+</div>
+
+<div class="sheet-bg" id="legal" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="legalTitle">
+    <h2 id="legalTitle">Before you start</h2>
+    <ul class="legal-pts">
+      <li><b>General information, not advice.</b> The app describes what charts show, the same for everyone. It never tells you what to trade.</li>
+      <li><b>Futures are high risk.</b> With leverage you can lose your deposit quickly, sometimes more than you planned.</li>
+      <li><b>You're responsible for your trades.</b> You decide what, when and how much to trade.</li>
+    </ul>
+    <div class="legallinks"><a href="terms.html">Terms of Use</a><a href="risk.html">Risk Disclosure</a><a href="privacy.html">Privacy Notice</a></div>
+    <div class="acts"><button type="button" class="btn primary" id="legalOk">I understand</button></div>
   </div>
 </div>
 
@@ -668,8 +700,8 @@ const EXK=Object.keys(EX);
 const CATS=[['hot','Hot'],['all','All'],['new','New'],['crypto','Crypto'],['meme','Meme'],['ai','AI'],['stocks','Stocks'],['tradfi','TradFi'],['dated','Expiring']];
 const MKT_CATS=CATS.map(c=>c[0]),PAGES=['setups','sim','news','watch','settings'];
 const CAT_DESC={settings:'Your preferences. Changes save on this device straight away.',news:'Headlines that can move markets, refreshed every 15 minutes, plus market mood and upcoming economic events.',hot:'The biggest movers and most traded markets over the last 24 hours.',
-  sim:'Test how the app\'s entry signals would have done on past prices before you trust them with money.',
-  setups:'Markets where the chart shows a long or short entry right now, checked against the bigger timeframe.',
+  sim:'See how the app\'s long and short setups would have played out on past prices.',
+  setups:'Markets where the chart currently shows a long or short setup, checked against the bigger timeframe.',
   watch:'Markets you starred. They stay on this device.',
   all:'Every futures market. A coin listed on several exchanges shows once, with all its exchanges inside.',new:'Listed in the last 30 days. New markets can swing hard.',
   crypto:'Coins and tokens.',meme:'Community and joke coins. Expect big swings.',ai:'Tokens tied to AI projects.',
@@ -1218,9 +1250,9 @@ const TARGET='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-
 const ARROW={up:'<svg viewBox="0 0 12 12" fill="currentColor"><path d="M6 1.5 11 8H1z"/></svg>',down:'<svg viewBox="0 0 12 12" fill="currentColor"><path d="M6 10.5 1 4h10z"/></svg>',flat:'<svg viewBox="0 0 12 12" fill="currentColor"><rect x="1.5" y="5" width="9" height="2" rx="1"/></svg>'};
 const PAUSE='<svg viewBox="0 0 12 12" fill="currentColor"><rect x="2.5" y="2" width="2.5" height="8" rx=".6"/><rect x="7" y="2" width="2.5" height="8" rx=".6"/></svg>';
 const BLOCK='<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="6" cy="6" r="4.5"/><path d="M3 9 9 3"/></svg>';
-const REC_TXT={long:'Long',short:'Short',hold:'Hold',avoid:'Avoid'};
+const REC_TXT={long:'Long',short:'Short',hold:'Wait',avoid:'No setup'};
 function recPill(s){if(!s)return '';const ic=s.rec==='long'?ARROW.up:s.rec==='short'?ARROW.down:s.rec==='hold'?(s.dir>0?ARROW.up:s.dir<0?ARROW.down:PAUSE):BLOCK;
-  return `<span class="rec ${s.rec}" title="Signal on ${TF_LABEL[state.tf]} candles">${ic}${REC_TXT[s.rec]}${s.rec==='long'||s.rec==='short'?` <span class="num" style="font-weight:500;opacity:.85">${s.conf}</span>`:''}</span>`}
+  return `<span class="rec ${s.rec}" title="Chart reading on ${TF_LABEL[state.tf]} candles">${ic}${REC_TXT[s.rec]}${s.rec==='long'||s.rec==='short'?` <span class="num" style="font-weight:500;opacity:.85">${s.conf}</span>`:''}</span>`}
 
 function renderStatus(){
   const l=$('#live');
@@ -1230,7 +1262,7 @@ function renderStatus(){
   const b=$('#banner');
   if(state.mode==='demo'){
     b.hidden=false;
-    b.innerHTML=`<p><strong>Sample data, not live prices.</strong> This preview isn't allowed to connect to Binance, Gate or Bybit, so the markets, prices and signals here are made up. Open the app from its own web address and it streams live prices from all three exchanges.</p><button class="btn primary" id="retry">Try live data again</button><button class="x" id="bannerX" aria-label="Hide this message">×</button>`;
+    b.innerHTML=`<p><strong>Sample data, not live prices.</strong> This preview isn't allowed to connect to Binance, Gate or Bybit, so the markets, prices and chart readings here are made up. Open the app from its own web address and it streams live prices from all three exchanges.</p><button class="btn primary" id="retry">Try live data again</button><button class="x" id="bannerX" aria-label="Hide this message">×</button>`;
     if(state.bannerHidden)b.hidden=true;
   }else if(state.mode==='live'&&Object.keys(state.errors).length){
     b.hidden=false;const names=Object.keys(state.errors).map(k=>EX[k].name).join(' and ');
@@ -1314,19 +1346,19 @@ function renderListInner(force){
     const rows=(arr,m)=>arr.length?arr.map(g=>rowHTML(g,{max:m})).join(''):'<div class="empty">Nothing here right now.</div>';
     area.innerHTML=section('Biggest gainers','var(--up)','Last 24 hours',rows(h.gain,max))+section('Biggest losers','var(--down)','Last 24 hours',rows(h.lose,max))+section('Most traded','var(--accent)','By 24h volume',rows(h.active,amax));
     renderMood(liquid());
-    $('#footnote').textContent=`Only markets with at least ${fmtVol(HOT_MIN_VOL)} traded in 24 hours. Signal tags use ${TF_LABEL[state.tf]} candles.`;
+    $('#footnote').textContent=`Only markets with at least ${fmtVol(HOT_MIN_VOL)} traded in 24 hours. Tags show the chart reading on ${TF_LABEL[state.tf]} candles.`;
     return;
   }
   if(state.cat==='setups'){
     const s=setupSets();
     if(!s.pool){area.innerHTML=`<div class="list"><div class="empty">${state.q?'No busy markets match your search.':'No markets have enough trading right now to check.'} Setups only looks at markets with at least ${fmtVol(HOT_MIN_VOL)} traded in 24 hours.</div></div>`;$('#footnote').textContent='';renderMood(liquid());return}
     if(!s.checked){area.innerHTML=`<div class="list"><div class="empty">Reading charts for the ${s.pool} most traded markets…</div></div>`;$('#footnote').textContent='';renderMood(liquid());return}
-    const rows=(arr,word)=>arr.length?arr.map(g=>rowHTML(g)).join(''):`<div class="empty">No ${word} entries right now on ${TF_LABEL[state.tf]} candles.</div>`;
-    area.innerHTML='<div id="setEv" hidden></div>'+section('Long entries','var(--up)','Highest confidence first',rows(s.longs,'long'))+section('Short entries','var(--down)','Highest confidence first',rows(s.shorts,'short'));
+    const rows=(arr,word)=>arr.length?arr.map(g=>rowHTML(g)).join(''):`<div class="empty">No ${word} setups right now on ${TF_LABEL[state.tf]} candles.</div>`;
+    area.innerHTML='<div id="setEv" hidden></div>'+section('Long setups','var(--up)','Highest agreement first',rows(s.longs,'long'))+section('Short setups','var(--down)','Highest agreement first',rows(s.shorts,'short'));
     renderEvGuard();if(!news.data&&!news.loading&&!news.err)loadNews();
     renderMood(liquid());
     $('#footnote').innerHTML=state.scanning?`Reading charts… <span class="num">${state.scanning.done}/${state.scanning.total}</span>`:
-      `Checked the ${s.checked} most traded markets on ${TF_LABEL[state.tf]} candles. The number on each tag is confidence out of 100.`;
+      `Checked the ${s.checked} most traded markets on ${TF_LABEL[state.tf]} candles. The number on each tag is agreement out of 100.`;
     return;
   }
   const v=visible();
@@ -1338,7 +1370,7 @@ function renderListInner(force){
   renderMood(v);
   const scanned=v.filter(g=>sigOf(g)).length;
   $('#footnote').innerHTML=state.scanning?`Reading charts on ${TF_LABEL[state.tf]} candles… <span class="num">${state.scanning.done}/${state.scanning.total}</span>`:
-    `Price and 24h change come from the busiest exchange. Signal tags use ${TF_LABEL[state.tf]} candles${scanned<Math.min(v.length,state.limit)?` and cover ${scanned} of ${v.length}. <button class="linkbtn" id="scanMore">Read the next 40</button>`:'.'}`;
+    `Price and 24h change come from the busiest exchange. Tags show the chart reading on ${TF_LABEL[state.tf]} candles${scanned<Math.min(v.length,state.limit)?` and cover ${scanned} of ${v.length}. <button class="linkbtn" id="scanMore">Read the next 40</button>`:'.'}`;
   const sm=$('#scanMore');if(sm)sm.onclick=()=>scan(40);
 }
 function renderAll(){renderStatus();renderNav();renderVenues();renderTabs();renderList();$('#sort').value=state.sort}
@@ -1447,21 +1479,21 @@ function recommend(an,cs,han,tf,lite){
   const choppy=adxV!=null&&adxV<18&&Math.abs(an.score)<60;
   const conflict=hdir!=null&&dir!==0&&hdir===-dir;
   if(dir===0||choppy){
-    rec='avoid';headline='Avoid for now';
-    text=dir===0?`Signals are mixed on ${TF_LABEL[tf]} candles, so there's no edge either way. Wait for price to break out of its range.`:`The trend is too weak to trade. Price is chopping sideways, which tends to hit stops on both sides.`;
+    rec='avoid';headline='No setup';
+    text=dir===0?`Indicators are mixed on ${TF_LABEL[tf]} candles, so the chart shows no clear direction. A break out of the range would change that.`:`The trend is weak and price is chopping sideways, a pattern that tends to hit stops on both sides.`;
   }else if(conflict){
-    rec='avoid';headline='Avoid for now';
-    text=`The ${TF_LABEL[tf]} chart points ${trendWord(dir)} but the ${htfL} chart points ${trendWord(hdir)}. Trades against the bigger trend fail more often. Wait until both agree.`;
+    rec='avoid';headline='No setup';
+    text=`The ${TF_LABEL[tf]} chart points ${trendWord(dir)} but the ${htfL} chart points ${trendWord(hdir)}. Setups against the bigger trend fail more often; there is no setup until both agree.`;
   }else if(stretched){
-    rec='hold';headline='Hold';
-    text=`The ${trendWord(dir)}trend is intact but price has run ${dir>0?'far above':'far below'} its average. If you're already in, hold. If not, wait for price to come back toward the better-entry zone.`;
+    rec='hold';headline='Wait';
+    text=`The ${trendWord(dir)}trend is intact but price is stretched ${dir>0?'far above':'far below'} its average. A pullback toward the better-entry zone would be a cleaner setup.`;
   }else if(fresh||pull){
-    rec=dir>0?'long':'short';headline=dir>0?'Enter long':'Enter short';
+    rec=dir>0?'long':'short';headline=dir>0?'Long setup':'Short setup';
     const why=fresh&&stDir[L]===dir&&stAge<=5?'Supertrend just flipped':fresh?'MACD just crossed':'Price pulled back to its 20-candle average and held';
-    text=`${why} in the direction of the ${trendWord(dir)}trend${hdir===dir?`, and the ${htfL} chart agrees`:''}. ${dir>0?'Buy':'Sell'} inside the entry zone and set the stop right away.`;
+    text=`${why} in the direction of the ${trendWord(dir)}trend${hdir===dir?`, and the ${htfL} chart agrees`:''}. The setup's entry zone, stop and targets are below.`;
   }else{
-    rec='hold';headline='Hold';
-    text=`The ${trendWord(dir)}trend is intact but there's no fresh trigger. If you're in, hold above the stop. If not, wait for a pullback to the better-entry zone or a new ${dir>0?'B':'S'} signal.`;
+    rec='hold';headline='Wait';
+    text=`The ${trendWord(dir)}trend is intact but there's no fresh trigger. A pullback to the better-entry zone or a new ${dir>0?'B':'S'} mark would be a cleaner setup.`;
   }
 
   // levels
@@ -1587,7 +1619,7 @@ function evGuardHTML(day){
   }
   const what=esc(g.names.slice(0,2).join(', '))+(g.names.length>2?' and more':'');
   const when=g.mins>0?`in ${g.mins} min`:g.mins<0?`${-g.mins} min ago`:'now';
-  return `<div class="evwarn" role="note"><b>Big ${esc(evWho(g.cc))} news ${g.mins>=0?'at':'came out at'} ${evTm(g.d)} (${when}): ${what}.</b><span>Spreads and sudden spikes are common around big releases. Consider waiting until about ${evTm(g.until)}.</span><small>From the News calendar. The signal itself does not change.</small></div>`;
+  return `<div class="evwarn" role="note"><b>Big ${esc(evWho(g.cc))} news ${g.mins>=0?'at':'came out at'} ${evTm(g.d)} (${when}): ${what}.</b><span>Spreads and sudden spikes are common around big releases; it is usually calmer after about ${evTm(g.until)}.</span><small>From the News calendar. The chart reading itself does not change.</small></div>`;
 }
 function renderEvGuard(){
   for(const id of ['evGuard','setEv']){const el=document.getElementById(id);if(!el)continue;const h=evGuardHTML(id==='setEv');if(el._h!==h){el.innerHTML=h;el.hidden=!h;el._h=h}}
@@ -1779,15 +1811,15 @@ function renderSim(force){
   const o=sim.opts,sel=state.gByKey.get(state.selected);
   const opt=(group,val,label,on)=>`<button type="button" class="opt" data-sim="${group}" data-v="${val}" aria-pressed="${on}">${label}</button>`;
   const form=`<div class="card sim-form">
-    <h3>Test the signals on past prices</h3>
-    <p class="note">Replays every Enter long and Enter short signal over the last ${SIM_N.toLocaleString()} candles of each market, then checks whether the stop or the target was hit first.</p>
+    <h3>Test the setups on past prices</h3>
+    <p class="note">Replays every long and short setup over the last ${SIM_N.toLocaleString()} candles of each market, then checks whether the stop or the target was hit first.</p>
     <div class="fld"><span class="lab">Markets</span><div class="opts">
       ${opt('scope','this',`This market${sel?' ('+esc(sel.root)+')':''}`,o.scope==='this')}${opt('scope','top10','Top 10 traded',o.scope==='top10')}${opt('scope','top25','Top 25 traded',o.scope==='top25')}${opt('scope','starred','My starred',o.scope==='starred')}</div></div>
     <div class="fld"><span class="lab">Candle sizes</span><div class="opts">
       ${['5m','15m','1h','4h'].map(t=>opt('tfs',t,TF_LABEL[t],o.tfs.includes(t))).join('')}</div></div>
     <div class="fld"><span class="lab">Taking profit</span><div class="opts">
       ${opt('plan','split','Half at target 1, rest at target 2',o.plan==='split')}${opt('plan','tp1','All at target 1',o.plan==='tp1')}${opt('plan','tp2','All at target 2',o.plan==='tp2')}</div></div>
-    <div class="fld"><span class="lab">Only take signals with confidence</span><div class="opts">
+    <div class="fld"><span class="lab">Only count setups with agreement</span><div class="opts">
       ${opt('minConf','0','Any',+o.minConf===0)}${opt('minConf','50','50 or more',+o.minConf===50)}${opt('minConf','70','70 or more',+o.minConf===70)}</div></div>
     <div class="inrow">
       <label for="simFee">Fee per side (%)<input id="simFee" data-simin="fee" type="number" inputmode="decimal" min="0" step="0.01" value="${o.fee}"></label>
@@ -1810,7 +1842,7 @@ function renderSim(force){
 function simResultsHTML(){
   const res=sim.result;if(!res)return '';
   const s=res.st,o=res.o;
-  if(!s.n)return `<div class="card sim-res" id="simRes"><div class="sim-verdict meh"><div class="sc-eyebrow">Result</div><div class="sc-head">No trades</div><p>None of the ${res.rows.length} market and candle-size combinations produced an entry signal${o.minConf?` with confidence ${o.minConf} or more`:''}. Try more markets, other candle sizes or a lower confidence filter.${res.fails?` ${res.fails} could not be loaded.`:''}</p></div></div>`;
+  if(!s.n)return `<div class="card sim-res" id="simRes"><div class="sim-verdict meh"><div class="sc-eyebrow">Result</div><div class="sc-head">No trades</div><p>None of the ${res.rows.length} market and candle-size combinations produced a setup${o.minConf?` with agreement ${o.minConf} or more`:''}. More markets, other candle sizes or a lower agreement filter give more trades.${res.fails?` ${res.fails} could not be loaded.`:''}</p></div></div>`;
   const cls=s.n<30?'meh':s.avgR>=0.1?'good':s.avgR>-0.05?'meh':'bad';
   const head=s.avgR>=0.1?'Profitable':s.avgR>-0.05?'About break-even':'Losing';
   const perTrade=s.avgR*o.risk;
@@ -1841,16 +1873,16 @@ function simResultsHTML(){
     <div class="tiles">${tiles.map(([k,v,sub])=>`<div><div class="k">${k}</div><div class="v">${v}</div><div class="s">${sub}</div></div>`).join('')}</div>
     <div class="sim-sec"><h4>Account balance, trade by trade</h4>${eqChart(s.curve)}
       <p class="hint">"R" is the amount you risk on one trade. +1R means you won what you risked; −1R means the stop was hit.</p></div>
-    ${btable('By candle size',byTf,'Candle size')}${btable('Long vs short',bySide,'Direction')}${btable('By confidence',byConf,'Confidence')}${btable('How trades ended',byHow,'Exit')}
+    ${btable('By candle size',byTf,'Candle size')}${btable('Long vs short',bySide,'Direction')}${btable('By agreement',byConf,'Agreement')}${btable('How trades ended',byHow,'Exit')}
     ${mkt}
     <div class="sim-sec"><h4>How the test works</h4><ul class="sim-notes">
-      <li>Signals are read when each candle closes, using only the candles before it. Trades enter at the next candle's open.</li>
+      <li>Setups are read when each candle closes, using only the candles before it. Trades enter at the next candle's open.</li>
       <li>The stop sits where the app puts it. Target 1 is 1.5× the risk and target 2 is 3×.</li>
       <li>If the stop and a target are both touched in the same candle, the test assumes the stop hit first.</li>
       <li>Fees are charged on entry and exit. Slippage is added to entries and stop exits.</li>
       <li>One trade at a time per market and candle size. Trades still open after ${o.maxHold} candles close at the market price.</li>
       <li>Data covers ${from&&isFinite(from)?'from '+dateStr(from*1000):'the last '+SIM_N+' candles'} to now${res.fails?`; ${res.fails} market${res.fails===1?'':'s'} could not be loaded`:''}.</li>
-      <li>Past results don't guarantee future ones. The live signal can change before a candle closes, so act on closed candles.</li>
+      <li>Past results don't guarantee future ones. The live chart reading can change before a candle closes.</li>
     </ul></div>
   </div>`;
 }
@@ -1980,7 +2012,7 @@ function refreshDetailHead(){
   if(g.members.length>1){
     box.innerHTML=`<div class="card"><h3>Where it trades</h3><div class="vtable"><table><thead><tr><th>Exchange</th><th>Price</th><th>24h</th><th>Volume</th><th>Funding</th></tr></thead><tbody>${
       g.members.map(m=>`<tr data-cid="${esc(m.id)}" class="${m.id===p.id?'on':''}" tabindex="0" aria-label="Chart ${esc(EX[m.ex].name)}"><td class="vname"><b>${EX[m.ex].name}</b><small>${esc(contractLabel(m))}</small></td><td>${fmtUsd(m.unitPrice)}</td><td class="${pctCls(m.chg)}">${fmtPct(m.chg)}</td><td>${fmtVol(m.vol)}</td><td>${m.funding!=null?fmtFund(m.funding):'—'}</td></tr>`).join('')
-    }</tbody></table></div><p class="note">Tap a row to chart and signal that exchange. ${g.gap!=null?`Prices differ by <b class="num" style="color:var(--fg)">${g.gap.toFixed(2)}%</b> between exchanges. `:''}Funding is a small fee swapped between longs and shorts every few hours; positive means longs pay.</p></div>`;
+    }</tbody></table></div><p class="note">Tap a row to see that exchange's chart and chart reading. ${g.gap!=null?`Prices differ by <b class="num" style="color:var(--fg)">${g.gap.toFixed(2)}%</b> between exchanges. `:''}Funding is a small fee swapped between longs and shorts every few hours; positive means longs pay.</p></div>`;
   }else{
     const third=p.kind==='dated'&&p.expiry?['Expires',dateStr(p.expiry)]:p.listed?['Listed',ago(p.listed)]:['Exchange',EX[p.ex].name];
     box.innerHTML=`<dl class="stats">${[['24h volume',fmtVol(p.vol)],['Funding',p.funding!=null?fmtFund(p.funding):'—'],third].map(([a,b])=>`<div><dt>${a}</dt><dd title="${esc(b)}">${esc(b)}</dd></div>`).join('')}</dl>`;
@@ -1994,44 +2026,46 @@ const CHECK_IC={ok:'<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" s
 function pctFrom(a,b){return (b/a-1)*100}
 function renderSignal(rc){
   const el=$('#sigCard');
-  if(!rc){el.innerHTML='<div class="sc-body"><p class="sc-text muted">Not enough price history on this candle size to read a signal. Try a shorter candle.</p></div>';$('#signals').innerHTML='';return}
+  if(!rc){el.innerHTML='<div class="sc-body"><p class="sc-text muted">Not enough price history on this candle size for a chart reading. A shorter candle may work.</p></div>';$('#signals').innerHTML='';return}
   const icon=rc.rec==='long'?ARROW.up:rc.rec==='short'?ARROW.down:rc.rec==='hold'?PAUSE:BLOCK;
   const L=rc.levels,isTrade=rc.rec==='long'||rc.rec==='short';
   let lv='';
   if(L&&isTrade){
     const cell=(k,col,v,pct)=>`<div><div class="k"><i style="background:${col}"></i>${k}</div><div class="v">${v}</div>${pct!=null?`<div class="s ${pct>=0?'up':'down'}">${fmtPct(pct)}</div>`:''}</div>`;
     lv=`<div class="lv four">${cell('Entry zone','var(--accent)',`${fmtPrice(L.zone[0])} – ${fmtPrice(L.zone[1])}`,null)}${cell('Stop loss','var(--down)',fmtUsd(L.stop),pctFrom(L.price,L.stop))}${cell('Target 1','var(--up)',fmtUsd(L.tp1),pctFrom(L.price,L.tp1))}${cell('Target 2','var(--up)',fmtUsd(L.tp2),pctFrom(L.price,L.tp2))}</div>
-      <div class="rr">Reward vs risk: <b>1 : 1.5</b> at target 1, <b>1 : 3</b> at target 2. Take half at target 1 and move your stop to entry.</div>`;
+      <div class="rr">Reward vs risk: <b>1 : 1.5</b> at target 1, <b>1 : 3</b> at target 2.</div>`;
   }else if(L&&rc.rec==='hold'){
     lv=`<div class="lv">${L.better?`<div><div class="k"><i style="background:var(--accent)"></i>Better entry near</div><div class="v">${fmtPrice(L.better[0])} – ${fmtPrice(L.better[1])}</div></div>`:''}<div><div class="k"><i style="background:var(--down)"></i>Trend breaks ${L.dir>0?'below':'above'}</div><div class="v">${fmtUsd(L.stop)}</div><div class="s ${L.dir>0?'down':'up'}">${fmtPct(pctFrom(L.price,L.stop))}</div></div></div>`;
   }else{
     lv=`<div class="lv"><div><div class="k"><i style="background:var(--up)"></i>Buyers take over above</div><div class="v">${fmtUsd(rc.resist)}</div></div><div><div class="k"><i style="background:var(--down)"></i>Sellers take over below</div><div class="v">${fmtUsd(rc.support)}</div></div></div>`;
   }
-  const calc=L&&isTrade?`<details class="calc" id="calc"><summary>Size this trade</summary><div class="calc-in">
+  const calc=L&&isTrade?`<details class="calc" id="calc"><summary>Position size calculator</summary><div class="calc-in">
+      <p class="muted calc-note">A calculator using your own numbers, not a recommendation.</p>
       <div class="calc-row"><label for="acct">Account size ($)<input id="acct" type="number" inputmode="decimal" min="1" step="any" value="${state.acct}"></label>
       <label for="riskPct">Risk per trade (%)<input id="riskPct" type="number" inputmode="decimal" min="0.1" max="100" step="0.1" value="${state.risk}"></label></div>
       <div class="calc-out" id="calcOut"></div></div></details>`:'';
-  el.innerHTML=`<div class="sc-band ${rc.rec}"><div><div class="sc-eyebrow">Signal · ${TF_LABEL[state.tf]} candles${rc.htfL?` · checked on ${rc.htfL}`:''}</div><div class="sc-head">${icon}${esc(rc.headline)}</div></div>
-    ${rc.rec!=='avoid'?`<div class="sc-conf"><div class="lbl">Confidence</div><div class="val">${rc.conf}<span style="font-size:13px;opacity:.75">/100</span></div><div class="cbar"><i style="width:${rc.conf}%"></i></div></div>`:''}</div>
+  el.innerHTML=`<div class="sc-band ${rc.rec}"><div><div class="sc-eyebrow">Chart reading · ${TF_LABEL[state.tf]} candles${rc.htfL?` · checked on ${rc.htfL}`:''}</div><div class="sc-head">${icon}${esc(rc.headline)}</div></div>
+    ${rc.rec!=='avoid'?`<div class="sc-conf"><div class="lbl">Agreement</div><div class="val">${rc.conf}<span style="font-size:13px;opacity:.75">/100</span></div><div class="cbar"><i style="width:${rc.conf}%"></i></div></div>`:''}</div>
     <div class="sc-body"><div id="evGuard" hidden></div><p class="sc-text">${esc(rc.text)}</p>${lv}
-    <ul class="checks">${rc.checks.map(c=>`<li><span class="ic ${c.state}">${CHECK_IC[c.state]}</span><span>${c.html}</span></li>`).join('')}</ul>${calc}</div>`;
+    <ul class="checks">${rc.checks.map(c=>`<li><span class="ic ${c.state}">${CHECK_IC[c.state]}</span><span>${c.html}</span></li>`).join('')}</ul>${calc}
+    <p class="legalnote">General market analysis, not financial advice. Futures trading is high risk. <a href="terms.html">Terms</a> · <a href="risk.html">Risk</a></p></div>`;
   renderEvGuard();
   if(calc){const upd=()=>updateCalc(L);$('#acct').addEventListener('input',upd);$('#riskPct').addEventListener('input',upd);upd()}
 }
 function updateCalc(L){
   const acct=parseFloat($('#acct').value),risk=parseFloat($('#riskPct').value);const out=$('#calcOut'),sum=$('#calc summary');
-  if(!(acct>0)||!(risk>0)){out.innerHTML='<span class="muted">Enter your account size and how much of it you are willing to lose on this trade.</span>';sum.innerHTML='Size this trade';return}
+  if(!(acct>0)||!(risk>0)){out.innerHTML='<span class="muted">Type an account size and a risk % to see the numbers.</span>';sum.innerHTML='Position size calculator';return}
   state.acct=acct;state.risk=risk;LS.set('acct',acct);LS.set('risk',risk);
   const z=sizeTrade(acct,risk,L.R/L.price,state.maxLoss),riskUsd=z.loss,size=z.size,lev=z.lev;
   const units=v=>(v/L.price).toLocaleString('en-US',{maximumSignificantDigits:4});
-  sum.innerHTML=z.over?'Size this trade <span class="down">· over your max loss</span>':'Size this trade';
+  sum.innerHTML=z.over?'Position size calculator <span class="down">· over your max loss</span>':'Position size calculator';
   out.innerHTML=`${z.over?`<div class="maxwarn"><b>This plan loses ${fmtMoney(riskUsd)} at the stop, more than your ${fmtMoney(state.maxLoss)} max loss.</b>
-      <span>Size that fits: <b>${fmtMoney(z.fitSize)}</b> (${units(z.fitSize)} units, ${z.fitLev<1?'no leverage':Math.ceil(z.fitLev)+'×'}), which is ${+z.fitRisk.toFixed(2)}% risk. Or skip this one.</span></div>`:''}
+      <span>Size that fits: <b>${fmtMoney(z.fitSize)}</b> (${units(z.fitSize)} units, ${z.fitLev<1?'no leverage':Math.ceil(z.fitLev)+'×'}), which is ${+z.fitRisk.toFixed(2)}% risk.</span></div>`:''}
     <div>Position size: <b>${fmtMoney(size)}</b> (${units(size)} units)</div>
     <div>Leverage needed: <b>${lev<1?'none (1×)':Math.ceil(lev)+'×'}</b> on your ${fmtMoney(acct)} account</div>
     <div>If stopped out: <b class="down">${fmtMoney(-riskUsd)}</b> · Target 1: <b class="up">+${fmtMoney(riskUsd*1.5)}</b> · Target 2: <b class="up">+${fmtMoney(riskUsd*3)}</b></div>
-    ${lev>20?'<div class="down">That much leverage puts you close to liquidation. Lower the risk or skip this one.</div>':''}
-    <div class="muted" style="font-size:12px">${state.maxLoss>0?`Max loss per trade: ${fmtMoney(state.maxLoss)}. Fees and fast moves can add a little to a stopped-out loss.`:'Tip: set a max loss per trade in Settings and this box will warn you before a trade can hurt too much.'}</div>`;
+    ${lev>20?'<div class="down">That much leverage sits close to liquidation: a small move against the position can close it.</div>':''}
+    <div class="muted" style="font-size:12px">${state.maxLoss>0?`Max loss per trade: ${fmtMoney(state.maxLoss)}. Fees and fast moves can add a little to a stopped-out loss.`:'Tip: set a max loss per trade in Settings and this box warns when a plan would lose more than that.'}</div>`;
 }
 function renderTrendDetails(an){
   const el=$('#signals');if(!an){el.innerHTML='';return}
@@ -2159,7 +2193,7 @@ $('#compactBtn').addEventListener('click',()=>setCompact(!state.compact));
 $('#panesBtn').addEventListener('click',()=>{state.ind.panes=!state.ind.panes;LS.set('ind3',state.ind);applyPanes()});
 $('#dStar').addEventListener('click',()=>{if(state.selected)toggleStar(state.selected)});
 $('#back').addEventListener('click',closeDetail);
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(!$('#help').hidden)$('#help').hidden=true;else closeDetail()}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(!$('#legal').hidden)return;if(!$('#help').hidden)$('#help').hidden=true;else closeDetail()}});
 $('#refresh').addEventListener('click',()=>{candleCache.clear();state.trend.clear();loadAll(true).then(()=>{if(state.selected&&state.gByKey.has(state.selected))openGroup(state.selected,true)})});
 // pull to refresh: at the top of a page, pull down and let go to reload prices (and headlines on News), like the refresh button
 function refreshAll(){
@@ -2168,7 +2202,7 @@ function refreshAll(){
 }
 (()=>{
   const el=$('#ptr'),txt=$('#ptrT'),TRIG=64,MAX=110;let y0=null,x0=0,pull=0,on=false,busy=false;
-  const blocked=t=>document.body.classList.contains('d-open')||!$('#help').hidden||(t&&t.closest&&t.closest('input,textarea,select,.switch,canvas'));
+  const blocked=t=>document.body.classList.contains('d-open')||!$('#help').hidden||!$('#legal').hidden||(t&&t.closest&&t.closest('input,textarea,select,.switch,canvas'));
   const show=(d,cls)=>{const top=$('#top').getBoundingClientRect().bottom;el.style.transform=`translate(-50%,${Math.round(top-46+d)}px)`;el.style.opacity=Math.min(1,d/40);
     el.querySelector('svg').style.rotate=cls==='busy'?'':Math.round(d*3)+'deg'};
   const hide=()=>{el.classList.add('back');el.classList.remove('busy');el.style.transform='translate(-50%,-140%)';el.style.opacity=0;setTimeout(()=>el.classList.remove('back'),260)};
@@ -2217,6 +2251,10 @@ $('#setRisk').addEventListener('input',e=>{const v=parseFloat(e.target.value);if
 $('#maxLoss').addEventListener('input',e=>{const v=parseFloat(e.target.value);state.maxLoss=v>0?v:0;LS.set('maxLoss',state.maxLoss);refreshCalc()});
 document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>{$('#'+b.dataset.close).hidden=true}));
 $('#help').addEventListener('click',e=>{if(e.target.id==='help')e.currentTarget.hidden=true});
+// Before you start: shown on first launch and again whenever TERMS_V goes up; works without storage (shows every launch, can still continue)
+const TERMS_V=1;
+if(LS.get('terms',0)!==TERMS_V){$('#legal').hidden=false;setTimeout(()=>{try{$('#legalOk').focus({preventScroll:true})}catch(e){}},0)}
+$('#legalOk').addEventListener('click',()=>{LS.set('terms',TERMS_V);$('#legal').hidden=true});
 $('#settingsForm').addEventListener('submit',e=>{e.preventDefault();if(document.activeElement)document.activeElement.blur()});   // Enter just closes the keyboard; values save as you type
 $('#saveRelay').addEventListener('click',()=>{state.proxy=$('#proxy').value.trim();LS.set('proxy',state.proxy);showToast('Saved. Reloading prices…');
   state.mode='loading';candleCache.clear();state.trend.clear();loadAll(true)});

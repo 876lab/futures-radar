@@ -176,7 +176,7 @@ s('tf2','"%(p)s"');s('cat3','"%(p)s"');s('mcat','"%(p)s"');s('theme','"%(p)s"');
 
 async def check_page(pg, where):
     if await pg.evaluate("document.documentElement.dataset.pw==='1'"): problems.append(f"{where}: a script payload RAN (XSS)")
-    bad_links = await pg.evaluate("""[...document.querySelectorAll('a[href]')].map(a=>a.getAttribute('href')).filter(h=>!/^(https?:\\/\\/|#|mailto:)/i.test(h.trim()))""")
+    bad_links = await pg.evaluate("""[...document.querySelectorAll('a[href]')].map(a=>a.getAttribute('href')).filter(h=>!/^(https?:\\/\\/|#|mailto:|(terms|risk|privacy)\\.html$)/i.test(h.trim()))""")
     if bad_links: problems.append(f"{where}: unsafe link(s): {bad_links[:3]}")
     injected = await pg.evaluate("document.querySelectorAll('#listArea img[src=x], #listArea svg[onload], body script:not([src])').length")
     if injected > 1: problems.append(f"{where}: {injected} injected elements found in the page")
@@ -196,6 +196,7 @@ async def main():
             pg = await b.new_page(viewport={"width": 390, "height": 800}, color_scheme=scheme)
             errs = []; pg.on("pageerror", lambda e: errs.append(str(e)))
             pg.on("dialog", lambda d: (problems.append(f"[{scheme}] a dialog opened: {d.message}"), asyncio.ensure_future(d.dismiss())))
+            await pg.add_init_script("try{localStorage.setItem('fradar:terms','1')}catch(e){}")   # skip 'Before you start'
             await pg.add_init_script(TAMPER)
             await setup(pg, data)
             t0 = time.time()

@@ -1,4 +1,10 @@
 [
+  {"date": "2026-10-23", "title": "Clearer wording and legal pages", "items": [
+    "'Enter long' is now 'Long setup', 'Enter short' is 'Short setup', 'Hold' is 'Wait' and 'Avoid' is 'No setup'. Same rules, clearer wording.",
+    "'Confidence' is now 'Agreement' (same number), and 'Size this trade' is now the 'Position size calculator'.",
+    "New Terms of Use, Risk Disclosure and Privacy Notice pages (drafts for your lawyer), linked from Help, Settings and a short 'Before you start' screen shown once.",
+    "Signals and stop/target levels have not changed."
+  ]},
   {"date": "2026-10-22", "title": "Pull to refresh", "items": [
     "At the top of any page, pull down and let go to refresh prices.",
     "On the News page it refreshes the headlines too.",

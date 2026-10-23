@@ -58,6 +58,11 @@ async def check_app():
         if not resp or resp.status != 200:
             problems.append(f"Web page did not load (status {resp.status if resp else 'none'})"); await b.close(); return
         await pg.wait_for_timeout(9000)
+        if not await pg.is_visible("#legal"): problems.append("'Before you start' sheet did not show on first visit")
+        else: await pg.click("#legalOk"); await pg.wait_for_timeout(300)
+        for name in ("terms", "risk", "privacy"):
+            r = await pg.request.get(SITE + name + ".html")
+            if r.status != 200: problems.append(f"{name}.html did not load (status {r.status})")
         mode = await pg.inner_text("#live")
         if "Sample" in mode: problems.append("App fell back to sample data: no exchange could be reached from a browser")
         for nav in ("markets", "setups", "sim", "news", "watch"):

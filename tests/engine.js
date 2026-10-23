@@ -16,7 +16,10 @@ for(const p of state.pairs.slice(0,8))for(const tf of ['15m','1h']){
   const cs=demoCandles(p,tf,700),S=computeSeries(cs);
   for(let t=0;t<12;t++){const L=60+Math.floor(Math.random()*(cs.length-61));
     const a=analyzeAt(cs,S,L),b=analyze(cs.slice(0,L+1)),ra=recommend(a,cs,null,tf),rb=recommend(b,cs.slice(0,L+1),null,tf);
-    ok(JSON.stringify([a.score,a.support,a.resist,ra.rec,ra.conf,ra.levels&&ra.levels.stop])===JSON.stringify([b.score,b.support,b.resist,rb.rec,rb.conf,rb.levels&&rb.levels.stop]),'look-ahead mismatch '+p.id+' '+tf+' L='+L)}}
+    ok(JSON.stringify([a.score,a.support,a.resist,ra.rec,ra.conf,ra.levels&&ra.levels.stop])===JSON.stringify([b.score,b.support,b.resist,rb.rec,rb.conf,rb.levels&&rb.levels.stop]),'look-ahead mismatch '+p.id+' '+tf+' L='+L);
+    // neutral wording: the reading describes the chart, never tells the user what to do (labels only; rules unchanged)
+    ok(({long:'Long setup',short:'Short setup',hold:'Wait',avoid:'No setup'})[ra.rec]===ra.headline,'neutral headline for '+ra.rec+': '+ra.headline);
+    ok(!/\b(buy|sell|you should|hold\.|take profit)\b/i.test(ra.text),'imperative wording in reading text: '+ra.text)}}
 // 2. trade rules
 const C=(o,h,l,c)=>({time:0,open:o,high:h,low:l,close:c,volume:1}),base={plan:'tp1',fee:0,slip:0,maxHold:50},L1={dir:1,conf:60,levels:{R:1}},S1={dir:-1,conf:60,levels:{R:1}};
 let t=simTrade([C(100,100,100,100),C(100,100.5,99.5,100.2),C(100.2,101.6,100,101.4),C(101,101,101,101)],0,L1,base);ok(t.how==='target'&&Math.abs(t.r-1.5)<1e-9,'long target 1');

@@ -11,6 +11,7 @@ OUT = os.path.join(ROOT, "out"); os.makedirs(OUT, exist_ok=True)
 PAGE = os.path.abspath(sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, "..", "index.html"))
 FIX = os.path.join(ROOT, "fixtures", "news.json")
 problems = []
+ACCEPT = "try{localStorage.setItem('fradar:terms','1')}catch(e){}"   # 'Before you start' already accepted (legal_check tests the sheet itself)
 
 async def block_exchanges(pg):
     # always use the built-in sample markets, so results don't depend on which exchanges this machine can reach
@@ -27,6 +28,7 @@ async def isolation_check(b):
     await pg.route("**/news-data/news.json*", lambda r: r.fulfill(body=json.dumps(bad), headers={"access-control-allow-origin": "*", "content-type": "application/json"}))
     await pg.route("**/changes.json*", lambda r: r.fulfill(path=os.path.join(ROOT, "..", "changes.json"), headers={"content-type": "application/json"}))
     errs = []; pg.on("pageerror", lambda e: errs.append(str(e)))
+    await pg.add_init_script(ACCEPT)
     await pg.goto("file://" + PAGE); await pg.wait_for_timeout(2500)
     await pg.click('[data-nav="news"]'); await pg.wait_for_timeout(1500)
     if "hit a snag" not in await pg.inner_text("#listArea"): problems.append("isolation: broken News page did not show the snag card")
@@ -44,6 +46,7 @@ async def pull_check(b):
     await block_exchanges(pg)
     await pg.route("**/news-data/news.json*", lambda r: r.fulfill(path=FIX, headers={"access-control-allow-origin": "*", "content-type": "application/json"}))
     errs = []; pg.on("pageerror", lambda e: errs.append(str(e)))
+    await pg.add_init_script(ACCEPT)
     await pg.goto("file://" + PAGE); await pg.wait_for_timeout(2500)
     await pg.evaluate("""window.__fire=(type,y)=>{const t=new Touch({identifier:1,target:document.body,clientX:200,clientY:y});
       document.body.dispatchEvent(new TouchEvent(type,{touches:type==='touchend'?[]:[t],changedTouches:[t],bubbles:true,cancelable:true}))};
@@ -65,6 +68,52 @@ async def pull_check(b):
     await pg.close()
 scheme_shot = True
 
+async def legal_check(b):
+    """Terms/Risk/Privacy pages load in both themes; 'Before you start' shows once, and still lets you in without storage."""
+    for scheme in ("dark", "light"):
+        for name, title in (("terms", "Terms of Use"), ("risk", "Risk Disclosure"), ("privacy", "Privacy Notice")):
+            pg = await b.new_page(viewport={"width": 390, "height": 800}, color_scheme=scheme)
+            errs = []; pg.on("pageerror", lambda e: errs.append(str(e)))
+            await pg.goto("file://" + os.path.join(os.path.dirname(PAGE), name + ".html"))
+            txt = await pg.inner_text("body")
+            if title not in txt or "Last updated" not in txt or "Version 0.1" not in txt: problems.append(f"[{scheme}] {name}.html: title, date or version missing")
+            if name != "privacy" and "not financial" not in txt.lower() and "not advice" not in txt.lower(): problems.append(f"{name}.html: no 'not advice' statement")
+            if await pg.evaluate("document.documentElement.scrollWidth > window.innerWidth + 1"): problems.append(f"[{scheme}] {name}.html: wider than a phone screen")
+            if scheme == "dark": await pg.screenshot(path=os.path.join(OUT, f"{name}.png"))
+            for e in errs: problems.append(f"{name}.html: JS error: " + e)
+            await pg.close()
+    pg = await b.new_page(viewport={"width": 390, "height": 800})
+    await block_exchanges(pg)
+    errs = []; pg.on("pageerror", lambda e: errs.append(str(e)))
+    await pg.goto("file://" + PAGE); await pg.wait_for_timeout(2000)
+    if not await pg.is_visible("#legal"): problems.append("'Before you start' sheet did not show on first launch")
+    else:
+        t = await pg.inner_text("#legal")
+        if "not advice" not in t or "I understand" not in t: problems.append("'Before you start' sheet text incomplete")
+        if await pg.locator("#legal a[href='terms.html'], #legal a[href='risk.html'], #legal a[href='privacy.html']").count() != 3: problems.append("'Before you start' sheet: links missing")
+        await pg.screenshot(path=os.path.join(OUT, "before-you-start.png"))
+        await pg.click("#legalOk"); await pg.wait_for_timeout(200)
+        if await pg.is_visible("#legal"): problems.append("'I understand' did not close the sheet")
+    await pg.reload(); await pg.wait_for_timeout(1500)
+    if await pg.is_visible("#legal"): problems.append("'Before you start' showed again after accepting")
+    await pg.evaluate("localStorage.setItem('fradar:terms','0')"); await pg.reload(); await pg.wait_for_timeout(1500)
+    if not await pg.is_visible("#legal"): problems.append("'Before you start' did not show again for a new terms version")
+    for e in errs: problems.append("legal: JS error: " + e)
+    await pg.close()
+    # no storage at all (private mode / blocked): the sheet shows and the app can still be used
+    pg = await b.new_page(viewport={"width": 390, "height": 800})
+    await block_exchanges(pg)
+    errs = []; pg.on("pageerror", lambda e: errs.append(str(e)))
+    await pg.add_init_script("Object.defineProperty(window,'localStorage',{get(){throw new Error('blocked')}})")
+    await pg.goto("file://" + PAGE); await pg.wait_for_timeout(2000)
+    if not await pg.is_visible("#legal"): problems.append("no storage: 'Before you start' did not show")
+    else:
+        await pg.click("#legalOk"); await pg.wait_for_timeout(200)
+        if await pg.is_visible("#legal"): problems.append("no storage: could not continue past 'Before you start'")
+        await pg.click('[data-nav="setups"]'); await pg.wait_for_timeout(500)
+    for e in errs: problems.append("no storage: JS error: " + e)
+    await pg.close()
+
 async def main():
     async with async_playwright() as p:
         b = await p.chromium.launch()
@@ -76,6 +125,7 @@ async def main():
             await pg.route("**/news-data/news.json*", lambda r: r.fulfill(body=json.dumps(fx), headers={"access-control-allow-origin": "*", "content-type": "application/json"}))
             await pg.route("**/changes.json*", lambda r: r.fulfill(path=os.path.join(ROOT, "..", "changes.json"), headers={"content-type": "application/json"}))
             await block_exchanges(pg)
+            await pg.add_init_script(ACCEPT)
             await pg.goto("file://" + PAGE); await pg.wait_for_timeout(2500)
             for nav in ("markets", "setups", "news", "watch", "sim", "markets"):
                 await pg.click(f'[data-nav="{nav}"]'); await pg.wait_for_timeout(700)
@@ -84,10 +134,14 @@ async def main():
                 for bad in ("undefined", "NaN"):
                     if bad in txt: problems.append(f"[{scheme}] {nav}: shows '{bad}'")
                 if nav == "setups" and "Big US news" not in txt: problems.append(f"[{scheme}] setups: big-news warning missing")
+                if nav == "setups" and ("Long setups" not in txt or "Short setups" not in txt): problems.append(f"[{scheme}] setups: 'Long setups'/'Short setups' headings missing")
+                for old in ("Enter long", "Enter short", "Avoid for now", "Long entries", "Confidence", "confidence"):
+                    if old in txt: problems.append(f"[{scheme}] {nav}: old wording '{old}' still shown")
                 if scheme == "dark": await pg.screenshot(path=os.path.join(OUT, f"{nav}.png"))
             await pg.click("#openSettings"); await pg.wait_for_timeout(500)
             st = await pg.inner_text("#settings")
             if "max loss per trade" not in st.lower() or "big news warning" not in st.lower(): problems.append(f"[{scheme}] settings page incomplete")
+            if "About & legal" not in st or await pg.locator("#settings a[href='terms.html'], #settings a[href='risk.html'], #settings a[href='privacy.html']").count() != 3: problems.append(f"[{scheme}] settings: About & legal links missing")
             for bad in ("undefined", "NaN"):
                 if bad in st: problems.append(f"[{scheme}] settings: shows '{bad}'")
             if scheme == "dark": await pg.screenshot(path=os.path.join(OUT, "settings.png"), full_page=True)
@@ -102,6 +156,9 @@ async def main():
             sig = await pg.inner_text("#sigCard")
             if not sig.strip(): problems.append(f"[{scheme}] chart screen: signal card empty")
             if "Big US news" not in sig: problems.append(f"[{scheme}] chart screen: big-news warning missing")
+            if "chart reading ·" not in sig.lower() or "not financial advice" not in sig: problems.append(f"[{scheme}] chart screen: 'Chart reading' label or legal note missing")
+            for old in ("signal ·", "enter long", "enter short", "avoid for now", "confidence", "size this trade"):
+                if old in sig.lower(): problems.append(f"[{scheme}] chart screen: old wording '{old}' still shown")
             if scheme == "dark":
                 await pg.screenshot(path=os.path.join(OUT, "chart.png"))
                 await pg.go_back(); await pg.wait_for_timeout(600)   # phone back gesture closes the chart screen
@@ -114,6 +171,8 @@ async def main():
                 await pg.screenshot(path=os.path.join(OUT, "sim.png"), full_page=True)
                 await pg.click("#openHelp"); await pg.wait_for_timeout(300)
                 if not await pg.is_visible("#help"): problems.append("help sheet did not open")
+                if await pg.locator("#help a[href='terms.html'], #help a[href='risk.html'], #help a[href='privacy.html']").count() != 3: problems.append("help sheet: About & legal links missing")
+                await pg.click('[data-close="help"]'); await pg.wait_for_timeout(200)
             # "big news later today" line on Setups: an event 90 min out (skipped late in the local day, when it would fall after midnight)
             if await pg.evaluate("new Date().getHours() < 22"):
                 fx["calendar"] = [{"t": "FOMC Statement", "c": "USD", "d": int(time.time()) + 5400, "i": "High", "f": "", "p": ""}]
@@ -125,9 +184,10 @@ async def main():
             await pg.close()
         await isolation_check(b)
         await pull_check(b)
+        await legal_check(b)
         await b.close()
 
 asyncio.run(main())
 if problems:
     print("browser test FAILED:"); [print("  - " + x) for x in problems]; sys.exit(1)
-print("browser test passed (dark + light, all pages, chart screen, simulator); screenshots in tests/out/")
+print("browser test passed (dark + light, all pages, chart screen, simulator, legal pages, before-you-start); screenshots in tests/out/")

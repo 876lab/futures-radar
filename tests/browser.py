@@ -11,6 +11,18 @@ OUT = os.path.join(ROOT, "out"); os.makedirs(OUT, exist_ok=True)
 PAGE = os.path.abspath(sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, "..", "index.html"))
 FIX = os.path.join(ROOT, "fixtures", "news.json")
 problems = []
+# nightly backtest report: built from the sample data by the real script, plus odds for every bucket so the chart can show one
+import subprocess, tempfile
+_btf = os.path.join(tempfile.mkdtemp(), "backtest.json")
+subprocess.run(["node", os.path.join(ROOT, "..", "scripts", "backtest.js"), PAGE, _btf, "--demo"], check=True, capture_output=True)
+BT = json.load(open(_btf)); BT["updated"] = int(time.time()) - 3600
+for tf in ("15m", "1h", "4h"):
+    for side in ("long", "short"):
+        for band in ("70+", "50-69", "<50"):
+            for c in ("0", "1"):
+                BT["odds"][f"{tf}|{side}|{band}|{c}"] = {"n": 150, "reach": 0.55, "lo": 0.47, "hi": 0.63, "win": 0.5, "avgR": 0.12}
+async def route_bt(pg):
+    await pg.route("**/backtest-data/backtest.json*", lambda r: r.fulfill(body=json.dumps(BT), headers={"access-control-allow-origin": "*", "content-type": "application/json"}))
 ACCEPT = "try{localStorage.setItem('fradar:terms','1')}catch(e){}"   # 'Before you start' already accepted (legal_check tests the sheet itself)
 
 async def block_exchanges(pg):
@@ -126,6 +138,7 @@ async def main():
             await pg.route("**/news-data/news.json*", lambda r: r.fulfill(body=json.dumps(fx), headers={"access-control-allow-origin": "*", "content-type": "application/json"}))
             await pg.route("**/changes.json*", lambda r: r.fulfill(path=os.path.join(ROOT, "..", "changes.json"), headers={"content-type": "application/json"}))
             await block_exchanges(pg)
+            await route_bt(pg)
             await pg.add_init_script(ACCEPT)
             await pg.goto("file://" + PAGE); await pg.wait_for_timeout(2500)
             for nav in ("markets", "setups", "news", "watch", "sim", "markets"):
@@ -134,6 +147,7 @@ async def main():
                 if not txt.strip(): problems.append(f"[{scheme}] {nav}: page is empty")
                 for bad in ("undefined", "NaN"):
                     if bad in txt: problems.append(f"[{scheme}] {nav}: shows '{bad}'")
+                if nav == "sim" and ("Last night's backtest" not in txt or "Confirmed setups" not in txt or "reached target 1" not in txt): problems.append(f"[{scheme}] simulator: last night's backtest card missing")
                 if nav == "setups" and "Big US news" not in txt: problems.append(f"[{scheme}] setups: big-news warning missing")
                 if nav == "setups" and ("Long setups" not in txt or "Short setups" not in txt): problems.append(f"[{scheme}] setups: 'Long setups'/'Short setups' headings missing")
                 for old in ("Enter long", "Enter short", "Avoid for now", "Long entries", "Confidence", "confidence"):
@@ -182,6 +196,7 @@ async def main():
             sig = await pg.inner_text("#sigCard")
             if ("Long setup" in sig or "Short setup" in sig) and "extra checks" not in sig.lower(): problems.append(f"[{scheme}] chart screen: extra confirmation missing under a setup")
             if "Running extra checks" in sig: problems.append(f"[{scheme}] chart screen: extra checks never finished")
+            if ("Long setup" in sig or "Short setup" in sig) and "In last night's backtest" not in sig: problems.append(f"[{scheme}] chart screen: past win rate missing under a setup")
             for old in ("signal ·", "enter long", "enter short", "avoid for now", "confidence", "size this trade"):
                 if old in sig.lower(): problems.append(f"[{scheme}] chart screen: old wording '{old}' still shown")
             if scheme == "dark":

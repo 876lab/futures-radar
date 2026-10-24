@@ -52,6 +52,16 @@ ok(range24([])===null&&range24(null)===null,'range24 empty');
 ok(JSON.stringify(delistTickers('Delisting of 1000PEPEUSDT and EPICUSDT Perpetual Contracts'))==='["PEPE","EPIC"]','delistTickers: contract names');
 ok(JSON.stringify(delistTickers('Bybit Will Delist the EPIC/USDT Spot Trading Pair'))==='["EPIC"]','delistTickers: spot pair');
 ok(delistTickers('New listing: EPICUSDT').length===0,'delistTickers: needs the word delist');}
+// nightly backtest helpers
+{const [lo,hi]=wilson(58,100);ok(Math.abs(lo-0.4821)<0.001&&Math.abs(hi-0.6719)<0.001,'wilson 58/100');
+ok(wilson(0,0)[0]===0&&wilson(0,0)[1]===0,'wilson with no trades');
+const s=btStat([{reach:true,r:1.2},{reach:false,r:-1},{reach:true,r:0.5},{reach:false,r:0.1}]);ok(s.n===4&&s.reach===0.5&&s.win===0.75&&Math.abs(s.avgR-0.2)<1e-9&&s.lo<0.5&&s.hi>0.5,'btStat');
+ok(btStat([]).n===0,'btStat empty');
+ok(oddsKey('15m',1,72,true)==='15m|long|70+|1'&&oddsKey('4h',-1,49,false)==='4h|short|<50|0'&&oddsKey('1h',1,50,false)==='1h|long|50-69|0','oddsKey');
+// the onEntry hook only observes: same trades with and without it
+const p=demoPairs()[2],cs=demoCandles(p,'1h',900),hcs=demoCandles(p,'4h',900),o={plan:'split',minConf:0,fee:0.0005,slip:0.0002,maxHold:96};
+let seen=0;const a=backtestSeries(cs,hcs,p,'1h',o),b=backtestSeries(cs,hcs,p,'1h',Object.assign({},o,{onEntry:(t,x)=>{if(x.an&&x.rc&&x.i===t.i)seen++}}));
+ok(a.length>0&&JSON.stringify(a)===JSON.stringify(b)&&seen===b.length,'onEntry hook does not change the backtest');}
 // 2. trade rules
 const C=(o,h,l,c)=>({time:0,open:o,high:h,low:l,close:c,volume:1}),base={plan:'tp1',fee:0,slip:0,maxHold:50},L1={dir:1,conf:60,levels:{R:1}},S1={dir:-1,conf:60,levels:{R:1}};
 let t=simTrade([C(100,100,100,100),C(100,100.5,99.5,100.2),C(100.2,101.6,100,101.4),C(101,101,101,101)],0,L1,base);ok(t.how==='target'&&Math.abs(t.r-1.5)<1e-9,'long target 1');

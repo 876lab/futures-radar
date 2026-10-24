@@ -1,4 +1,10 @@
 [
+  {"date": "2026-10-24", "title": "Nightly test of the setups", "items": [
+    "Every night the app replays its own setups on the top 30 Gate markets and records what happened.",
+    "Simulator now starts with 'Last night's backtest': how often confirmed and unconfirmed setups reached target 1, with a range for luck.",
+    "Under a setup, the chart reading shows how often similar past setups reached target 1 (only once there are at least 100 of them).",
+    "Signals and stop/target levels have not changed."
+  ]},
   {"date": "2026-10-24", "title": "Extra confirmation before a setup", "items": [
     "Every long or short setup now shows 5 extra checks: 4H and 1D trend agree, no delisting, enough trading and a normal 24-hour range. 'Confirmed' means all pass.",
     "Setups now lists only confirmed setups. You can switch this off in Settings.",

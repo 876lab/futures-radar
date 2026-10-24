@@ -153,6 +153,11 @@ button{cursor:pointer}
 .cf.ok{border-color:var(--up)} .cf.no{border-color:var(--down)}
 .cf-h{font-weight:700;font-size:13.5px} .cf.ok .cf-h{color:var(--up)} .cf.no .cf-h{color:var(--down)}
 .cf p{margin:0;font-size:12.5px;color:var(--muted)}
+.cf .odds{color:var(--fg);font-size:13px}
+.bt h3{margin:0;font-size:16px} .bt .sub{font-size:12px;color:var(--muted);margin:2px 0 10px}
+.bt .big{font-size:14px;margin:0 0 6px} .bt .verdict{font-weight:700;margin:6px 0}
+.bt details summary{cursor:pointer;color:var(--accent);font-weight:600;margin-top:8px}
+.bt .few{color:var(--muted);font-style:italic}
 .dlwhen{font-size:12.5px;color:var(--fg)} .dlwhen b{color:var(--down);font-weight:600}
 .dlwarn{border:1px solid var(--down);background:var(--down-bg);border-radius:var(--r);padding:10px 12px;font-size:13px;display:grid;gap:2px}
 .dlwarn span{color:var(--muted);font-size:12.5px}
@@ -667,6 +672,7 @@ html,body{overscroll-behavior-y:none}
       <dt>Stop loss</dt><dd>The level where the setup is proven wrong.</dd>
       <dt>Targets</dt><dd>Target 1 is 1.5 times the risk, target 2 is 3 times. A common approach is to close half at target 1 and move the stop to entry.</dd>
       <dt>Extra confirmation</dt><dd>Under a long or short setup, five more checks: the 4H trend and the 1D trend point the same way (fewer when the chart is already on 4H or 1D), no delisting scheduled or announced, at least $10M traded in 24 hours, and a 24-hour range under 25%. "Confirmed" means all pass. Setups shows only confirmed setups unless you switch that off in Settings. The thresholds are a first guess that the backtest research will test; confirmed setups can still fail.</dd>
+      <dt>Last night's backtest</dt><dd>Each night the app's own rules are replayed on the top 30 Gate markets (15m, 1H, 4H). The Simulator page shows how often confirmed and not-confirmed setups reached target 1, with a range for luck, and the chart reading shows the past win rate for setups like the one on screen. It needs at least 100 past trades before it shows a number. Past results don't guarantee future ones.</dd>
       <dt>Candle-size strip</dt><dd>Above the chart reading, the reading on 15m, 1H, 4H and 1D side by side, so you can see at a glance whether the bigger picture agrees. Tap one to open it.</dd>
       <dt>Agreement</dt><dd>How many indicators line up, from 0 to 100. Above 70 is strong agreement. It is not a probability of winning.</dd>
       <dt>Position size calculator</dt><dd>Works out a position size from your own account size and risk %. A calculator using your own numbers, not a recommendation.</dd>
@@ -1705,6 +1711,27 @@ function applyPanes(){
 const NEWS_URL=(()=>{const m=location.hostname.match(/^([^.]+)\.github\.io$/i),repo=location.pathname.split('/').filter(Boolean)[0];
   return `https://raw.githubusercontent.com/${m?m[1]:'876lab'}/${m&&repo?repo:'futures-radar'}/news-data/news.json`})();
 const news={data:null,at:0,err:null,loading:false,topic:LS.get('ntopic','all')};
+// nightly backtest report (scripts/backtest.js, published to the backtest-data branch)
+const BT_URL=NEWS_URL.replace('/news-data/news.json','/backtest-data/backtest.json');
+const bt={data:null,at:0,err:null,loading:false};
+function cleanBT(j){
+  if(!j||typeof j!=='object')return null;const fin=v=>typeof v==='number'&&isFinite(v);
+  const st=x=>x&&typeof x==='object'&&fin(x.n)&&x.n>=0?{n:Math.round(x.n),reach:fin(x.reach)?x.reach:0,lo:fin(x.lo)?x.lo:0,hi:fin(x.hi)?x.hi:0,win:fin(x.win)?x.win:0,avgR:fin(x.avgR)?x.avgR:0}:null;
+  const rows=a=>(Array.isArray(a)?a:[]).slice(0,12).map(r=>{const o=st(r);return o&&typeof r.k==='string'?Object.assign({k:r.k.slice(0,40)},o):null}).filter(Boolean);
+  const overall=st(j.overall);if(!overall)return null;
+  const groups={};if(j.groups&&typeof j.groups==='object')for(const k of ['confirmed','tf','side','agreement','bigger','range','adx','session','weekday'])groups[k]=rows(j.groups[k]);
+  const odds={};if(j.odds&&typeof j.odds==='object')for(const k of Object.keys(j.odds).slice(0,200))if(/^(5m|15m|1h|4h|1d)\|(long|short)\|(70\+|50-69|<50)\|[01]$/.test(k)){const o=st(j.odds[k]);if(o)odds[k]=o}
+  const w=j.walk&&typeof j.walk==='object'?j.walk:{};
+  return{updated:fin(j.updated)?j.updated:0,from:fin(j.from)?j.from:null,to:fin(j.to)?j.to:null,source:typeof j.source==='string'?j.source.slice(0,60):'',
+    markets:Array.isArray(j.markets)?j.markets.filter(x=>typeof x==='string').slice(0,60).map(x=>x.slice(0,20)):[],minN:fin(j.minN)?j.minN:BT_MIN_N,
+    overall,groups,odds,walk:{older:rows(w.older),newer:rows(w.newer)}};
+}
+async function loadBT(){
+  if(bt.loading||(bt.data&&NOW()-bt.at<30*60000)||(bt.err&&NOW()-bt.at<5*60000))return;bt.loading=true;
+  try{const r=await fetch(BT_URL+'?t='+Math.floor(NOW()/600000));if(!r.ok)throw new Error('HTTP '+r.status);const j=cleanBT(await r.json());if(!j)throw new Error('bad data');bt.data=j;bt.err=null}
+  catch(e){bt.err=String(e&&e.message||e)}
+  bt.at=NOW();bt.loading=false;const c=document.getElementById('btCard');if(c)c.innerHTML=btCardHTML();renderConfirm();
+}
 const NTOPICS=[['all','All'],['crypto','Crypto'],['macro','Markets & macro'],['reg','Regulation'],['ex','Exchanges & listings'],['risk','Hacks & liquidations']];
 const X_ACCTS=[['CoinDesk','CoinDesk'],['Cointelegraph','Cointelegraph'],['TheBlock__','The Block'],['WuBlockchain','Wu Blockchain'],['federalreserve','Federal Reserve'],['SECGov','SEC'],['binance','Binance'],['Bybit_Official','Bybit']];
 async function loadNews(force){
@@ -1858,10 +1885,19 @@ function backtestSeries(cs,hcs,p,tf,o){
     const rc=recommend(an,cs,han,tf,true);
     if((rc.rec!=='long'&&rc.rec!=='short')||rc.conf<o.minConf)continue;
     const t=simTrade(cs,i,rc,o);if(!t)continue;if(t.unfinished)break;
-    trades.push(t);i=t.exitIdx-1;
+    trades.push(t);if(o.onEntry)o.onEntry(t,{i,an,han,rc});i=t.exitIdx-1;   // onEntry: the nightly backtest records conditions here
   }
   return trades;
 }
+// ---- nightly backtest report helpers (shared by scripts/backtest.js and the app) ----
+// Wilson 95% interval for k successes out of n: a fair range for a win rate from a limited number of trades
+function wilson(k,n){if(!(n>0))return[0,0];const z=1.96,p=k/n,d=1+z*z/n,c=p+z*z/(2*n),m=z*Math.sqrt(p*(1-p)/n+z*z/(4*n*n));return[Math.max(0,(c-m)/d),Math.min(1,(c+m)/d)]}
+// n, share reaching target 1, its range, share of winners, average R
+function btStat(tr){const n=tr.length;if(!n)return{n:0};let k=0,w=0,sum=0;for(const t of tr){if(t.reach)k++;if(t.r>0)w++;sum+=t.r}
+  const [lo,hi]=wilson(k,n);return{n,reach:k/n,lo,hi,win:w/n,avgR:sum/n}}
+const confBand=c=>c>=70?'70+':c>=50?'50-69':'<50';
+function oddsKey(tf,dir,conf,confirmed){return `${tf}|${dir>0?'long':'short'}|${confBand(conf)}|${confirmed?1:0}`}
+const BT_MIN_N=100;   // hide win rates built on fewer trades than this
 function simStats(tr,risk){
   const n=tr.length;if(!n)return{n:0,curve:[1]};
   let sw=0,sl=0,sum=0,sum2=0,reach=0,bars=0,wins=0;
@@ -1951,6 +1987,33 @@ function btable(title,rows,label){
   return `<div class="sim-sec"><h4>${title}</h4><div class="tblwrap"><table class="btable"><thead><tr><th>${label}</th><th>Trades</th><th>Win rate</th><th>Avg result</th></tr></thead><tbody>${
     rows.map(r=>`<tr><td><b>${esc(r.k)}</b></td><td>${r.n}</td><td><span class="wbar"><i style="width:${(r.win*100).toFixed(0)}%"></i></span>${fmtP(r.win)}</td><td class="${r.avg>0?'up':r.avg<0?'down':''}">${fmtR(r.avg)}</td></tr>`).join('')}</tbody></table></div></div>`;
 }
+function btTable(title,rows,minN){
+  if(!rows||!rows.length)return '';
+  return `<div class="sim-sec"><h4>${esc(title)}</h4><div class="tblwrap"><table class="btable"><thead><tr><th></th><th>Trades</th><th>Reached target 1</th><th>Avg result</th></tr></thead><tbody>${
+    rows.map(r=>r.n<minN?`<tr><td><b>${esc(r.k)}</b></td><td>${r.n}</td><td class="few" colspan="2">too few trades to judge</td></tr>`:
+      `<tr><td><b>${esc(r.k)}</b></td><td>${r.n.toLocaleString()}</td><td><span class="wbar"><i style="width:${(r.reach*100).toFixed(0)}%"></i></span>${fmtP(r.reach)} <small class="muted">(${fmtP(r.lo)}–${fmtP(r.hi)})</small></td><td class="${r.avgR>0?'up':r.avgR<0?'down':''}">${fmtR(r.avgR)}</td></tr>`).join('')}</tbody></table></div></div>`;
+}
+function btCardHTML(){
+  const d=bt.data;
+  if(!d)return `<h3>Last night's backtest</h3><p class="note">${bt.loading||!bt.at?'Loading last night\'s results…':'Results appear here after the nightly test has run (it runs on GitHub each night around 2am).'}</p>`;
+  const c=d.groups.confirmed||[],Y=c.find(r=>r.k==='Confirmed'),N=c.find(r=>r.k==='Not confirmed'),m=d.minN;
+  const line=(r,w)=>r&&r.n>=m?`<b>${w}</b> reached target 1 in <b>${fmtP(r.reach)}</b> of ${r.n.toLocaleString()} trades (range ${fmtP(r.lo)}–${fmtP(r.hi)}), average <b class="${r.avgR>0?'up':'down'}">${fmtR(r.avgR)}</b>.`:`<b>${w}:</b> ${r?r.n:0} trades, too few to judge yet.`;
+  let verdict='';
+  if(Y&&N&&Y.n>=m&&N.n>=m)verdict=Y.lo>N.hi?'Confirmed setups did clearly better.':Y.hi<N.lo?'Confirmed setups did worse, so the extra checks need rethinking.':'So far the gap is within the range that luck alone could explain.';
+  const wy=(d.walk.newer||[]).find(r=>r.k==='Confirmed'),wn=(d.walk.newer||[]).find(r=>r.k==='Not confirmed');
+  const walk=wy&&wn&&wy.n>=m&&wn.n>=m?`<p class="note">On the newer half of the data only: confirmed ${fmtP(wy.reach)} vs not confirmed ${fmtP(wn.reach)} reached target 1.</p>`:'';
+  const days=d.from&&d.to?Math.max(1,Math.round((d.to-d.from)/86400)):null;
+  const G=d.groups;
+  return `<h3>Last night's backtest</h3><p class="sub">${esc(d.source)} · ${d.markets.length} markets · 15m, 1H, 4H${days?` · last ${days} days`:''} · ${d.overall.n.toLocaleString()} trades · updated ${esc(agoShort(d.updated))}</p>
+    <p class="big">${line(Y,'Confirmed setups')}</p><p class="big">${line(N,'Not confirmed')}</p>${verdict?`<p class="verdict">${verdict}</p>`:''}${walk}
+    <details><summary>All the breakdowns</summary>
+      ${btTable('Bigger picture (4H and 1D)',G.bigger,m)}${btTable('By agreement',G.agreement,m)}${btTable('By candle size',G.tf,m)}${btTable('Long vs short',G.side,m)}
+      ${btTable('By 24h range',G.range,m)}${btTable('By trend strength',G.adx,m)}${btTable('By session',G.session,m)}${btTable('By weekday',G.weekday,m)}
+      <ul class="sim-notes"><li>Same rules as the app: entry at the next candle's open, half closed at target 1 and the stop moved to entry, fees and slippage both sides, stop assumed first if both are touched.</li>
+      <li>Only Gate data (Binance and Bybit block GitHub's servers). Past delistings aren't known, and 24h volume is Gate's alone.</li>
+      <li>Ranges show where the true rate probably lies given the number of trades; rows with fewer than ${m} trades are hidden. Past results don't guarantee future ones.</li></ul>
+    </details>`;
+}
 function renderSim(force){
   const area=$('#listArea');
   if(!force&&$('#simRoot'))return;
@@ -1979,7 +2042,7 @@ function renderSim(force){
     <div class="simprog" id="simProg" ${sim.running?'':'hidden'}></div>
     ${sim.err?`<p class="simerr">${esc(sim.err)}</p>`:''}
   </div>`;
-  area.innerHTML=`<div class="sim" id="simRoot">${form}${simResultsHTML()}</div>`;
+  area.innerHTML=`<div class="sim" id="simRoot"><div class="card bt" id="btCard">${btCardHTML()}</div>${form}${simResultsHTML()}</div>`;loadBT();
   if(sim.running)simProgress();
   const run=$('#simRun');if(run)run.onclick=()=>runSim();
   const st=$('#simStress');if(st)st.onclick=()=>{sim.opts.scope='top25';sim.opts.tfs=['15m','1h','4h'];LS.set('sim',sim.opts);runSim()};
@@ -2264,6 +2327,15 @@ async function loadMTF(p,g,tok){
   if(p.id===g.primary.id)state.conf.set(p.id+'|'+state.tf,current.cf);
   renderMTF();renderConfirm();
 }
+// past win rate for setups like this one, from last night's backtest (information only)
+function oddsHTML(rc,c){
+  if(c.pending||!['15m','1h','4h'].includes(state.tf))return '';
+  if(!bt.data){loadBT();return ''}
+  const st=bt.data.odds[oddsKey(state.tf,rc.dir,rc.conf,c.ok)],m=bt.data.minN;
+  const like=`${TF_LABEL[state.tf]} ${rc.dir>0?'long':'short'} setups with agreement ${confBand(rc.conf)}, ${c.ok?'confirmed':'not confirmed'}`;
+  if(!st||st.n<m)return `<p>Past win rate: not enough past ${esc(like)} yet (${st?st.n:0} of ${m} trades needed).</p>`;
+  return `<p class="odds">In last night's backtest, past ${esc(like)} reached target 1 in <b>${fmtP(st.reach)}</b> of ${st.n.toLocaleString()} trades (range ${fmtP(st.lo)}–${fmtP(st.hi)}), average ${fmtR(st.avgR)}.</p>`;
+}
 function renderConfirm(){
   const el=document.getElementById('confirm');if(!el)return;const rc=current&&current.rc,g=state.gByKey.get(state.selected);
   if(!rc||(rc.rec!=='long'&&rc.rec!=='short')||!g){el.hidden=true;return}
@@ -2272,7 +2344,7 @@ function renderConfirm(){
   el.hidden=false;
   el.innerHTML=`<div class="cf ${c.pending?'':c.ok?'ok':'no'}"><div class="cf-h">${c.pending?'Running extra checks…':c.ok?`Confirmed: all ${c.total} extra checks pass`:`Not confirmed: ${c.pass} of ${c.total} extra checks pass`}</div>
     <ul class="checks">${c.checks.map(x=>`<li><span class="ic ${x.state}">${CHECK_IC[x.state]}</span><span>${x.html}</span></li>`).join('')}</ul>
-    <p>${c.ok?'The bigger picture, liquidity and the day’s range back up this reading. It can still fail.':'The chart reading alone is not enough here: one or more of the bigger-picture, delisting, liquidity or range checks fails.'}</p></div>`;
+    ${oddsHTML(rc,c)}<p>${c.ok?'The bigger picture, liquidity and the day’s range back up this reading. It can still fail.':'The chart reading alone is not enough here: one or more of the bigger-picture, delisting, liquidity or range checks fails.'}</p></div>`;
 }
 function updateRow(key){
   const g=state.gByKey.get(key);if(!g)return;

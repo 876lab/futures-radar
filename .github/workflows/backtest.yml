@@ -1,0 +1,46 @@
+name: Nightly backtest
+
+# Runs the app's own engine over recent Gate candles (top 30 USDT perpetuals; 15m, 1H, 4H), records the
+# conditions at every simulated entry, and publishes backtest.json to the backtest-data branch.
+# The Simulator page shows it under "Last night's backtest"; the chart reading uses it for past win rates.
+on:
+  schedule:
+    - cron: "17 7 * * *"   # 2:17am Jamaica time
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - scripts/backtest.js
+      - .github/workflows/backtest.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: backtest
+  cancel-in-progress: true
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Run the backtest on Gate candles
+        run: |
+          mkdir -p out
+          node scripts/backtest.js index.html out/backtest.json
+      - name: Publish to the backtest-data branch
+        run: |
+          cd out
+          git init -q -b backtest-data
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backtest.json
+          git commit -q -m "Backtest $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push -q -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" backtest-data
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

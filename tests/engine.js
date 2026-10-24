@@ -108,6 +108,42 @@ ok(lt.length===2&&lt[0].d===N0+7200&&lt[0].names.length===2&&lt[1].names[0]==='F
 ok(eventsLater([ev('CPI m/m','USD',20*60),ev('CPI m/m','USD',-3600)],N0,N0+6*3600).length===0,'inside the warning window or past is not listed');
 ok(eventsLater([ev('CPI m/m','USD',7*3600)],N0,N0+6*3600).length===0,'after midnight is not listed');
 ok(eventsLater([ev('BOJ Policy Rate','JPY',3600)],N0,N0+6*3600).length===0&&eventsLater([ev('BOJ Policy Rate','JPY',3600)],N0,N0+6*3600,0,EV_CC_ALL).length===1,'later today follows the country switch');
+// import my trades: tolerant CSV parsing and stats (all on the device)
+{let rows=parseCSV('a,"b,c",d\\r\\n"x ""y""",2,\\n\\n3;4');ok(rows.length===3&&rows[0][1]==='b,c'&&rows[1][0]==='x "y"'&&rows[1][2]==='','csv: quotes, escaped quotes, CRLF, blank lines');
+ok(parseCSV('﻿a;b;c\\n1;2;3')[1].join('|')==='1|2|3','csv: BOM and semicolons');
+ok(parseCSV('a\\tb\\n1\\t2')[1][1]==='2','csv: tabs');
+let c=tradeCols(['Contract','Side','Open Time','Close Time','Position Size','Avg. Entry Price','Avg. Close Price','Realized PnL (USDT)','Fee']);
+ok(c.contract===0&&c.side===1&&c.open===2&&c.close===3&&c.size===4&&c.entry===5&&c.exit===6&&c.pnl===7&&c.fee===8,'columns matched by meaning: '+JSON.stringify(c));
+c=tradeCols(['time','contract','side','pnl','pnl_pnl','pnl_fund','pnl_fee','text','max_size','first_open_time','long_price','short_price']);
+ok(c.close===0&&c.pnl===3&&c.fee===6&&c.open===9&&c.size===8&&c.longp===10&&c.shortp===11,'Gate API position_close names: '+JSON.stringify(c));
+ok(tradeNum('1,038.50')===1038.5&&tradeNum('−602.1 USDT')===-602.1&&tradeNum('(12.5)')===-12.5&&tradeNum('+3')===3&&isNaN(tradeNum('')),'numbers: commas, unicode minus, brackets, units');
+ok(tradeTime('1760000000')===1760000000000&&tradeTime('1760000000123')===1760000000123,'times: seconds and milliseconds');
+ok(tradeTime('2026-10-19 14:32:10 UTC')===Date.UTC(2026,9,19,14,32,10)&&tradeTime('2026/10/19 14:32')===new Date(2026,9,19,14,32).getTime()&&isNaN(tradeTime('soon')),'times: text dates (UTC and local)');
+ok(tradeRoot('BTC_USDT')==='BTC'&&tradeRoot('ETHUSDT Perpetual')==='ETH'&&tradeRoot('1000PEPE-USDT')==='1000PEPE'&&tradeRoot('SOL/USDT')==='SOL','contract names to coin');
+ok(tradeSide('Short')==='short'&&tradeSide('dual_long')==='long'&&tradeSide('Close Long')==='long'&&tradeSide('',-5)==='short'&&tradeSide('?',0)===null,'sides from words or size sign');
+let csv='Gate futures export\\nContract,Side,Open Time,Close Time,Size,Entry Price,Close Price,Realized PnL,Fee\\n'+
+  'BTC_USDT,Long,2026-10-05 01:00:00 UTC,2026-10-05 08:00:00 UTC,1,60000,60600,60.00,-1.2\\n'+
+  'ETH_USDT,Short,2026-10-06 13:00:00 UTC,2026-10-06 13:30:00 UTC,2,2500,2510,-20,-1\\n'+
+  'ETH_USDT,Short,2026-10-07 13:00:00 UTC,2026-10-07 15:00:00 UTC,2,2500,2400,"1,000.00",-1\\n'+
+  'SOL_USDT,Long,,2026-10-08 20:00:00 UTC,5,150,140,-1038,-2\\n'+
+  ',Long,2026-10-08 20:00:00 UTC,2026-10-08 20:00:00 UTC,1,1,1,5,0\\nXRP_USDT,Long,2026-10-08,soon,1,1,1,abc,0\\n';
+let r=parseTrades(csv),T=r.trades;
+ok(T.length===4&&r.skipped===2&&!r.error,'parse: 4 trades, 2 broken rows skipped ('+T.length+','+r.skipped+')');
+ok(T[0].root==='BTC'&&T[0].side==='long'&&T[0].entry===60000&&T[0].exit===60600&&T[0].fee===1.2&&T[0].t0===Date.UTC(2026,9,5,1),'parse: fields read');
+ok(T[3].t0===null&&T[3].t1===Date.UTC(2026,9,8,20),'parse: missing open time kept as unknown');
+r=parseTrades('contract,side,long_price,short_price,pnl,time\\nBTC_USDT,short,100,110,-5,1760000000');
+ok(r.trades.length===1&&r.trades[0].entry===110&&r.trades[0].exit===100,'parse: Gate long_price/short_price mapped by side');
+ok(parseTrades('a,b\\n1,2').error&&parseTrades('').trades.length===0,'parse: unknown file gives a plain error');
+let s=tradeStats(T,t=>{const d=new Date(t);return{h:d.getUTCHours(),w:(d.getUTCDay()+6)%7}});
+ok(s.n===4&&Math.abs(s.win-0.5)<1e-9&&Math.abs(s.pnl-2)<1e-9&&s.worst.root==='SOL'&&Math.abs(s.fees-5.2)<1e-9,'stats: win rate, total, worst loss, fees');
+ok(Math.abs(s.avgWin-530)<1e-9&&Math.abs(s.avgLoss-529)<1e-9&&Math.abs(s.rr-530/529)<1e-9,'stats: average win vs loss');
+ok(s.side.map(x=>x.k+x.n).join()==='Long2,Short2'&&s.coin[0].k==='ETH'&&s.coin[0].n===2,'stats: by side and coin');
+ok(s.hold.map(x=>x.k+x.n).join()==='Under 1 hour1,1–4 hours1,4–12 hours1','stats: holding time (unknown open time left out)');
+ok(s.hour.find(x=>x.k==='12am–4am').n===1&&s.day.find(x=>x.k==='Mon').n===1&&s.day.find(x=>x.k==='Thu').n===1,'stats: hour band and weekday of opening');
+ok(readingVsSide('long','long')==='Reading agreed'&&readingVsSide('long','short')==='Reading pointed the other way'&&readingVsSide('short','hold')==='Wait or no setup'&&readingVsSide('short','')===null,'reading vs side');
+T[0].r1h='long';T[1].r1h='long';s=tradeStats(T);ok(s.r1h.length===2&&s.r1h[0].k==='Reading agreed'&&s.r1h[1].n===1,'stats: grouped by the 1H reading');
+let cl=cleanTrades([null,{root:'BTC',side:'long',pnl:5,t1:1e12,t0:2e12,fee:-1,r1h:7},{root:'X',side:'up',pnl:1,t1:1},{root:'Y',side:'short',pnl:'5',t1:1},'x']);
+ok(cl.length===1&&cl[0].t0===null&&cl[0].fee===1&&cl[0].r1h===undefined&&cleanTrades('junk').length===0,'saved trades cleaned');}
 const st=simStats([],2);ok(st.n===0,'empty stats');
 ok(n>50,'backtest produced too few trades: '+n);
 console.log('engine tests: '+pass+' passed, '+fail+' failed ('+n+' simulated trades in '+(Date.now()-t0)+' ms)');

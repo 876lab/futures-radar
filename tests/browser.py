@@ -126,6 +126,42 @@ async def legal_check(b):
     for e in errs: problems.append("no storage: JS error: " + e)
     await pg.close()
 
+async def mine_check(b):
+    # Simulator -> Your trades: import a position-history CSV, see the stats, look up the chart readings, keep and remove them
+    for scheme in ("dark", "light"):
+        pg = await b.new_page(viewport={"width": 390, "height": 800}, device_scale_factor=1, color_scheme=scheme)
+        pg.on("pageerror", lambda e: problems.append(f"[{scheme}] my trades: JS error: {e}"))
+        await block_exchanges(pg); await route_bt(pg); await pg.add_init_script(ACCEPT)
+        await pg.goto("file://" + PAGE); await pg.wait_for_timeout(2000)
+        await pg.click('[data-nav="sim"]'); await pg.wait_for_timeout(500)
+        if "Your trades" not in await pg.inner_text("#mineCard"): problems.append(f"[{scheme}] my trades: card missing"); await pg.close(); continue
+        await pg.set_input_files("#mineFile", os.path.join(ROOT, "fixtures", "trades.csv")); await pg.wait_for_timeout(500)
+        t = await pg.inner_text("#mineCard")
+        for want in ("5 trades", "Win rate 60%", "Biggest loss", "SOL long", "Read 5 trades"):
+            if want not in t: problems.append(f"[{scheme}] my trades: '{want}' missing after import")
+        await pg.click("#mineMore summary"); await pg.click("#mineCheck")
+        try: await pg.wait_for_selector("#mineCheck", timeout=60000)
+        except Exception: problems.append(f"[{scheme}] my trades: chart-reading check never finished")
+        t = await pg.inner_text("#mineCard")
+        if "1H chart reading when you opened" not in t or "4H chart reading when you opened" not in t: problems.append(f"[{scheme}] my trades: chart-reading tables missing")
+        for bad in ("undefined", "NaN", "Invalid Date", "could not be checked"):
+            if bad in t: problems.append(f"[{scheme}] my trades: shows '{bad}'")
+        if scheme == "dark": await pg.screenshot(path=os.path.join(OUT, "my-trades.png"), full_page=True)
+        saved = await pg.evaluate("localStorage.getItem('fradar:mytrades')||'[]'")
+        kept = len([t for t in json.loads(saved) if isinstance(t.get("r1h"), str)])
+        if kept != 5: problems.append(f"[{scheme}] my trades: trades or chart readings not saved on the device")
+        await pg.close()
+        # a fresh start with the saved trades in storage shows them again
+        pg = await b.new_page(viewport={"width": 390, "height": 800}, device_scale_factor=1, color_scheme=scheme)
+        pg.on("pageerror", lambda e: problems.append(f"[{scheme}] my trades (reopen): JS error: {e}"))
+        await block_exchanges(pg); await route_bt(pg); await pg.add_init_script(ACCEPT + ";try{localStorage.setItem('fradar:mytrades'," + json.dumps(saved) + ")}catch(e){}")
+        await pg.goto("file://" + PAGE); await pg.wait_for_timeout(1500); await pg.click('[data-nav="sim"]'); await pg.wait_for_timeout(500)
+        if "5 trades" not in await pg.inner_text("#mineCard"): problems.append(f"[{scheme}] my trades: saved trades not shown when the app is reopened")
+        await pg.evaluate("window.confirm=()=>true")
+        await pg.click("#mineClear"); await pg.wait_for_timeout(300)
+        if "Choose a CSV file" not in await pg.inner_text("#mineCard"): problems.append(f"[{scheme}] my trades: remove did not work")
+        await pg.close()
+
 async def main():
     async with async_playwright() as p:
         b = await p.chromium.launch()
@@ -225,9 +261,10 @@ async def main():
         await isolation_check(b)
         await pull_check(b)
         await legal_check(b)
+        await mine_check(b)
         await b.close()
 
 asyncio.run(main())
 if problems:
     print("browser test FAILED:"); [print("  - " + x) for x in problems]; sys.exit(1)
-print("browser test passed (dark + light, all pages, chart screen, simulator, legal pages, before-you-start); screenshots in tests/out/")
+print("browser test passed (dark + light, all pages, chart screen, simulator, my trades, legal pages, before-you-start); screenshots in tests/out/")

@@ -158,6 +158,7 @@ button{cursor:pointer}
 .bt .big{font-size:14px;margin:0 0 6px} .bt .verdict{font-weight:700;margin:6px 0}
 .bt details summary{cursor:pointer;color:var(--accent);font-weight:600;margin-top:8px}
 .bt .few{color:var(--muted);font-style:italic}
+.mine .sim-sec .note{padding:6px 0 0}
 .dlwhen{font-size:12.5px;color:var(--fg)} .dlwhen b{color:var(--down);font-weight:600}
 .dlwarn{border:1px solid var(--down);background:var(--down-bg);border-radius:var(--r);padding:10px 12px;font-size:13px;display:grid;gap:2px}
 .dlwarn span{color:var(--muted);font-size:12.5px}
@@ -672,6 +673,7 @@ html,body{overscroll-behavior-y:none}
       <dt>Stop loss</dt><dd>The level where the setup is proven wrong.</dd>
       <dt>Targets</dt><dd>Target 1 is 1.5 times the risk, target 2 is 3 times. A common approach is to close half at target 1 and move the stop to entry.</dd>
       <dt>Extra confirmation</dt><dd>Under a long or short setup, five more checks: the 4H trend and the 1D trend point the same way (fewer when the chart is already on 4H or 1D), no delisting scheduled or announced, at least $10M traded in 24 hours, and a 24-hour range under 25%. "Confirmed" means all pass. Setups shows only confirmed setups unless you switch that off in Settings. The thresholds are a first guess that the backtest research will test; confirmed setups can still fail.</dd>
+      <dt>Your trades</dt><dd>On the Simulator page, load your position history exported from Gate (CSV). You see your win rate, average win vs average loss, biggest loss, and breakdowns by side, coin, time of day, weekday and holding time. <b>Check what the chart said</b> shows what the 1H and 4H chart reading was when you opened each of your latest 40 trades. The file is read on this device and never uploaded; Remove my trades deletes it.</dd>
       <dt>Last night's backtest</dt><dd>Each night the app's own rules are replayed on the top 30 Gate markets (15m, 1H, 4H). The Simulator page shows how often confirmed and not-confirmed setups reached target 1, with a range for luck, and the chart reading shows the past win rate for setups like the one on screen. It needs at least 100 past trades before it shows a number. Past results don't guarantee future ones.</dd>
       <dt>Candle-size strip</dt><dd>Above the chart reading, the reading on 15m, 1H, 4H and 1D side by side, so you can see at a glance whether the bigger picture agrees. Tap one to open it.</dd>
       <dt>Agreement</dt><dd>How many indicators line up, from 0 to 100. Above 70 is strong agreement. It is not a probability of winning.</dd>
@@ -1908,6 +1910,91 @@ function simStats(tr,risk){
     if(t.r<=0){streak++;worst=Math.max(worst,streak)}else streak=0}
   return{n,win:wins/n,avgR:sum/n,avg2:sum2/n,pf:sl>0?sw/sl:(sw>0?Infinity:0),ret:eq-1,dd,worst,reach:reach/n,curve,avgBars:bars/n};
 }
+// ---- import my trades: read an exchange's position-history export (CSV) on the device ----
+function parseCSV(text){
+  text=String(text||'').replace(/^﻿/,'');const first=text.split(/\r?\n/,1)[0]||'';
+  const cnt=ch=>first.split(ch).length,dl=[',',';','\t'].sort((a,b)=>cnt(b)-cnt(a))[0];
+  const rows=[];let row=[],f='',q=false;
+  for(let i=0;i<text.length;i++){const c=text[i];
+    if(q){if(c==='"'){if(text[i+1]==='"'){f+='"';i++}else q=false}else f+=c}
+    else if(c==='"')q=true;else if(c===dl){row.push(f);f=''}
+    else if(c==='\n'||c==='\r'){if(c==='\r'&&text[i+1]==='\n')i++;row.push(f);f='';if(row.some(x=>x.trim()))rows.push(row);row=[]}
+    else f+=c}
+  row.push(f);if(row.some(x=>x.trim()))rows.push(row);
+  return rows.map(r=>r.map(x=>x.trim()));
+}
+// header names differ between exchanges and export versions, so match by meaning (exact name first, then "starts with")
+const TRADE_COLS={contract:['contract','symbol','market','pair','instrument','futures','coin'],side:['side','direction','positionside','position','longshort'],
+  open:['firstopentime','opentime','openedtime','opentimeutc','entrytime','opendate','createtime','createdtime'],
+  close:['closetime','closedtime','closingtime','closedate','exittime','updatetime','time','date'],
+  size:['maxsize','closedsize','closesize','size','positionsize','quantity','qty','amount'],
+  entry:['avgentryprice','entryprice','averageentryprice','avgopenprice','openavgprice','openprice','averageopenprice','openingprice'],
+  exit:['avgcloseprice','closeprice','averagecloseprice','closeavgprice','closingprice','exitprice','avgexitprice'],
+  pnl:['realizedpnl','realisedpnl','closedpnl','netpnl','realizedprofit','realizedprofitandloss','pnl','profit','profitandloss'],
+  fee:['pnlfee','fee','fees','tradingfee','tradingfees','commission'],longp:['longprice'],shortp:['shortprice']};
+const normHead=h=>String(h||'').toLowerCase().replace(/\(.*?\)|\[.*?\]/g,'').replace(/[^a-z]/g,'');
+function tradeCols(head){
+  const H=head.map(normHead),used=new Set(),out={};
+  for(const pass of [0,1])for(const k in TRADE_COLS){if(out[k]!=null)continue;
+    for(const syn of TRADE_COLS[k]){const i=H.findIndex((h,j)=>!used.has(j)&&(pass?h.startsWith(syn):h===syn));if(i>=0){out[k]=i;used.add(i);break}}}
+  return out;
+}
+function tradeNum(s){if(s==null)return NaN;s=String(s).replace(/[−–]/g,'-').replace(/,/g,'').replace(/[^0-9.eE+\-()]/g,'');
+  const neg=/^\(.*\)$/.test(s);const v=parseFloat(s.replace(/[()]/g,''));return neg?-v:v}
+// numbers are seconds or milliseconds; text dates without a time zone are read as this device's local time
+function tradeTime(s){s=String(s||'').trim();if(!s)return NaN;
+  if(/^\d{9,13}(\.\d+)?$/.test(s)){const v=+s;return v<1e11?v*1000:v}
+  const m=s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})[ T]+(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?\s*(Z|UTC|GMT)?$/i);
+  if(m){const a=[+m[1],m[2]-1,+m[3],+m[4],+m[5],+(m[6]||0)];return m[7]?Date.UTC(...a):new Date(...a).getTime()}
+  const v=Date.parse(s);return isFinite(v)?v:NaN}
+function tradeRoot(c){c=String(c||'').toUpperCase().split(/\s/)[0].replace(/[^A-Z0-9]/g,'');return c.replace(/(USDT|USDC|USD|PERP)+$/,'')||c}
+function tradeSide(s,size){s=String(s||'').toLowerCase();
+  if(/short|sell|空|dual_short/.test(s))return 'short';if(/long|buy|多|dual_long/.test(s))return 'long';
+  return size<0?'short':size>0?'long':null}
+function parseTrades(text){
+  const rows=parseCSV(text);let hi=rows.findIndex(r=>{const c=tradeCols(r);return c.contract!=null&&c.pnl!=null});
+  if(hi<0)return{trades:[],skipped:rows.length,error:'Could not find the contract and profit/loss columns in this file.'};
+  const c=tradeCols(rows[hi]),get=(r,k)=>c[k]!=null?r[c[k]]:undefined,trades=[];let skipped=0;
+  for(const r of rows.slice(hi+1)){
+    const size=tradeNum(get(r,'size')),side=tradeSide(get(r,'side'),size),pnl=tradeNum(get(r,'pnl'));
+    let entry=tradeNum(get(r,'entry')),exit=tradeNum(get(r,'exit'));
+    if(!isFinite(entry)&&side){const L=tradeNum(get(r,'longp')),S=tradeNum(get(r,'shortp'));entry=side==='long'?L:S;exit=side==='long'?S:L}
+    let t0=tradeTime(get(r,'open')),t1=tradeTime(get(r,'close'));if(!isFinite(t1))t1=t0;
+    const root=tradeRoot(get(r,'contract'));
+    if(!root||!side||!isFinite(pnl)||!isFinite(t1)){skipped++;continue}
+    if(!(t0<=t1))t0=null;
+    const fee=Math.abs(tradeNum(get(r,'fee')));
+    trades.push({c:String(get(r,'contract')).slice(0,30),root:root.slice(0,20),side,t0,t1,size:isFinite(size)?Math.abs(size):null,
+      entry:entry>0?entry:null,exit:exit>0?exit:null,pnl,fee:isFinite(fee)?fee:0});
+  }
+  trades.sort((a,b)=>a.t1-b.t1);
+  return{trades,skipped,error:trades.length?null:'No trades could be read from this file.'};
+}
+// keep only well-formed saved trades (storage can be edited or broken)
+function cleanTrades(a){if(!Array.isArray(a))return[];const fin=v=>typeof v==='number'&&isFinite(v);
+  return a.filter(t=>t&&typeof t==='object'&&typeof t.root==='string'&&(t.side==='long'||t.side==='short')&&fin(t.pnl)&&fin(t.t1)).slice(-5000)
+    .map(t=>({c:String(t.c||t.root).slice(0,30),root:t.root.slice(0,20),side:t.side,t0:fin(t.t0)&&t.t0<=t.t1?t.t0:null,t1:t.t1,size:fin(t.size)?t.size:null,
+      entry:fin(t.entry)&&t.entry>0?t.entry:null,exit:fin(t.exit)&&t.exit>0?t.exit:null,pnl:t.pnl,fee:fin(t.fee)?Math.abs(t.fee):0,
+      r1h:typeof t.r1h==='string'?t.r1h.slice(0,8):undefined,r4h:typeof t.r4h==='string'?t.r4h.slice(0,8):undefined}))}
+const HOLD_B=['Under 1 hour','1–4 hours','4–12 hours','12 hours or more'],DAY_B=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],HOUR_B=['12am–4am','4am–8am','8am–12pm','12pm–4pm','4pm–8pm','8pm–12am'];
+function holdBand(t){if(t.t0==null)return null;const h=(t.t1-t.t0)/36e5;return HOLD_B[h<1?0:h<4?1:h<12?2:3]}
+// how your side compares with the chart reading at the time you opened (rec = long/short/hold/avoid)
+function readingVsSide(side,rec){return rec===side?'Reading agreed':rec==='long'||rec==='short'?'Reading pointed the other way':rec?'Wait or no setup':null}
+// your trades, overall and by group; lt(ms) gives the local Date to read hour and weekday from (tests pass UTC)
+function tradeStats(tr,lt){
+  lt=lt||(t=>{const d=new Date(t);return{h:d.getHours(),w:(d.getDay()+6)%7}});
+  const sum=a=>a.reduce((s,t)=>s+t.pnl,0),n=tr.length;if(!n)return{n:0};
+  const W=tr.filter(t=>t.pnl>0),L=tr.filter(t=>t.pnl<0),aw=W.length?sum(W)/W.length:0,al=L.length?-sum(L)/L.length:0;
+  const worst=tr.reduce((m,t)=>t.pnl<m.pnl?t:m,tr[0]);
+  const grp=(fn,order)=>{const m=new Map();for(const t of tr){const k=fn(t);if(k==null)continue;if(!m.has(k))m.set(k,[]);m.get(k).push(t)}
+    return (order||[...m.keys()]).filter(k=>m.has(k)).map(k=>{const a=m.get(k);return{k,n:a.length,win:a.filter(t=>t.pnl>0).length/a.length,pnl:sum(a)}})};
+  const open=t=>t.t0!=null?t.t0:t.t1;
+  return{n,win:W.length/n,pnl:sum(tr),avgWin:aw,avgLoss:al,rr:al>0?aw/al:null,worst,fees:tr.reduce((s,t)=>s+t.fee,0),from:tr[0].t1,to:tr[n-1].t1,
+    side:grp(t=>t.side==='long'?'Long':'Short',['Long','Short']),
+    coin:grp(t=>t.root).sort((a,b)=>b.n-a.n||a.pnl-b.pnl).slice(0,12),
+    hour:grp(t=>HOUR_B[Math.floor(lt(open(t)).h/4)],HOUR_B),day:grp(t=>DAY_B[lt(open(t)).w],DAY_B),hold:grp(holdBand,HOLD_B),
+    r1h:grp(t=>readingVsSide(t.side,t.r1h)),r4h:grp(t=>readingVsSide(t.side,t.r4h))};
+}
 const SIM_DEF={scope:'top10',tfs:['15m','1h'],plan:'split',minConf:0,fee:0.05,slip:0.02,risk:2,maxHold:96};
 // saved simulator options: keep only known keys of the right type (a broken saved value falls back to the default)
 function simOpts(saved){const o=Object.assign({},SIM_DEF,{tfs:SIM_DEF.tfs.slice()});if(!saved||typeof saved!=='object')return o;
@@ -2014,6 +2101,81 @@ function btCardHTML(){
       <li>Ranges show where the true rate probably lies given the number of trades; rows with fewer than ${m} trades are hidden. Past results don't guarantee future ones.</li></ul>
     </details>`;
 }
+/* my trades card (Simulator page) */
+const mine={trades:cleanTrades(LS.get('mytrades',[])),msg:'',checking:false,prog:''};
+const MINE_CHECK=40;   // how many of the latest trades get the chart-reading look-up (3 small requests each)
+function mineMoney(v){return v>0?'+'+fmtMoney(v):fmtMoney(v)}
+function mineTable(title,rows){
+  if(!rows||!rows.length)return '';
+  return `<div class="sim-sec"><h4>${esc(title)}</h4><div class="tblwrap"><table class="btable"><thead><tr><th></th><th>Trades</th><th>Win rate</th><th>Total</th></tr></thead><tbody>${
+    rows.map(r=>`<tr><td><b>${esc(r.k)}</b></td><td>${r.n}</td><td><span class="wbar"><i style="width:${(r.win*100).toFixed(0)}%"></i></span>${fmtP(r.win)}</td><td class="${r.pnl>0?'up':r.pnl<0?'down':''}">${esc(mineMoney(r.pnl))}</td></tr>`).join('')}</tbody></table></div></div>`;
+}
+function mineCardHTML(){
+  const pick=`<button type="button" class="btn${mine.trades.length?'':' primary'}" id="minePick">${mine.trades.length?'Load a newer file':'Choose a CSV file'}</button><input id="mineFile" type="file" accept=".csv,.txt,text/csv,text/plain" hidden>`;
+  const msg=mine.msg?`<p class="note">${esc(mine.msg)}</p>`:'';
+  if(!mine.trades.length)return `<h3>Your trades</h3><p class="sub">Load your position history exported from Gate (CSV; save Excel files as CSV first). The file is read on this device and never uploaded.</p><div class="simbtns">${pick}</div>${msg}`;
+  const s=tradeStats(mine.trades),w=s.worst,checked=mine.trades.filter(t=>t.r1h!==undefined).length;
+  const rr=s.rr!=null?` (${s.rr.toFixed(2)} : 1)`:'';
+  const chk=mine.checking?`<p class="note" id="mineProg">${esc(mine.prog)}</p>`:
+    `<div class="simbtns"><button type="button" class="btn" id="mineCheck">${checked?'Check again':'Check what the chart said'}</button></div><p class="note">Looks up the 1H and 4H chart reading at the moment you opened each of your latest ${MINE_CHECK} trades (Gate prices).</p>`;
+  return `<h3>Your trades</h3><p class="sub">${s.n} trades · ${esc(dateStr(s.from))} – ${esc(dateStr(s.to))} · on this device only</p>
+    <p class="big">Win rate <b>${fmtP(s.win)}</b> · total <b class="${s.pnl>0?'up':'down'}">${esc(mineMoney(s.pnl))}</b>${s.fees?` · fees ${esc(fmtMoney(s.fees))}`:''}</p>
+    <p class="big">Average win <b class="up">${esc(fmtMoney(s.avgWin))}</b> vs average loss <b class="down">${esc(fmtMoney(s.avgLoss))}</b>${rr}</p>
+    ${w.pnl<0?`<p class="big">Biggest loss <b class="down">${esc(fmtMoney(w.pnl))}</b> on ${esc(w.root)} ${w.side}, ${esc(dateStr(w.t1))}</p>`:''}
+    <details${mine.open?' open':''} id="mineMore"><summary>Breakdowns and chart readings</summary>
+      ${mineTable('Long vs short',s.side)}${mineTable('By coin (most traded)',s.coin)}${mineTable('By time you opened (your time)',s.hour)}${mineTable('By weekday',s.day)}${mineTable('By how long you held',s.hold)}
+      ${checked?mineTable('1H chart reading when you opened',s.r1h)+mineTable('4H chart reading when you opened',s.r4h):''}
+      <div class="sim-sec">${chk}</div>
+      <ul class="sim-notes"><li>Total is the realized profit or loss as your file reports it. Win rate counts trades that closed in profit.</li>
+      <li>"Reading agreed" means the chart showed a long setup when you went long (or a short setup when you went short), using only candles that had closed before you opened.</li></ul>
+    </details>
+    <div class="simbtns" style="margin-top:10px">${pick}<button type="button" class="btn" id="mineClear">Remove my trades</button></div>${msg}`;
+}
+function renderMine(){const el=$('#mineCard');if(el){el.innerHTML=mineCardHTML();bindMine()}}
+function bindMine(){
+  const f=$('#mineFile');if(f)f.onchange=()=>{const file=f.files&&f.files[0];if(!file)return;f.value='';
+    if(file.size>5e6){mine.msg='That file is over 5 MB; export a shorter period.';renderMine();return}
+    const rd=new FileReader();rd.onload=()=>{try{const r=parseTrades(rd.result);
+      if(r.trades.length){mine.trades=cleanTrades(r.trades);LS.set('mytrades',mine.trades)}
+      mine.msg=r.error||`Read ${plural(r.trades.length,'trade')}${r.skipped?`; skipped ${plural(r.skipped,'row')} that had no contract, side, time or profit/loss`:''}.`}
+      catch(e){recordErr('import trades',e);mine.msg='This file could not be read.'}renderMine()};
+    rd.onerror=()=>{mine.msg='This file could not be read.';renderMine()};rd.readAsText(file)};
+  const pk=$('#minePick');if(pk&&f)pk.onclick=()=>f.click();
+  const cl=$('#mineClear');if(cl)cl.onclick=()=>{if(!confirm('Remove your imported trades from this device?'))return;mine.trades=[];mine.msg='Your imported trades were removed from this device.';LS.set('mytrades',[]);renderMine()};
+  const ck=$('#mineCheck');if(ck)ck.onclick=()=>checkMine();
+  const md=$('#mineMore');if(md)md.ontoggle=()=>{mine.open=md.open};
+}
+// candles that had fully closed by time t (seconds), from Gate's public API
+async function candlesBefore(p,tf,t,n){
+  const s=TFS[tf];let cs;
+  if(p.demo)cs=demoCandles(p,tf,n);
+  else{const r=await getJSON(`https://api.gateio.ws/api/v4/futures/usdt/candlesticks?contract=${encodeURIComponent(p.sym)}&interval=${tf}&from=${t-n*s}&to=${t}`,20000);
+    const m=p.mult||1;cs=(Array.isArray(r)?r:[]).map(k=>({time:+k.t,open:k.o/m,high:k.h/m,low:k.l/m,close:k.c/m,volume:+k.sum||+k.v||0})).filter(k=>isFinite(k.close)&&k.close>0).sort((a,b)=>a.time-b.time)}
+  return p.demo?cs:cs.filter(k=>k.time+s<=t);
+}
+async function readingBefore(p,tf,t,cache){
+  const get=async x=>{const k=x+'|'+t;if(!cache.has(k))cache.set(k,await candlesBefore(p,x,t,300));return cache.get(k)};
+  const cs=await get(tf);if(cs.length<40)return null;
+  const hcs=await get(HTF[tf]),an=analyze(cs),han=hcs.length>=40?analyze(hcs):null;
+  return an?recommend(an,cs,han,tf,true).rec:null;
+}
+function gatePair(t){
+  const sym=String(t.c||'').toUpperCase().replace(/[^A-Z0-9_]/g,''),root=t.root;
+  for(const g of state.groups)for(const m of g.members)if(m.ex==='gate'&&m.sym===sym)return m;
+  for(const g of state.groups)if(g.root===root){const p=g.members.find(m=>m.ex==='gate'&&m.kind!=='dated');if(p)return p}
+  if(state.mode==='demo'){const g=state.groups.find(x=>x.root===root);if(g)return g.primary}
+  return {ex:'gate',sym:root+'_USDT',mult:1};
+}
+async function checkMine(){
+  if(mine.checking)return;mine.checking=true;mine.open=true;
+  const list=mine.trades.slice(-MINE_CHECK);let done=0,fails=0;
+  for(const t of list){mine.prog=`Checking trade ${done+1} of ${list.length}…`;renderMine();
+    const at=Math.floor((t.t0!=null?t.t0:t.t1)/1000),p=gatePair(t),cache=new Map();
+    try{t.r1h=await readingBefore(p,'1h',at,cache)||'';t.r4h=await readingBefore(p,'4h',at,cache)||''}catch(e){fails++;t.r1h=t.r1h||'';t.r4h=t.r4h||''}
+    done++}
+  mine.checking=false;mine.msg=fails?`${plural(fails,'trade')} could not be checked (Gate didn't answer or the coin isn't on Gate).`:'';
+  LS.set('mytrades',mine.trades);renderMine();
+}
 function renderSim(force){
   const area=$('#listArea');
   if(!force&&$('#simRoot'))return;
@@ -2042,7 +2204,8 @@ function renderSim(force){
     <div class="simprog" id="simProg" ${sim.running?'':'hidden'}></div>
     ${sim.err?`<p class="simerr">${esc(sim.err)}</p>`:''}
   </div>`;
-  area.innerHTML=`<div class="sim" id="simRoot"><div class="card bt" id="btCard">${btCardHTML()}</div>${form}${simResultsHTML()}</div>`;loadBT();
+  area.innerHTML=`<div class="sim" id="simRoot"><div class="card bt" id="btCard">${btCardHTML()}</div><div class="card bt mine" id="mineCard">${mineCardHTML()}</div>${form}${simResultsHTML()}</div>`;loadBT();
+  bindMine();
   if(sim.running)simProgress();
   const run=$('#simRun');if(run)run.onclick=()=>runSim();
   const st=$('#simStress');if(st)st.onclick=()=>{sim.opts.scope='top25';sim.opts.tfs=['15m','1h','4h'];LS.set('sim',sim.opts);runSim()};

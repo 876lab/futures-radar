@@ -8,6 +8,7 @@ import datetime as dt
 import email.utils
 import html
 import json
+import os
 import re
 import sys
 import urllib.request
@@ -144,6 +145,68 @@ def coins_in(text):
     return found[:6]
 
 
+# ---- delisting headlines: kept for 45 days so a delisting announced weeks ago still shows in the app ----
+DELIST_RX = re.compile(r"\bdelist", re.I)
+EXCHANGES = ["Binance", "Bybit", "Gate", "OKX", "Coinbase", "Kraken", "KuCoin", "Bitget", "Upbit", "Bithumb", "MEXC", "HTX", "Robinhood"]
+DL_STOP = set("THE AND FOR WITH WILL TO ON OF IN AT BY AS IS ARE USDT USDC USD BUSD FDUSD TRY EUR BRL SPOT PERP PERPS PERPETUAL "
+              "PERPETUALS FUTURES CONTRACT CONTRACTS PAIR PAIRS TRADING TOKEN TOKENS COIN COINS DELIST DELISTS DELISTING DELISTED "
+              "NOTICE UPDATE BREAKING NEWS SEC CFTC CEO ETF ETFS NFT DEX CEX AI US UK EU UTC API MARGIN".split())
+DL_STOP |= {e.upper() for e in EXCHANGES}
+MONTHS = {m: i + 1 for i, m in enumerate(["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"])}
+
+
+def delist_tickers(title):
+    """Upper-case tickers named in a delisting headline, e.g. 'Binance will delist EPIC and QUICK' -> ['EPIC', 'QUICK']."""
+    if not DELIST_RX.search(title or ""):
+        return []
+    out = []
+    for m in re.finditer(r"\$?\b((?:1000000|100000|10000|1000)?[A-Z][A-Z0-9]{1,11})\b", title):
+        t = re.sub(r"(USDT|USDC|PERP)$", "", m.group(1))
+        t = re.sub(r"^(1000000|100000|10000|1000)(?=[A-Z])", "", t)
+        if len(t) >= 2 and t not in DL_STOP and t not in out:
+            out.append(t)
+    return out[:12]
+
+
+def delist_date(text, now):
+    """'on October 28' / 'Oct. 28, 2026' -> UTC midnight timestamp, or None."""
+    m = re.search(r"\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(\d{1,2})(?:st|nd|rd|th)?\b(?:,?\s+(20\d\d))?", text or "", re.I)
+    if not m:
+        return None
+    try:
+        y = int(m.group(3)) if m.group(3) else dt.datetime.fromtimestamp(now, dt.timezone.utc).year
+        d = dt.datetime(y, MONTHS[m.group(1).lower()[:3]], int(m.group(2)), tzinfo=dt.timezone.utc)
+        if not m.group(3) and d.timestamp() < now - 60 * 86400:
+            d = d.replace(year=y + 1)
+        return int(d.timestamp())
+    except ValueError:
+        return None
+
+
+def previous_delist():
+    repo = os.environ.get("GITHUB_REPOSITORY", "876lab/futures-radar")
+    try:
+        j = json.loads(fetch(f"https://raw.githubusercontent.com/{repo}/news-data/news.json"))
+        return [e for e in j.get("delist", []) if isinstance(e, dict) and isinstance(e.get("d"), int)]
+    except Exception:
+        return []
+
+
+def merge_delist(items, prev, now):
+    out = {}
+    for e in prev:
+        if isinstance(e.get("u"), str) and now - e["d"] <= 45 * 86400:
+            out[e["u"]] = e
+    for it in items:
+        x = delist_tickers(it["t"])
+        if not x:
+            continue
+        text = f"{it['t']} {it.get('x', '')}"
+        out[it["u"]] = {"t": it["t"], "u": it["u"], "s": it["s"], "d": it["d"], "x": x,
+                        "e": [n for n in EXCHANGES if re.search(rf"\b{n}\b", text, re.I)], "at": delist_date(it["t"], it["d"])}
+    return sorted(out.values(), key=lambda e: -e["d"])[:80]
+
+
 def tags_in(text):
     return [name for name, rx in TAGS if re.search(rx, text, re.I if name not in ("Regulation", "Macro", "ETF") else 0)]
 
@@ -179,6 +242,7 @@ def build():
             sources.append({"name": name, "ok": False, "err": type(e).__name__})
     items.sort(key=lambda x: -x["d"])
     items = items[:250]
+    delist = merge_delist(items, previous_delist(), now)
 
     fng = None
     try:
@@ -212,7 +276,7 @@ def build():
     except Exception as e:
         sources.append({"name": "Economic calendar", "ok": False, "err": type(e).__name__})
 
-    return {"v": 1, "updated": now, "items": items, "fng": fng, "calendar": cal[:30], "sources": sources}
+    return {"v": 1, "updated": now, "items": items, "fng": fng, "calendar": cal[:30], "sources": sources, "delist": delist}
 
 
 if __name__ == "__main__":

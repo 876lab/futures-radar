@@ -140,6 +140,19 @@ button{cursor:pointer}
 .tag{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:2px 6px;border-radius:5px;background:var(--surface-2);color:var(--muted)}
 .tag.new{background:var(--accent);color:var(--accent-ink)}
 .tag.dl{background:var(--down-bg);color:var(--down)}
+.tag.uncf{background:transparent;border:1px solid var(--line);color:var(--muted)}
+.dlann{color:var(--fg);font-size:12.5px;text-decoration:underline;text-decoration-color:var(--line);overflow-wrap:anywhere}
+/* timeframe strip on the chart screen */
+.mtf{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.mtf button{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:6px 4px;display:grid;gap:4px;justify-items:center;font-size:11.5px;color:var(--muted);font-weight:600}
+.mtf button[aria-pressed="true"]{border-color:var(--accent)}
+.mtf .rec{font-size:11px;padding:2px 6px}
+.mtf-cap{font-size:12px;color:var(--muted);margin:0}
+/* extra confirmation box in the chart reading */
+.cf{border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;display:grid;gap:8px}
+.cf.ok{border-color:var(--up)} .cf.no{border-color:var(--down)}
+.cf-h{font-weight:700;font-size:13.5px} .cf.ok .cf-h{color:var(--up)} .cf.no .cf-h{color:var(--down)}
+.cf p{margin:0;font-size:12.5px;color:var(--muted)}
 .dlwhen{font-size:12.5px;color:var(--fg)} .dlwhen b{color:var(--down);font-weight:600}
 .dlwarn{border:1px solid var(--down);background:var(--down-bg);border-radius:var(--r);padding:10px 12px;font-size:13px;display:grid;gap:2px}
 .dlwarn span{color:var(--muted);font-size:12.5px}
@@ -544,6 +557,7 @@ html,body{overscroll-behavior-y:none}
             <h3>Trading</h3>
             <div class="fld"><span class="lab">Candle size for chart readings and Setups</span><div class="opts" id="setTf"></div></div>
             <p>You can also change this on any chart. 1H and 4H suit trades held for several hours.</p>
+            <div class="swrow" data-sw="confOnly"><span class="t"><b id="swConfL">Only show confirmed setups</b><span>Setups lists only markets that also pass the extra checks: the 4H and 1D trends agree, no delisting, at least $10M traded in 24 hours and a normal 24-hour range. The chart screen always shows the checks.</span></span><button type="button" class="switch" role="switch" aria-labelledby="swConfL" aria-checked="true"></button></div>
             <div class="inrow">
               <label for="setAcct">Account size ($)<input id="setAcct" type="number" inputmode="decimal" min="1" step="any"></label>
               <label for="setRisk">Risk per trade (%)<input id="setRisk" type="number" inputmode="decimal" min="0.1" max="100" step="0.1"></label>
@@ -604,6 +618,7 @@ html,body{overscroll-behavior-y:none}
             <div class="seg" id="tfSeg" role="group" aria-label="Candle size"></div>
             <span class="chartsrc" id="chartSrc"></span>
           </div>
+          <div id="mtfBox"><div class="mtf" id="mtf" role="group" aria-label="Chart reading on each candle size"></div><p class="mtf-cap" id="mtfCap"></p></div>
           <div class="card sigcard" id="sigCard"></div>
           <div class="card chartbox">
             <div class="toggles" id="toggles" style="padding:12px 12px 0"></div>
@@ -651,6 +666,8 @@ html,body{overscroll-behavior-y:none}
       <dt>No setup</dt><dd>No clear trend, or the short and bigger timeframes disagree.</dd>
       <dt>Stop loss</dt><dd>The level where the setup is proven wrong.</dd>
       <dt>Targets</dt><dd>Target 1 is 1.5 times the risk, target 2 is 3 times. A common approach is to close half at target 1 and move the stop to entry.</dd>
+      <dt>Extra confirmation</dt><dd>Under a long or short setup, five more checks: the 4H trend and the 1D trend point the same way (fewer when the chart is already on 4H or 1D), no delisting scheduled or announced, at least $10M traded in 24 hours, and a 24-hour range under 25%. "Confirmed" means all pass. Setups shows only confirmed setups unless you switch that off in Settings. The thresholds are a first guess that the backtest research will test; confirmed setups can still fail.</dd>
+      <dt>Candle-size strip</dt><dd>Above the chart reading, the reading on 15m, 1H, 4H and 1D side by side, so you can see at a glance whether the bigger picture agrees. Tap one to open it.</dd>
       <dt>Agreement</dt><dd>How many indicators line up, from 0 to 100. Above 70 is strong agreement. It is not a probability of winning.</dd>
       <dt>Position size calculator</dt><dd>Works out a position size from your own account size and risk %. A calculator using your own numbers, not a recommendation.</dd>
       <dt>Big news warning</dt><dd>An amber note on the chart reading and Setups page when a big US release (like CPI, jobs or a Fed decision) is within 30 minutes. Prices often spike both ways then, and stops can fill worse than planned. Earlier in the day, Setups shows a quiet “Big news later today” line with the times so you can plan around them. A second switch also counts Japan, China and euro-area releases (like Bank of Japan or ECB rate decisions). It never changes the chart reading.</dd>
@@ -741,7 +758,7 @@ const state={
   view:LS.get('view','all'),cat:LS.get('cat3','setups'),sort:LS.get('sort','vol'),q:'',
   watch:new Set(LS.get('watch2',[])),tf:LS.get('tf2','15m'),selected:null,selContract:null,trend:new Map(),scanning:null,
   proxy:LS.get('proxy',''),ind:LS.get('ind3',{ema:false,bb:true,st:true,vol:true,marks:true}),limit:120,loading:false,
-  acct:LS.get('acct',100),evOn:LS.get('evOn',true),evAll:LS.get('evAll',false),navHide:LS.get('navHide',true),risk:LS.get('risk',2),maxLoss:LS.get('maxLoss',0),stream:{},lastTick:{},lastSeen:{}
+  acct:LS.get('acct',100),evOn:LS.get('evOn',true),evAll:LS.get('evAll',false),confOnly:LS.get('confOnly',true),conf:new Map(),ann:{bybit:[],at:0,loading:false},navHide:LS.get('navHide',true),risk:LS.get('risk',2),maxLoss:LS.get('maxLoss',0),stream:{},lastTick:{},lastSeen:{}
 };
 if(!TFS[state.tf])state.tf='15m';
 if(state.view!=='all'&&!EX[state.view])state.view='all';
@@ -786,11 +803,13 @@ function cleanNews(j){
   const fin=v=>typeof v==='number'&&isFinite(v);
   const items=j.items.filter(it=>it&&typeof it==='object'&&fin(it.d)&&typeof it.t==='string'&&it.t)
     .slice(0,400).map(it=>({t:str(it.t,300),u:str(it.u,2000),s:str(it.s,60),k:str(it.k,20),d:it.d,x:str(it.x,600),c:strs(it.c),g:strs(it.g)}));
+  const delist=(Array.isArray(j.delist)?j.delist:[]).filter(e=>e&&typeof e==='object'&&fin(e.d)&&typeof e.t==='string'&&typeof e.u==='string'&&/^https?:\/\//i.test(e.u.trim()))
+    .slice(0,80).map(e=>({t:str(e.t,300),u:str(e.u,2000).trim(),s:str(e.s,60),d:e.d,x:strs(e.x,12).map(x=>x.toUpperCase()).filter(x=>/^[A-Z0-9]{2,12}$/.test(x)),e:strs(e.e,6),at:fin(e.at)?e.at:null}));
   const calendar=(Array.isArray(j.calendar)?j.calendar:[]).filter(e=>e&&typeof e==='object'&&fin(e.d)&&typeof e.t==='string')
     .slice(0,60).map(e=>({t:str(e.t,120),c:str(e.c,8),d:e.d,i:str(e.i,10),f:str(e.f,20),p:str(e.p,20)}));
   const f=j.fng,fng=f&&typeof f==='object'&&fin(f.v)&&f.v>=0&&f.v<=100?{v:Math.round(f.v),l:str(f.l,40),d:fin(f.d)?f.d:0,prev:fin(f.prev)?f.prev:null}:null;
   const sources=(Array.isArray(j.sources)?j.sources:[]).filter(x=>x&&typeof x==='object').slice(0,30).map(x=>({name:str(x.name,60),ok:x.ok===true,n:fin(x.n)?x.n:0,err:str(x.err,60)}));
-  return {v:j.v,updated:fin(j.updated)?j.updated:0,items,fng,calendar,sources};
+  return {v:j.v,updated:fin(j.updated)?j.updated:0,items,fng,calendar,sources,delist};
 }
 function fmtMoney(v){return (v<0?'−$':'$')+Math.abs(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function fmtVol(v){if(!v||!isFinite(v))return '—';const a=Math.abs(v);return '$'+(a>=1e9?(v/1e9).toFixed(2)+'B':a>=1e6?(v/1e6).toFixed(1)+'M':a>=1e3?(v/1e3).toFixed(0)+'K':v.toFixed(0))}
@@ -847,6 +866,38 @@ function delistInfo(ex,c,now){
   if(ex==='gate'){const at=+c.delisted_time*1000,ro=+c.delisting_time*1000;
     if(ok(at))return {at,ro:ok(ro)&&ro<at?ro:null};if(ok(ro))return {at:ro,ro:null};return null}
   return null;
+}
+// tickers named in a delisting announcement title, e.g. "Delisting of EPICUSDT Perpetual Contract" -> ['EPIC']
+const DL_STOP=new Set(('THE AND FOR WITH WILL TO ON OF IN AT BY AS IS ARE USDT USDC USD BUSD FDUSD TRY EUR BRL SPOT PERP PERPS PERPETUAL PERPETUALS FUTURES CONTRACT CONTRACTS '+
+  'PAIR PAIRS TRADING TOKEN TOKENS COIN COINS DELIST DELISTS DELISTING DELISTED NOTICE UPDATE BREAKING NEWS SEC CFTC CEO ETF ETFS NFT DEX CEX AI US UK EU UTC API MARGIN '+
+  'BINANCE BYBIT GATE OKX COINBASE KRAKEN KUCOIN BITGET UPBIT BITHUMB MEXC HTX ROBINHOOD').split(' '));
+function delistTickers(title){
+  const s=String(title||'');if(!/delist/i.test(s))return [];const out=[];
+  for(const m of s.matchAll(/\$?\b((?:1000000|100000|10000|1000)?[A-Z][A-Z0-9]{1,11})\b/g)){
+    const t=canonical(baseInfo(m[1].replace(/(USDT|USDC|PERP)$/,'')).root);if(t.length>=2&&!DL_STOP.has(t)&&!out.includes(t))out.push(t)}
+  return out.slice(0,12);
+}
+// Extra confirmation for a long/short setup (information; never changes the reading itself).
+// Thresholds are a first guess, to be judged by the backtest research (see ROADMAP).
+const CONF_MIN_VOL=10e6,CONF_MAX_RANGE=0.25,CONF_NEED={'5m':['4h','1d'],'15m':['4h','1d'],'1h':['4h','1d'],'4h':['1d'],'1d':[]};
+function confirmSetup(o){
+  const checks=[],add=(st,html)=>checks.push({state:st,html}),want=o.dir,nm=d=>d>0?'uptrend':d<0?'downtrend':'no clear trend';
+  const need=CONF_NEED[o.tf]||[];
+  if(!need.length)add('ok','<b>Bigger picture:</b> 1D is already the biggest timeframe here.');
+  for(const t of need){const d=o.dirs&&o.dirs[t];
+    if(d==null)add('mid',`<b>${TF_LABEL[t]} trend:</b> not loaded yet.`);else add(d===want?'ok':'no',`<b>${TF_LABEL[t]} trend:</b> ${nm(d)}${d===want?', agrees.':', does not agree.'}`)}
+  add(o.delisting?'no':'ok',o.delisting?'<b>Delisting:</b> scheduled or announced. Prices often swing wildly before a delisting.':'<b>Delisting:</b> none scheduled or announced.');
+  const v=+o.vol||0;add(v>=CONF_MIN_VOL?'ok':'no',`<b>Liquidity:</b> ${fmtVol(v)} traded in 24h${v>=CONF_MIN_VOL?'.':`, under ${fmtVol(CONF_MIN_VOL)}. Thin markets spike and slip.`}`);
+  if(o.range==null||!isFinite(o.range))add('mid','<b>24h range:</b> not loaded yet.');
+  else add(o.range<CONF_MAX_RANGE?'ok':'no',`<b>24h range:</b> ${(o.range*100).toFixed(0)}% from low to high${o.range<CONF_MAX_RANGE?', normal.':'. A wild day; spikes like this often reverse.'}`);
+  const pass=checks.filter(c=>c.state==='ok').length;
+  return{checks,pass,total:checks.length,ok:pass===checks.length,pending:checks.some(c=>c.state==='mid')};
+}
+// low-to-high range over the last 24 hours of candles (fraction, e.g. 0.42 = 42%)
+function range24(cs){
+  if(!Array.isArray(cs)||!cs.length)return null;const end=cs[cs.length-1].time;let hi=-Infinity,lo=Infinity;
+  for(const k of cs)if(k.time>end-86400){if(k.high>hi)hi=k.high;if(k.low<lo)lo=k.low}
+  return lo>0&&isFinite(hi)?hi/lo-1:null;
 }
 function typeTag(c){if(c.has('stocks'))return 'Stock';if(c.has('tradfi'))return 'TradFi';if(c.has('meme'))return 'Meme';if(c.has('ai'))return 'AI';return 'Crypto'}
 
@@ -1249,13 +1300,50 @@ function hotSets(){
   const l=liquid();
   return{gain:l.filter(g=>g.chg>0).sort((a,b)=>b.chg-a.chg).slice(0,10),lose:l.filter(g=>g.chg<0).sort((a,b)=>a.chg-b.chg).slice(0,10),active:[...l].sort((a,b)=>b.vol-a.vol).slice(0,10)};
 }
+// extra-confirmation result for a market's current reading (null until its 4H/1D/1H candles are checked)
+function confOf(g){
+  const s=sigOf(g),c=state.conf.get(g.primary.id+'|'+state.tf);if(!s||!c||(s.rec!=='long'&&s.rec!=='short'))return null;
+  return confirmSetup({dir:s.dir,tf:state.tf,dirs:c.dirs,range:c.range,vol:g.vol,delisting:isDelisting(g)});
+}
+async function confInputs(p){
+  const [r4,r1,c1]=await Promise.all([evaluate(p,'4h').catch(()=>null),evaluate(p,'1d').catch(()=>null),getCandles(p,'1h').catch(()=>null)]);
+  return{dirs:{'4h':r4?r4.rc.dir:null,'1d':r1?r1.rc.dir:null},range:range24(c1),at:NOW()};
+}
+async function confirmScan(){
+  if(state.confirming||state.cat!=='setups')return;const tf=state.tf;
+  const list=setupPool().filter(g=>{const s=sigOf(g),c=state.conf.get(g.primary.id+'|'+tf);return s&&(s.rec==='long'||s.rec==='short')&&(!c||NOW()-c.at>10*60000)});
+  if(!list.length)return;state.confirming=true;let i=0;
+  const worker=async()=>{while(i<list.length){const g=list[i++];try{state.conf.set(g.primary.id+'|'+tf,await confInputs(g.primary))}catch(e){}}};
+  await Promise.all([worker(),worker(),worker()]);
+  state.confirming=false;if(state.cat==='setups'){renderTabs();renderList()}
+}
 function setupPool(){return liquid().sort((a,b)=>b.vol-a.vol).slice(0,SETUP_POOL)}
 function setupSets(){
   const pool=setupPool();const longs=[],shorts=[];
-  pool.forEach(g=>{const s=sigOf(g);if(!s)return;if(s.rec==='long')longs.push(g);else if(s.rec==='short')shorts.push(g)});
+  let hidden=0,checking=0;
+  pool.forEach(g=>{const s=sigOf(g);if(!s||(s.rec!=='long'&&s.rec!=='short'))return;
+    if(state.confOnly){const c=confOf(g);if(!c){checking++;return}if(!c.ok){hidden++;return}}
+    (s.rec==='long'?longs:shorts).push(g)});
   const bc=(a,b)=>sigOf(b).conf-sigOf(a).conf;
-  return{longs:longs.sort(bc),shorts:shorts.sort(bc),checked:pool.filter(g=>sigOf(g)).length,pool:pool.length};
+  return{longs:longs.sort(bc),shorts:shorts.sort(bc),checked:pool.filter(g=>sigOf(g)).length,pool:pool.length,hidden,checking};
 }
+// Bybit's own delisting announcements (official V5 API: /v5/announcements/index, type=delistings), refreshed every 30 min
+async function loadAnn(){
+  if(state.mode!=='live'||state.ann.loading||NOW()-state.ann.at<30*60000)return;state.ann.loading=true;
+  try{const r=await getJSON('https://api.bybit.com/v5/announcements/index?locale=en-US&type=delistings&limit=20');
+    const l=r&&!r.retCode&&r.result&&Array.isArray(r.result.list)?r.result.list:[];
+    state.ann.bybit=l.filter(a=>a&&typeof a.title==='string'&&typeof a.url==='string'&&/^https:\/\//i.test(a.url)).slice(0,40).map(a=>{
+      const d=+a.publishTime||+a.dateTimestamp||0;return{src:'Bybit announcement',exs:['Bybit'],title:a.title.replace(/[\u0000-\u001f‪-‮⁦-⁩]/g,'').slice(0,300),url:a.url.slice(0,2000),d:d>1e12?Math.floor(d/1000):d,tickers:delistTickers(a.title),at:null}}).filter(a=>a.tickers.length);
+    state.ann.at=NOW()}catch(e){state.ann.at=NOW()-25*60000}
+  state.ann.loading=false;if(state.cat==='delist'||state.cat==='setups'){renderTabs();renderList()}if(current)refreshDetailHead();
+}
+// announced delistings (Bybit announcements + delisting headlines kept 45 days by the news job), newest first
+function annList(){
+  const now=NOW()/1000,news45=(news.data&&news.data.delist||[]).map(e=>({src:e.s,exs:e.e,title:e.t,url:e.u,d:e.d,tickers:e.x,at:e.at}));
+  return state.ann.bybit.concat(news45).filter(a=>a.d>now-45*86400&&!(a.at&&a.at<now-2*86400)).sort((a,b)=>b.d-a.d);
+}
+function annFor(root){return annList().filter(a=>a.tickers.includes(root))}
+function isDelisting(g){return !!g&&(g.members.some(p=>p.delist>NOW())||annFor(g.root).length>0)}
 // every scheduled delisting for the current exchange switch and search, soonest first
 function delistSets(){
   const now=NOW(),src=state.view==='all'?state.pairs:state.pairs.filter(p=>p.ex===state.view);
@@ -1271,6 +1359,16 @@ function dlRowHTML(d){
     <span></span><div class="r-main"><div class="r-top"><span class="tk">${esc(d.root)}</span><span class="fn">${esc(EX[d.ex].name)} · ${esc(d.sym)}</span></div>
     <div class="r-sub"><span class="dlwhen">Delists <b>${esc(dlWhen(d.at))}</b>${d.ro?` · reduce-only from ${esc(new Date(d.ro).toLocaleString([],{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}))}`:''}${open?'':' · closing positions only'}</span></div></div>
     <span></span><div class="r-right">${d.price>0?`<span class="r-price">${fmtUsd(d.price)}</span>`:''}${d.chg!=null&&isFinite(d.chg)?`<span class="pill ${pctCls(d.chg)}">${fmtPct(d.chg)}</span>`:''}</div></div>`;
+}
+function annSets(){
+  const vn=state.view==='all'?null:EX[state.view].name;
+  return annList().filter(a=>(!vn||!a.exs.length||a.exs.includes(vn))&&(!state.q||(a.title+' '+a.tickers.join(' ')).toUpperCase().includes(state.q)));
+}
+function annRowHTML(a){
+  const g=a.tickers.map(t=>state.gByKey.get(t)).find(Boolean);
+  return `<div class="row dlrow" ${g?`data-dkey="${esc(g.key)}" role="button" tabindex="0"`:''}>
+    <span></span><div class="r-main"><div class="r-top"><span class="tk">${esc(a.tickers.slice(0,4).join(', '))}</span><span class="fn">${esc(a.src)} · ${esc(agoShort(a.d))}</span></div>
+    <div class="r-sub"><a class="dlann" href="${esc(a.url)}" target="_blank" rel="noopener noreferrer">${esc(a.title)}</a></div></div><span></span><div class="r-right">${g?'<span class="tag">Chart</span>':''}</div></div>`;
 }
 function listTargets(){
   if(state.cat==='delist')return [];
@@ -1318,7 +1416,7 @@ function renderVenues(){
 }
 function renderTabs(){
   const base=state.groups.filter(matchesQ);
-  const count=c=>{if(c==='hot'||c==='sim')return '';if(c==='delist')return delistSets().length;if(c==='setups'){const s=setupSets();return s.checked?s.longs.length+s.shorts.length:''}
+  const count=c=>{if(c==='hot'||c==='sim')return '';if(c==='delist')return delistSets().length+annSets().length;if(c==='setups'){const s=setupSets();return s.checked?s.longs.length+s.shorts.length:''}
     return c==='watch'?base.filter(g=>state.watch.has(g.key)).length:c==='all'?base.length:base.filter(g=>g.cats.has(c)).length};
   $('#tabs').innerHTML=CATS.map(([k,l])=>{const n=count(k);return `<button class="tab" role="tab" data-cat="${k}" aria-selected="${state.cat===k}">${k==='hot'?FLAME:''}${l}${n!==''?`<span class="ct">${n}</span>`:''}</button>`}).join('');
   const d=$('#tabdesc');d.textContent=(CAT_DESC[state.cat]||'')+(state.cat==='setups'?` Using ${TF_LABEL[state.tf]} candles; change it on any chart.`:'');
@@ -1354,7 +1452,8 @@ function rowHTML(g,opt){
   if(s)sub.push(recPill(s));
   sub.push(`<span class="tag">${typeTag(g.cats)}</span>`);
   if(g.isNew)sub.push('<span class="tag new">New</span>');
-  if(g.members.some(p=>p.delist>NOW()))sub.push('<span class="tag dl">Delisting</span>');
+  if(isDelisting(g))sub.push('<span class="tag dl">Delisting</span>');
+  if(!state.confOnly||state.cat!=='setups'){const cf=confOf(g);if(cf&&!cf.ok)sub.push('<span class="tag uncf">Not confirmed</span>')}
   if(state.view==='all'){const names=g.exs.map(k=>EX[k].name).join(', ');sub.push(g.exs.length>1?`<span class="multi" title="${esc(names)}">${g.exs.length} exchanges</span>`:`<span>${esc(names)}</span>`)}
   sub.push(`<span class="num">Vol ${fmtVol(g.vol)}</span>`);
   const bar=opt.max?`<div class="mbar"><i style="width:${Math.max(3,Math.min(100,Math.abs(g.chg)/opt.max*100)).toFixed(1)}%;background:var(--${g.chg>=0?'up':'down'})"></i></div>`:'';
@@ -1390,22 +1489,22 @@ function renderListInner(force){
     return;
   }
   if(state.cat==='delist'){
-    const L=delistSets();
-    area.innerHTML=L.length?section('Scheduled delistings','var(--down)','Soonest first',L.map(dlRowHTML).join('')):`<div class="list"><div class="empty">${state.q?'No scheduled delistings match your search.':'No delistings scheduled right now'+(state.view==='all'?' on Binance, Gate or Bybit':' on '+EX[state.view].name)+'.'}</div></div>`;
+    const L=delistSets(),A=annSets();loadAnn();if(!news.data&&!news.loading&&!news.err)loadNews();
+    area.innerHTML=L.length||A.length?(L.length?section('Scheduled delistings','var(--down)','Soonest first',L.map(dlRowHTML).join('')):'')+(A.length?section('Announced delistings','var(--accent)','Newest first',A.map(annRowHTML).join('')):''):`<div class="list"><div class="empty">${state.q?'No scheduled delistings match your search.':'No delistings scheduled right now'+(state.view==='all'?' on Binance, Gate or Bybit':' on '+EX[state.view].name)+'.'}</div></div>`;
     renderMood([]);
-    $('#footnote').textContent='Dates come from each exchange\'s own market list and can appear a little after the announcement. Check the exchange\'s notice for details.';
+    $('#footnote').textContent='Scheduled dates come from each exchange\'s own market list and can appear a little after the announcement. Announced delistings come from Bybit\'s announcements and news headlines from the last 45 days, including spot delistings, which often hit futures prices too. Check the exchange\'s notice for details.';
     return;
   }
   if(state.cat==='setups'){
     const s=setupSets();
     if(!s.pool){area.innerHTML=`<div class="list"><div class="empty">${state.q?'No busy markets match your search.':'No markets have enough trading right now to check.'} Setups only looks at markets with at least ${fmtVol(HOT_MIN_VOL)} traded in 24 hours.</div></div>`;$('#footnote').textContent='';renderMood(liquid());return}
     if(!s.checked){area.innerHTML=`<div class="list"><div class="empty">Reading charts for the ${s.pool} most traded markets…</div></div>`;$('#footnote').textContent='';renderMood(liquid());return}
-    const rows=(arr,word)=>arr.length?arr.map(g=>rowHTML(g)).join(''):`<div class="empty">No ${word} setups right now on ${TF_LABEL[state.tf]} candles.</div>`;
+    const rows=(arr,word)=>arr.length?arr.map(g=>rowHTML(g)).join(''):`<div class="empty">No ${state.confOnly?'confirmed '+word:word} setups right now on ${TF_LABEL[state.tf]} candles.</div>`;
     area.innerHTML='<div id="setEv" hidden></div>'+section('Long setups','var(--up)','Highest agreement first',rows(s.longs,'long'))+section('Short setups','var(--down)','Highest agreement first',rows(s.shorts,'short'));
     renderEvGuard();if(!news.data&&!news.loading&&!news.err)loadNews();
     renderMood(liquid());
     $('#footnote').innerHTML=state.scanning?`Reading charts… <span class="num">${state.scanning.done}/${state.scanning.total}</span>`:
-      `Checked the ${s.checked} most traded markets on ${TF_LABEL[state.tf]} candles. The number on each tag is agreement out of 100.`;
+      `Checked the ${s.checked} most traded markets on ${TF_LABEL[state.tf]} candles. The number on each tag is agreement out of 100.`+(state.confOnly?(s.checking?` Running extra checks on ${s.checking} more…`:'')+(s.hidden?` ${plural(s.hidden,'setup')} failed the extra checks and ${s.hidden===1?'is':'are'} hidden (switch in Settings).`:''):' Showing setups whether or not they pass the extra checks.');
     return;
   }
   const v=visible();
@@ -1434,14 +1533,14 @@ async function evaluate(p,tf){
 async function scan(max){
   if(state.scanning||!state.groups.length||state.cat==='sim'||state.cat==='news'||state.cat==='settings')return;
   const tf=state.tf;const list=scanTargets().filter(g=>!state.trend.has(g.primary.id+'|'+tf)).slice(0,max||40);
-  if(!list.length){renderTabs();renderList();return}
+  if(!list.length){renderTabs();renderList();confirmScan();return}
   state.scanning={done:0,total:list.length};let i=0;
   const worker=async()=>{while(i<list.length){const g=list[i++];
     try{const r=await evaluate(g.primary,tf);if(r)state.trend.set(g.primary.id+'|'+tf,{score:r.an.score,rec:r.rc.rec,conf:r.rc.conf,dir:r.rc.dir})}catch(e){}
     state.scanning.done++;
     if(state.mode!=='demo'&&state.scanning.done%6===0){const f=$('#footnote');if(f)f.innerHTML=`Reading charts on ${TF_LABEL[tf]} candles… <span class="num">${state.scanning.done}/${state.scanning.total}</span>`}}};
   await Promise.all([worker(),worker(),worker(),worker()]);
-  state.scanning=null;renderTabs();renderList();
+  state.scanning=null;renderTabs();renderList();confirmScan();
 }
 
 /* ---------- indicators ---------- */
@@ -1614,7 +1713,7 @@ async function loadNews(force){
   try{const r=await fetch(NEWS_URL+'?t='+Math.floor(NOW()/60000));if(!r.ok)throw new Error('HTTP '+r.status);
     const j=cleanNews(await r.json());if(!j)throw new Error('bad data');news.data=j;news.at=NOW();news.err=null}
   catch(e){news.err=String(e&&e.message||e)}
-  news.loading=false;if(state.cat==='news')renderNews(true);renderMktNews();renderEvGuard();
+  news.loading=false;if(state.cat==='news')renderNews(true);renderMktNews();renderEvGuard();if(state.cat==='delist'||state.cat==='setups'){renderTabs();renderList()}if(current)refreshDetailHead();
 }
 function agoShort(ts){const s=Math.max(0,Math.round(NOW()/1000-ts));return s<60?'just now':s<3600?Math.round(s/60)+'m ago':s<86400?Math.round(s/3600)+'h ago':Math.round(s/86400)+'d ago'}
 function newsMatch(it,tp){
@@ -2050,8 +2149,8 @@ function refreshDetailHead(){
   const meta=[`<span class="tag">${typeTag(g.cats)}</span>`,`<span>${g.kind==='dated'&&g.expiry?'Expires '+dateStr(g.expiry):'Perpetual'}</span>`];
   if(g.isNew)meta.push(`<span class="tag new">New</span>${g.listed?`<span>listed ${ago(g.listed)}</span>`:''}`);
   if(p.demo)meta.push('<span class="tag">Sample</span>');
-  const dls=g.members.filter(m=>m.delist>NOW()).sort((a,b)=>a.delist-b.delist);
-  if(dls.length)meta.push('<span class="tag dl">Delisting</span>');
+  const dls=g.members.filter(m=>m.delist>NOW()).sort((a,b)=>a.delist-b.delist),anns=annFor(g.root).slice(0,2);
+  if(dls.length||anns.length)meta.push('<span class="tag dl">Delisting</span>');
   $('#dMeta').innerHTML=meta.join('');
   $('#dPrice').textContent=fmtUsd(p.unitPrice);
   const c=$('#dChg');c.className='pill '+pctCls(p.chg);c.textContent=fmtPct(p.chg)+' 24h';
@@ -2066,7 +2165,7 @@ function refreshDetailHead(){
     const third=p.kind==='dated'&&p.expiry?['Expires',dateStr(p.expiry)]:p.listed?['Listed',ago(p.listed)]:['Exchange',EX[p.ex].name];
     box.innerHTML=`<dl class="stats">${[['24h volume',fmtVol(p.vol)],['Funding',p.funding!=null?fmtFund(p.funding):'—'],third].map(([a,b])=>`<div><dt>${a}</dt><dd title="${esc(b)}">${esc(b)}</dd></div>`).join('')}</dl>`;
   }
-  const dlb=$('#dlBox');dlb.hidden=!dls.length;dlb.innerHTML=!dls.length?'':`<div class="dlwarn" role="note">${dls.map(m=>`<b>${esc(EX[m.ex].name)} will delist ${esc(m.sym)} on ${esc(dlWhen(m.delist))}.</b>`).join('')}<span>Exchanges usually close any open positions at that time${dls.some(m=>m.delistRo)?'; Gate allows only closing trades from the reduce-only time':''}. Check the exchange's notice for details.</span></div>`;
+  const dlb=$('#dlBox');dlb.hidden=!dls.length&&!anns.length;dlb.innerHTML=!dls.length&&!anns.length?'':`<div class="dlwarn" role="note">${anns.map(a=>`<b>Delisting announced: <a class="dlann" href="${esc(a.url)}" target="_blank" rel="noopener noreferrer">${esc(a.title)}</a></b><span>${esc(a.src)} · ${esc(agoShort(a.d))}</span>`).join('')}${dls.map(m=>`<b>${esc(EX[m.ex].name)} will delist ${esc(m.sym)} on ${esc(dlWhen(m.delist))}.</b>`).join('')}<span>Exchanges usually close any open positions at that time${dls.some(m=>m.delistRo)?'; Gate allows only closing trades from the reduce-only time':''}. Check the exchange's notice for details.</span></div>`;
   $('#chartSrc').innerHTML=`${EX[p.ex].name} ${p.kind==='dated'?'expiring':'perpetual'}${state.simShow&&state.simShow.id===p.id&&state.simShow.tf===state.tf?` · <b style="color:var(--accent)">${state.simShow.trades.length} simulated trades</b>`:''}<span id="liveTag" hidden> · <i class="dot stream" style="vertical-align:middle"></i> live candles</span>`;
   document.querySelectorAll('.row').forEach(r=>r.classList.toggle('sel-on',r.dataset.key===state.selected));
   renderMktNews();
@@ -2096,10 +2195,10 @@ function renderSignal(rc){
       <div class="calc-out" id="calcOut"></div></div></details>`:'';
   el.innerHTML=`<div class="sc-band ${rc.rec}"><div><div class="sc-eyebrow">Chart reading · ${TF_LABEL[state.tf]} candles${rc.htfL?` · checked on ${rc.htfL}`:''}</div><div class="sc-head">${icon}${esc(rc.headline)}</div></div>
     ${rc.rec!=='avoid'?`<div class="sc-conf"><div class="lbl">Agreement</div><div class="val">${rc.conf}<span style="font-size:13px;opacity:.75">/100</span></div><div class="cbar"><i style="width:${rc.conf}%"></i></div></div>`:''}</div>
-    <div class="sc-body"><div id="evGuard" hidden></div><p class="sc-text">${esc(rc.text)}</p>${lv}
+    <div class="sc-body"><div id="evGuard" hidden></div><div id="confirm" hidden></div><p class="sc-text">${esc(rc.text)}</p>${lv}
     <ul class="checks">${rc.checks.map(c=>`<li><span class="ic ${c.state}">${CHECK_IC[c.state]}</span><span>${c.html}</span></li>`).join('')}</ul>${calc}
     <p class="legalnote">General market analysis, not financial advice. Futures trading is high risk. <a href="terms.html">Terms</a> · <a href="risk.html">Risk</a></p></div>`;
-  renderEvGuard();
+  renderEvGuard();renderConfirm();
   if(calc){const upd=()=>updateCalc(L);$('#acct').addEventListener('input',upd);$('#riskPct').addEventListener('input',upd);upd()}
 }
 function updateCalc(L){
@@ -2137,13 +2236,43 @@ async function openGroup(key,quiet,cid){
     current={p,cs:r.cs,an:r.an,rc:r.rc,han:r.han};
     if(p.id===g.primary.id)state.trend.set(p.id+'|'+state.tf,{score:r.an.score,rec:r.rc.rec,conf:r.rc.conf,dir:r.rc.dir});
     msg.hidden=true;
-    renderSignal(r.rc);renderTrendDetails(r.an);
+    renderSignal(r.rc);renderTrendDetails(r.an);loadMTF(p,g,tok);
     requestAnimationFrame(()=>{try{draw();updateRow(g.key);startChartFeed(p,state.tf)}catch(e){recordErr('chart',e);msg.hidden=false;msg.textContent='The chart hit a snag. Tap a candle size to try again.'}});
   }catch(e){if(tok!==loadToken)return;msg.hidden=false;
     const net=e&&(e.name==='AbortError'||/HTTP|fetch|network|load failed|No data|No candles/i.test(String(e.message||e)));
     if(!net)recordErr('chart',e);
     msg.textContent=net?`Couldn't load the chart from ${EX[p.ex].name}. ${e&&e.name==='AbortError'?'The request timed out. ':''}Tap a candle size to try again.`:'The chart hit a snag. Tap a candle size to try again.';
     try{renderSignal(null)}catch(x){}}
+}
+// timeframe strip: the chart reading on 15m / 1H / 4H / 1D side by side; feeds the extra confirmation too
+const MTF=['15m','1h','4h','1d'];
+function renderMTF(){
+  const res=current&&current.mtf||{},cur=state.tf;
+  $('#mtf').innerHTML=MTF.map(t=>{const r=res[t],rc=r&&r.rc;
+    const pill=rc?`<span class="rec ${rc.rec}">${rc.rec==='long'?ARROW.up:rc.rec==='short'?ARROW.down:rc.rec==='hold'?PAUSE:BLOCK}${REC_TXT[rc.rec]}</span>`:`<span class="rec avoid">${r===null?'—':'…'}</span>`;
+    return `<button type="button" data-mtf="${t}" aria-pressed="${t===cur}">${TF_LABEL[t]}${pill}</button>`}).join('');
+  const d=MTF.map(t=>res[t]&&res[t].rc?res[t].rc.dir:null).filter(v=>v!=null);
+  $('#mtfCap').textContent=d.length<4?'Reading the other candle sizes…':d.every(v=>v>0)?'The trend points up on all four candle sizes.':d.every(v=>v<0)?'The trend points down on all four candle sizes.':
+    `Trend direction is mixed: up on ${MTF.filter(t=>res[t]&&res[t].rc&&res[t].rc.dir>0).map(t=>TF_LABEL[t]).join(', ')||'none'}; down on ${MTF.filter(t=>res[t]&&res[t].rc&&res[t].rc.dir<0).map(t=>TF_LABEL[t]).join(', ')||'none'}. Tap one to open it.`;
+}
+async function loadMTF(p,g,tok){
+  current.mtf={};current.cf=null;renderMTF();
+  const res={};await Promise.all(MTF.map(t=>(t===state.tf&&current.rc?Promise.resolve({rc:current.rc}):evaluate(p,t)).then(r=>{res[t]=r||null},()=>{res[t]=null})));
+  let c1=null;try{c1=await getCandles(p,'1h')}catch(e){}
+  if(tok!==loadToken||!current||current.p!==p)return;
+  current.mtf=res;current.cf={dirs:{'4h':res['4h']&&res['4h'].rc?res['4h'].rc.dir:null,'1d':res['1d']&&res['1d'].rc?res['1d'].rc.dir:null},range:range24(c1),at:NOW()};
+  if(p.id===g.primary.id)state.conf.set(p.id+'|'+state.tf,current.cf);
+  renderMTF();renderConfirm();
+}
+function renderConfirm(){
+  const el=document.getElementById('confirm');if(!el)return;const rc=current&&current.rc,g=state.gByKey.get(state.selected);
+  if(!rc||(rc.rec!=='long'&&rc.rec!=='short')||!g){el.hidden=true;return}
+  const p=current.p,cf=current.cf||{};
+  const c=confirmSetup({dir:rc.dir,tf:state.tf,dirs:cf.dirs,range:cf.range,vol:g.vol,delisting:isDelisting(g)});
+  el.hidden=false;
+  el.innerHTML=`<div class="cf ${c.pending?'':c.ok?'ok':'no'}"><div class="cf-h">${c.pending?'Running extra checks…':c.ok?`Confirmed: all ${c.total} extra checks pass`:`Not confirmed: ${c.pass} of ${c.total} extra checks pass`}</div>
+    <ul class="checks">${c.checks.map(x=>`<li><span class="ic ${x.state}">${CHECK_IC[x.state]}</span><span>${x.html}</span></li>`).join('')}</ul>
+    <p>${c.ok?'The bigger picture, liquidity and the day’s range back up this reading. It can still fail.':'The chart reading alone is not enough here: one or more of the bigger-picture, delisting, liquidity or range checks fails.'}</p></div>`;
 }
 function updateRow(key){
   const g=state.gByKey.get(key);if(!g)return;
@@ -2224,7 +2353,7 @@ listArea.addEventListener('keydown',e=>{const sr=e.target.closest&&e.target.clos
 listArea.addEventListener('click',e=>{if(e.target.closest('[data-snag]')){renderList(true);if(state.cat==='news')loadNews(true);return}const nt=e.target.closest('[data-ntopic]');if(nt){news.topic=nt.dataset.ntopic;LS.set('ntopic',news.topic);renderNews(true)}});
 function openCoin(e){const c=e.target.closest('[data-coin]');if(!c)return false;state.simShow=null;openGroup(c.dataset.coin);return true}
 $('#mktNews').addEventListener('click',e=>{openCoin(e)});
-listArea.addEventListener('click',e=>{if(openCoin(e))return;const sr=e.target.closest('tr.simrow');if(sr){openSimMarket(sr.dataset.key,sr.dataset.id,sr.dataset.tf);return}
+listArea.addEventListener('click',e=>{if(e.target.closest('a[href]'))return;if(openCoin(e))return;const sr=e.target.closest('tr.simrow');if(sr){openSimMarket(sr.dataset.key,sr.dataset.id,sr.dataset.tf);return}
   const s=e.target.closest('[data-star]');if(s){e.stopPropagation();toggleStar(s.dataset.star);return}const r=e.target.closest('.row');if(r){state.simShow=null;openGroup(r.dataset.key||r.dataset.dkey,false,r.dataset.cid)}});
 listArea.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.classList.contains('row')){e.preventDefault();openGroup(e.target.dataset.key||e.target.dataset.dkey,false,e.target.dataset.cid)}});
 $('#venues').addEventListener('click',e=>{const b=e.target.closest('[data-view]');if(!b)return;state.view=b.dataset.view;LS.set('view',state.view);state.limit=120;buildGroups();renderVenues();renderTabs();renderList();
@@ -2243,11 +2372,12 @@ $('#compactBtn').addEventListener('click',()=>setCompact(!state.compact));
 $('#panesBtn').addEventListener('click',()=>{state.ind.panes=!state.ind.panes;LS.set('ind3',state.ind);applyPanes()});
 $('#dStar').addEventListener('click',()=>{if(state.selected)toggleStar(state.selected)});
 $('#back').addEventListener('click',closeDetail);
+$('#mtf').addEventListener('click',e=>{const b=e.target.closest('[data-mtf]');if(b&&b.dataset.mtf!==state.tf)setTf(b.dataset.mtf)});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(!$('#legal').hidden)return;if(!$('#help').hidden)$('#help').hidden=true;else closeDetail()}});
-$('#refresh').addEventListener('click',()=>{candleCache.clear();state.trend.clear();loadAll(true).then(()=>{if(state.selected&&state.gByKey.has(state.selected))openGroup(state.selected,true)})});
+$('#refresh').addEventListener('click',()=>{candleCache.clear();state.trend.clear();state.conf.clear();loadAll(true).then(()=>{if(state.selected&&state.gByKey.has(state.selected))openGroup(state.selected,true)})});
 // pull to refresh: at the top of a page, pull down and let go to reload prices (and headlines on News), like the refresh button
 function refreshAll(){
-  candleCache.clear();state.trend.clear();
+  candleCache.clear();state.trend.clear();state.conf.clear();
   return Promise.all([loadAll(true),state.cat==='news'?loadNews(true):null]).then(()=>{if(state.selected&&state.gByKey.has(state.selected)&&document.body.classList.contains('d-open'))openGroup(state.selected,true)});
 }
 (()=>{

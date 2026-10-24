@@ -122,6 +122,7 @@ async def main():
             pg.on("pageerror", lambda e: problems.append(f"[{scheme}] JS error: {e}"))
             fx = json.load(open(FIX)); fx["updated"] = int(time.time()) - 300
             fx["calendar"] = [{"t": "CPI m/m", "c": "USD", "d": int(time.time()) + 900, "i": "High", "f": "0.3%", "p": "0.4%"}]   # big news in 15 min
+            fx["delist"] = [{"t": "Binance will delist TAO and FOO on October 30", "u": "https://example.com/delist-tao", "s": "CoinDesk", "d": int(time.time()) - 3600, "x": ["TAO", "FOO"], "e": ["Binance"], "at": None}]
             await pg.route("**/news-data/news.json*", lambda r: r.fulfill(body=json.dumps(fx), headers={"access-control-allow-origin": "*", "content-type": "application/json"}))
             await pg.route("**/changes.json*", lambda r: r.fulfill(path=os.path.join(ROOT, "..", "changes.json"), headers={"content-type": "application/json"}))
             await block_exchanges(pg)
@@ -144,6 +145,7 @@ async def main():
             if "ZKJ" not in txt or "KAITO" not in txt or "Binance" not in txt or "Gate" not in txt or "Delists" not in txt: problems.append(f"[{scheme}] delisting tab: sample delistings missing")
             elif txt.index("ZKJ") > txt.index("KAITO"): problems.append(f"[{scheme}] delisting tab: not soonest first")
             if "reduce-only from" not in txt: problems.append(f"[{scheme}] delisting tab: Gate reduce-only time missing")
+            if "Announced delistings" not in txt or "Binance will delist TAO" not in txt: problems.append(f"[{scheme}] delisting tab: announced delisting from the news missing")
             for bad in ("undefined", "NaN", "Invalid Date"):
                 if bad in txt: problems.append(f"[{scheme}] delisting tab: shows '{bad}'")
             if scheme == "dark": await pg.screenshot(path=os.path.join(OUT, "delisting.png"))
@@ -157,6 +159,7 @@ async def main():
             await pg.click("#openSettings"); await pg.wait_for_timeout(500)
             st = await pg.inner_text("#settings")
             if "max loss per trade" not in st.lower() or "big news warning" not in st.lower(): problems.append(f"[{scheme}] settings page incomplete")
+            if "only show confirmed setups" not in st.lower(): problems.append(f"[{scheme}] settings: confirmed-setups switch missing")
             if "About & legal" not in st or await pg.locator("#settings a[href='terms.html'], #settings a[href='risk.html'], #settings a[href='privacy.html']").count() != 3: problems.append(f"[{scheme}] settings: About & legal links missing")
             for bad in ("undefined", "NaN"):
                 if bad in st: problems.append(f"[{scheme}] settings: shows '{bad}'")
@@ -173,6 +176,12 @@ async def main():
             if not sig.strip(): problems.append(f"[{scheme}] chart screen: signal card empty")
             if "Big US news" not in sig: problems.append(f"[{scheme}] chart screen: big-news warning missing")
             if "chart reading ·" not in sig.lower() or "not financial advice" not in sig: problems.append(f"[{scheme}] chart screen: 'Chart reading' label or legal note missing")
+            await pg.wait_for_timeout(800)
+            if await pg.locator("#mtf [data-mtf]").count() != 4: problems.append(f"[{scheme}] chart screen: candle-size strip missing")
+            elif "…" in await pg.inner_text("#mtf"): problems.append(f"[{scheme}] chart screen: candle-size strip never finished loading")
+            sig = await pg.inner_text("#sigCard")
+            if ("Long setup" in sig or "Short setup" in sig) and "extra checks" not in sig.lower(): problems.append(f"[{scheme}] chart screen: extra confirmation missing under a setup")
+            if "Running extra checks" in sig: problems.append(f"[{scheme}] chart screen: extra checks never finished")
             for old in ("signal ·", "enter long", "enter short", "avoid for now", "confidence", "size this trade"):
                 if old in sig.lower(): problems.append(f"[{scheme}] chart screen: old wording '{old}' still shown")
             if scheme == "dark":

@@ -1,4 +1,10 @@
 [
+  {"date": "2026-10-24", "title": "Extra confirmation before a setup", "items": [
+    "Every long or short setup now shows 5 extra checks: 4H and 1D trend agree, no delisting, enough trading and a normal 24-hour range. 'Confirmed' means all pass.",
+    "Setups now lists only confirmed setups. You can switch this off in Settings.",
+    "New strip on each chart: the reading on 15m, 1H, 4H and 1D side by side. Tap one to open it.",
+    "Delisting tab now also shows announced delistings from Bybit and the news, including spot delistings like EPIC's on Binance."
+  ]},
   {"date": "2026-10-23", "title": "Delisting list", "items": [
     "New Delisting tab on Markets: coins Binance, Gate or Bybit plan to delist, with the exchange and the date, soonest first.",
     "Those coins get a red Delisting tag, and their chart screen shows the date at the top.",

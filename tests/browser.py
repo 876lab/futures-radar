@@ -230,8 +230,8 @@ async def main():
             if await pg.locator("#mtf [data-mtf]").count() != 4: problems.append(f"[{scheme}] chart screen: candle-size strip missing")
             elif "…" in await pg.inner_text("#mtf"): problems.append(f"[{scheme}] chart screen: candle-size strip never finished loading")
             sig = await pg.inner_text("#sigCard")
-            if ("Long setup" in sig or "Short setup" in sig) and "extra checks" not in sig.lower(): problems.append(f"[{scheme}] chart screen: extra confirmation missing under a setup")
-            if "Running extra checks" in sig: problems.append(f"[{scheme}] chart screen: extra checks never finished")
+            if ("Long setup" in sig or "Short setup" in sig) and "confirmed" not in sig.lower(): problems.append(f"[{scheme}] chart screen: confirmation missing under a setup")
+            if "Checking the bigger picture" in sig: problems.append(f"[{scheme}] chart screen: confirmation never finished")
             if ("Long setup" in sig or "Short setup" in sig) and "In last night's backtest" not in sig: problems.append(f"[{scheme}] chart screen: past win rate missing under a setup")
             for old in ("signal ·", "enter long", "enter short", "avoid for now", "confidence", "size this trade"):
                 if old in sig.lower(): problems.append(f"[{scheme}] chart screen: old wording '{old}' still shown")

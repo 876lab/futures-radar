@@ -1,4 +1,10 @@
 [
+  {"date": "2026-10-24", "title": "Simpler confirmation, based on the backtest", "items": [
+    "A setup is now 'confirmed' when at least one of the 4H and 1D trends agrees with it and the coin isn't being delisted.",
+    "The first nightly backtest showed setups going against both bigger trends did worst, while the other extra checks didn't help.",
+    "Liquidity and the 24-hour range are still shown on the chart, for context only.",
+    "Signals and stop/target levels have not changed."
+  ]},
   {"date": "2026-10-24", "title": "Your own trades, side by side with the chart", "items": [
     "New on the Simulator page: load your Gate position history (CSV) to see your win rate, average win vs average loss and your biggest loss.",
     "Breakdowns show how you did long vs short, by coin, by time of day, by weekday and by how long you held.",

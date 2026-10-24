@@ -33,20 +33,19 @@ let g=di('gate',{delisting_time:(now+2*D)/1000,delisted_time:(now+3*D)/1000},now
 g=di('gate',{delisting_time:0,delisted_time:0},now);ok(g===null,'gate: zero times mean no delisting');
 g=di('gate',{delisting_time:(now+2*D)/1000},now);ok(g&&g.at===now+2*D&&g.ro===null,'gate: only reduce-only time known');
 ok(di('gate',{delisted_time:'junk'},now)===null&&di('binance',null,now)===null&&di('bybit',{deliveryTime:now+3000*D},now)===null,'junk, missing and far-future values ignored');}
-// extra confirmation (information only)
+// confirmation rule (owner's choice 24 Oct 2026): at least one of 4H/1D agrees and no delisting; liquidity and range are context
 {const base={dir:1,tf:'15m',dirs:{'4h':1,'1d':1},range:0.08,vol:50e6,delisting:false};
-let c=confirmSetup(base);ok(c.ok&&c.pass===c.total&&c.total===5&&!c.pending,'confirm: all checks pass');
-c=confirmSetup({...base,dirs:{'4h':-1,'1d':-1}});ok(!c.ok&&c.pass===3,'confirm: 4H and 1D against a long fail');
-c=confirmSetup({...base,dirs:{'4h':1,'1d':0}});ok(!c.ok,'confirm: undecided 1D is not agreement');
-c=confirmSetup({...base,dir:-1,dirs:{'4h':-1,'1d':-1}});ok(c.ok,'confirm: short with 4H and 1D down');
-c=confirmSetup({...base,delisting:true});ok(!c.ok&&c.pass===4,'confirm: delisting fails');
-c=confirmSetup({...base,vol:750e3});ok(!c.ok,'confirm: thin market fails');
-c=confirmSetup({...base,range:0.42});ok(!c.ok,'confirm: wild 24h range fails');
-c=confirmSetup({...base,dirs:{},range:null});ok(!c.ok&&c.pending,'confirm: missing data is pending, not confirmed');
-c=confirmSetup({...base,tf:'4h',dirs:{'1d':1}});ok(c.ok&&c.total===4,'confirm: 4H reading checks 1D only');
-c=confirmSetup({...base,tf:'1d',dirs:{}});ok(c.ok&&c.total===4,'confirm: 1D reading has no bigger timeframe');
-// EPIC on 23 Oct 2026: 15m long, 4H and 1D down, delisting announced, ~$0.75M volume, 42% range -> 0 of 5
-c=confirmSetup({dir:1,tf:'15m',dirs:{'4h':-1,'1d':-1},range:0.4253,vol:758e3,delisting:true});ok(!c.ok&&c.pass===0,'confirm: EPIC example fails every check');
+let c=confirmSetup(base);ok(c.ok&&!c.pending,'confirm: both agree');
+c=confirmSetup({...base,dirs:{'4h':1,'1d':-1}});ok(c.ok,'confirm: one agreeing is enough');
+c=confirmSetup({...base,dirs:{'4h':-1,'1d':0}});ok(!c.ok&&!c.pending&&c.why==='bigger','confirm: neither agrees fails');
+c=confirmSetup({...base,dir:-1,dirs:{'4h':1,'1d':-1}});ok(c.ok,'confirm: short with 1D down');
+c=confirmSetup({...base,delisting:true});ok(!c.ok&&c.why==='delisting','confirm: delisting fails');
+c=confirmSetup({...base,vol:750e3,range:0.42});ok(c.ok&&c.checks.filter(x=>x.state==='mid').length===2,'confirm: liquidity and range are context only');
+c=confirmSetup({...base,dirs:{}});ok(!c.ok&&c.pending,'confirm: nothing loaded is pending');
+c=confirmSetup({...base,dirs:{'4h':-1}});ok(!c.ok&&c.pending,'confirm: one disagreeing and one missing is pending');
+c=confirmSetup({...base,dirs:{'1d':1}});ok(c.ok&&!c.pending,'confirm: one agreeing is enough even if the other is missing');
+// EPIC on 23 Oct 2026: 15m long, 4H and 1D down, delisting announced
+c=confirmSetup({dir:1,tf:'15m',dirs:{'4h':-1,'1d':-1},range:0.4253,vol:758e3,delisting:true});ok(!c.ok,'confirm: EPIC example not confirmed');
 ok(Math.abs(range24([{time:0,high:2,low:1},{time:86400,high:1.2,low:1.1},{time:90000,high:1.3,low:1.0}])-0.3)<1e-9,'range24 uses only the last 24 hours');
 ok(range24([])===null&&range24(null)===null,'range24 empty');
 ok(JSON.stringify(delistTickers('Delisting of 1000PEPEUSDT and EPICUSDT Perpetual Contracts'))==='["PEPE","EPIC"]','delistTickers: contract names');

@@ -563,7 +563,7 @@ html,body{overscroll-behavior-y:none}
             <h3>Trading</h3>
             <div class="fld"><span class="lab">Candle size for chart readings and Setups</span><div class="opts" id="setTf"></div></div>
             <p>You can also change this on any chart. 1H and 4H suit trades held for several hours.</p>
-            <div class="swrow" data-sw="confOnly"><span class="t"><b id="swConfL">Only show confirmed setups</b><span>Setups lists only markets that also pass the extra checks: the 4H and 1D trends agree, no delisting, at least $10M traded in 24 hours and a normal 24-hour range. The chart screen always shows the checks.</span></span><button type="button" class="switch" role="switch" aria-labelledby="swConfL" aria-checked="true"></button></div>
+            <div class="swrow" data-sw="confOnly"><span class="t"><b id="swConfL">Only show confirmed setups</b><span>Setups hides a setup when neither the 4H nor the 1D trend agrees with it, or when the coin is being delisted. The chart screen always shows the check.</span></span><button type="button" class="switch" role="switch" aria-labelledby="swConfL" aria-checked="true"></button></div>
             <div class="inrow">
               <label for="setAcct">Account size ($)<input id="setAcct" type="number" inputmode="decimal" min="1" step="any"></label>
               <label for="setRisk">Risk per trade (%)<input id="setRisk" type="number" inputmode="decimal" min="0.1" max="100" step="0.1"></label>
@@ -672,7 +672,7 @@ html,body{overscroll-behavior-y:none}
       <dt>No setup</dt><dd>No clear trend, or the short and bigger timeframes disagree.</dd>
       <dt>Stop loss</dt><dd>The level where the setup is proven wrong.</dd>
       <dt>Targets</dt><dd>Target 1 is 1.5 times the risk, target 2 is 3 times. A common approach is to close half at target 1 and move the stop to entry.</dd>
-      <dt>Extra confirmation</dt><dd>Under a long or short setup, five more checks: the 4H trend and the 1D trend point the same way (fewer when the chart is already on 4H or 1D), no delisting scheduled or announced, at least $10M traded in 24 hours, and a 24-hour range under 25%. "Confirmed" means all pass. Setups shows only confirmed setups unless you switch that off in Settings. The thresholds are a first guess that the backtest research will test; confirmed setups can still fail.</dd>
+      <dt>Confirmed</dt><dd>A long or short setup is confirmed when at least one of the 4H and 1D trends points the same way and no delisting is scheduled or announced. In the first nightly backtest, setups that went against both bigger trends did worst. Liquidity and the 24-hour range are shown for context. Setups shows only confirmed setups unless you switch that off in Settings. Confirmed setups can still fail.</dd>
       <dt>Your trades</dt><dd>On the Simulator page, load your position history exported from Gate (CSV). You see your win rate, average win vs average loss, biggest loss, and breakdowns by side, coin, time of day, weekday and holding time. <b>Check what the chart said</b> shows what the 1H and 4H chart reading was when you opened each of your latest 40 trades. The file is read on this device and never uploaded; Remove my trades deletes it.</dd>
       <dt>Last night's backtest</dt><dd>Each night the app's own rules are replayed on the top 30 Gate markets (15m, 1H, 4H). The Simulator page shows how often confirmed and not-confirmed setups reached target 1, with a range for luck, and the chart reading shows the past win rate for setups like the one on screen. It needs at least 100 past trades before it shows a number. Past results don't guarantee future ones.</dd>
       <dt>Candle-size strip</dt><dd>Above the chart reading, the reading on 15m, 1H, 4H and 1D side by side, so you can see at a glance whether the bigger picture agrees. Tap one to open it.</dd>
@@ -885,21 +885,22 @@ function delistTickers(title){
     const t=canonical(baseInfo(m[1].replace(/(USDT|USDC|PERP)$/,'')).root);if(t.length>=2&&!DL_STOP.has(t)&&!out.includes(t))out.push(t)}
   return out.slice(0,12);
 }
-// Extra confirmation for a long/short setup (information; never changes the reading itself).
-// Thresholds are a first guess, to be judged by the backtest research (see ROADMAP).
-const CONF_MIN_VOL=10e6,CONF_MAX_RANGE=0.25,CONF_NEED={'5m':['4h','1d'],'15m':['4h','1d'],'1h':['4h','1d'],'4h':['1d'],'1d':[]};
+// Confirmation filter for a long/short setup (never changes the reading itself). Rule chosen by the owner on 24 Oct 2026 from
+// the first nightly backtest: setups where neither the 4H nor the 1D trend agreed did worst (33% to target 1, -0.16R), so a setup
+// is "confirmed" when at least one of them agrees and no delisting is scheduled or announced. Liquidity and the 24h range are
+// shown for context only: in that backtest they did not separate winners from losers.
+const CONF_MIN_VOL=10e6,CONF_MAX_RANGE=0.25;
 function confirmSetup(o){
   const checks=[],add=(st,html)=>checks.push({state:st,html}),want=o.dir,nm=d=>d>0?'uptrend':d<0?'downtrend':'no clear trend';
-  const need=CONF_NEED[o.tf]||[];
-  if(!need.length)add('ok','<b>Bigger picture:</b> 1D is already the biggest timeframe here.');
-  for(const t of need){const d=o.dirs&&o.dirs[t];
-    if(d==null)add('mid',`<b>${TF_LABEL[t]} trend:</b> not loaded yet.`);else add(d===want?'ok':'no',`<b>${TF_LABEL[t]} trend:</b> ${nm(d)}${d===want?', agrees.':', does not agree.'}`)}
+  const ds=['4h','1d'].map(t=>o.dirs?o.dirs[t]:null);
+  ['4h','1d'].forEach((t,i)=>{const d=ds[i];if(d==null)add('mid',`<b>${TF_LABEL[t]} trend:</b> not loaded yet.`);else add(d===want?'ok':'no',`<b>${TF_LABEL[t]} trend:</b> ${nm(d)}${d===want?', agrees.':', does not agree.'}`)});
   add(o.delisting?'no':'ok',o.delisting?'<b>Delisting:</b> scheduled or announced. Prices often swing wildly before a delisting.':'<b>Delisting:</b> none scheduled or announced.');
-  const v=+o.vol||0;add(v>=CONF_MIN_VOL?'ok':'no',`<b>Liquidity:</b> ${fmtVol(v)} traded in 24h${v>=CONF_MIN_VOL?'.':`, under ${fmtVol(CONF_MIN_VOL)}. Thin markets spike and slip.`}`);
-  if(o.range==null||!isFinite(o.range))add('mid','<b>24h range:</b> not loaded yet.');
-  else add(o.range<CONF_MAX_RANGE?'ok':'no',`<b>24h range:</b> ${(o.range*100).toFixed(0)}% from low to high${o.range<CONF_MAX_RANGE?', normal.':'. A wild day; spikes like this often reverse.'}`);
-  const pass=checks.filter(c=>c.state==='ok').length;
-  return{checks,pass,total:checks.length,ok:pass===checks.length,pending:checks.some(c=>c.state==='mid')};
+  const v=+o.vol||0;add(v>=CONF_MIN_VOL?'ok':'mid',`<b>Liquidity</b> (context): ${fmtVol(v)} traded in 24h${v>=CONF_MIN_VOL?'.':`, under ${fmtVol(CONF_MIN_VOL)}; thin markets can spike and slip.`}`);
+  if(o.range!=null&&isFinite(o.range))add(o.range<CONF_MAX_RANGE?'ok':'mid',`<b>24h range</b> (context): ${(o.range*100).toFixed(0)}% from low to high${o.range<CONF_MAX_RANGE?'.':', a wild day.'}`);
+  const agree=ds.some(d=>d===want),known=ds.filter(d=>d!=null).length;
+  const pending=!agree&&known<2&&!o.delisting;
+  const ok=agree&&!o.delisting;
+  return{checks,ok,pending,why:o.delisting?'delisting':!agree&&!pending?'bigger':''};
 }
 // low-to-high range over the last 24 hours of candles (fraction, e.g. 0.42 = 42%)
 function range24(cs){
@@ -1512,7 +1513,7 @@ function renderListInner(force){
     renderEvGuard();if(!news.data&&!news.loading&&!news.err)loadNews();
     renderMood(liquid());
     $('#footnote').innerHTML=state.scanning?`Reading charts… <span class="num">${state.scanning.done}/${state.scanning.total}</span>`:
-      `Checked the ${s.checked} most traded markets on ${TF_LABEL[state.tf]} candles. The number on each tag is agreement out of 100.`+(state.confOnly?(s.checking?` Running extra checks on ${s.checking} more…`:'')+(s.hidden?` ${plural(s.hidden,'setup')} failed the extra checks and ${s.hidden===1?'is':'are'} hidden (switch in Settings).`:''):' Showing setups whether or not they pass the extra checks.');
+      `Checked the ${s.checked} most traded markets on ${TF_LABEL[state.tf]} candles. The number on each tag is agreement out of 100.`+(state.confOnly?(s.checking?` Checking the bigger picture for ${s.checking} more…`:'')+(s.hidden?` ${plural(s.hidden,'setup')} went against both the 4H and 1D trends or ${s.hidden===1?'is':'are'} being delisted, so ${s.hidden===1?'it is':'they are'} hidden (switch in Settings).`:''):' Showing setups whether or not they are confirmed.');
     return;
   }
   const v=visible();
@@ -2086,7 +2087,7 @@ function btCardHTML(){
   const c=d.groups.confirmed||[],Y=c.find(r=>r.k==='Confirmed'),N=c.find(r=>r.k==='Not confirmed'),m=d.minN;
   const line=(r,w)=>r&&r.n>=m?`<b>${w}</b> reached target 1 in <b>${fmtP(r.reach)}</b> of ${r.n.toLocaleString()} trades (range ${fmtP(r.lo)}–${fmtP(r.hi)}), average <b class="${r.avgR>0?'up':'down'}">${fmtR(r.avgR)}</b>.`:`<b>${w}:</b> ${r?r.n:0} trades, too few to judge yet.`;
   let verdict='';
-  if(Y&&N&&Y.n>=m&&N.n>=m)verdict=Y.lo>N.hi?'Confirmed setups did clearly better.':Y.hi<N.lo?'Confirmed setups did worse, so the extra checks need rethinking.':'So far the gap is within the range that luck alone could explain.';
+  if(Y&&N&&Y.n>=m&&N.n>=m)verdict=Y.lo>N.hi?'Confirmed setups did clearly better.':Y.hi<N.lo?'Confirmed setups did worse, so the confirmation rule needs rethinking.':'So far the gap is within the range that luck alone could explain.';
   const wy=(d.walk.newer||[]).find(r=>r.k==='Confirmed'),wn=(d.walk.newer||[]).find(r=>r.k==='Not confirmed');
   const walk=wy&&wn&&wy.n>=m&&wn.n>=m?`<p class="note">On the newer half of the data only: confirmed ${fmtP(wy.reach)} vs not confirmed ${fmtP(wn.reach)} reached target 1.</p>`:'';
   const days=d.from&&d.to?Math.max(1,Math.round((d.to-d.from)/86400)):null;
@@ -2505,9 +2506,9 @@ function renderConfirm(){
   const p=current.p,cf=current.cf||{};
   const c=confirmSetup({dir:rc.dir,tf:state.tf,dirs:cf.dirs,range:cf.range,vol:g.vol,delisting:isDelisting(g)});
   el.hidden=false;
-  el.innerHTML=`<div class="cf ${c.pending?'':c.ok?'ok':'no'}"><div class="cf-h">${c.pending?'Running extra checks…':c.ok?`Confirmed: all ${c.total} extra checks pass`:`Not confirmed: ${c.pass} of ${c.total} extra checks pass`}</div>
+  el.innerHTML=`<div class="cf ${c.pending?'':c.ok?'ok':'no'}"><div class="cf-h">${c.pending?'Checking the bigger picture…':c.ok?'Confirmed: the bigger picture backs this setup':c.why==='delisting'?'Not confirmed: this coin is being delisted':'Not confirmed: neither the 4H nor the 1D trend agrees'}</div>
     <ul class="checks">${c.checks.map(x=>`<li><span class="ic ${x.state}">${CHECK_IC[x.state]}</span><span>${x.html}</span></li>`).join('')}</ul>
-    ${oddsHTML(rc,c)}<p>${c.ok?'The bigger picture, liquidity and the day’s range back up this reading. It can still fail.':'The chart reading alone is not enough here: one or more of the bigger-picture, delisting, liquidity or range checks fails.'}</p></div>`;
+    ${oddsHTML(rc,c)}<p>${c.ok?'At least one of the 4H and 1D trends points the same way and no delisting is known. Confirmed setups can still fail.':c.pending?'':c.why==='delisting'?'Delistings bring thin trading and sudden spikes, so the chart reading is less reliable.':'In the backtest, setups going against both bigger trends did worst.'}</p></div>`;
 }
 function updateRow(key){
   const g=state.gByKey.get(key);if(!g)return;

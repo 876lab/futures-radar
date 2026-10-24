@@ -14,7 +14,7 @@ import json, os, sys, time, urllib.request
 
 G = "https://api.gateio.ws/api/v4/futures/usdt"
 MARKETS, KEEP_DAYS = 30, 90
-COLS = ["t", "sym", "price", "bid1", "ask1", "bid2", "ask2", "spread_bp", "oi_usd", "funding", "liq_long_usd", "liq_short_usd", "lsr_taker"]
+COLS = ["t", "sym", "price", "bid1", "ask1", "bid2", "ask2", "spread_bp", "oi_usd", "funding", "liq_long_usd", "liq_short_usd", "lsr_taker", "reach_pct"]
 
 
 def fetch(url, timeout=20, cap=5_000_000):
@@ -32,14 +32,16 @@ def num(v):
 
 
 def depth(bids, asks):
-    """bids/asks: [(price, usd)]. Returns (mid, bid1, ask1, bid2, ask2, spread_bp) or None (same maths as bookStats in the app)."""
+    """bids/asks: [(price, usd)]. Returns (mid, bid1, ask1, bid2, ask2, spread_bp, reach_pct) or None (same maths as bookStats in the app).
+    reach_pct: how far from mid the loaded levels go; below 2 means the 2% depth only counts the levels loaded."""
     bids = sorted([b for b in bids if b[0] > 0 and b[1] > 0], key=lambda x: -x[0])
     asks = sorted([a for a in asks if a[0] > 0 and a[1] > 0], key=lambda x: x[0])
     if not bids or not asks or bids[0][0] >= asks[0][0]:
         return None
     mid = (bids[0][0] + asks[0][0]) / 2
     within = lambda side, pct: sum(u for p, u in side if abs(p / mid - 1) <= pct)
-    return (mid, within(bids, 0.01), within(asks, 0.01), within(bids, 0.02), within(asks, 0.02), (asks[0][0] - bids[0][0]) / mid * 1e4)
+    reach = min(abs(bids[-1][0] / mid - 1), abs(asks[-1][0] / mid - 1)) * 100
+    return (mid, within(bids, 0.01), within(asks, 0.01), within(bids, 0.02), within(asks, 0.02), (asks[0][0] - bids[0][0]) / mid * 1e4, reach)
 
 
 def merge(prev_rows, new_rows, now):
@@ -85,7 +87,7 @@ def snapshot(now):
             r = lambda v, n=0: None if v is None else round(v, n) if n else int(round(v))
             rows.append([now, sym, num(t.get("last")), r(d[1]), r(d[2]), r(d[3]), r(d[4]), r(d[5], 2),
                          r(num(st.get("open_interest_usd"))), num(t.get("funding_rate")),
-                         r(num(st.get("long_liq_usd"))), r(num(st.get("short_liq_usd"))), num(st.get("lsr_taker"))])
+                         r(num(st.get("long_liq_usd"))), r(num(st.get("short_liq_usd"))), num(st.get("lsr_taker")), r(d[6], 3)])
         except Exception as e:
             fails.append(f"{sym}: {type(e).__name__}")
         time.sleep(0.15)

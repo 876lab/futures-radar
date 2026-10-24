@@ -12,6 +12,7 @@ check(d is not None and abs(d[0] - 100) < 1e-9, "mid price")
 check(d[1] == 1000 and d[2] == 1500, "depth within 1%")
 check(d[3] == 3000 and d[4] == 2000, "depth within 2%")
 check(abs(d[5] - 100) < 1e-6, "spread in basis points")
+check(abs(d[6] - 3) < 1e-9, "how far the loaded levels reach (%)")
 check(s.depth([(101, 5)], [(100, 5)]) is None and s.depth([], [(1, 1)]) is None, "crossed or empty book")
 now = 1792800000
 row = lambda t, sym: [t, sym] + [1] * (len(s.COLS) - 2)

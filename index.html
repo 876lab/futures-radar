@@ -154,6 +154,16 @@ button{cursor:pointer}
 .cf-h{font-weight:700;font-size:13.5px} .cf.ok .cf-h{color:var(--up)} .cf.no .cf-h{color:var(--down)}
 .cf p{margin:0;font-size:12.5px;color:var(--muted)}
 .cf .odds{color:var(--fg);font-size:13px}
+/* order book card */
+.book{display:grid;gap:10px;padding:14px 16px}
+.card.book h3{margin:0;padding:0} .book .sub{font-size:12px;color:var(--muted);margin:0}
+.bk-row{display:grid;gap:4px;font-size:13px}
+.bk-row .lbl{display:flex;justify-content:space-between;gap:8px} .bk-row .lbl b{font-weight:600}
+.bk-bar{display:flex;height:8px;border-radius:4px;overflow:hidden;background:var(--surface-2)}
+.bk-bar i{display:block;height:100%} .bk-bar .b{background:var(--up)} .bk-bar .a{background:var(--down)}
+.bk-walls{list-style:none;margin:0;padding:0;display:grid;gap:4px;font-size:13px}
+.card.book .note{margin:0;padding:0;font-size:12px;color:var(--muted)}
+.book .thin{color:var(--down);font-weight:600;font-size:13px;margin:0}
 .bt h3{margin:0;font-size:16px} .bt .sub{font-size:12px;color:var(--muted);margin:2px 0 10px}
 .bt .big{font-size:14px;margin:0 0 6px} .bt .verdict{font-weight:700;margin:6px 0}
 .bt details summary{cursor:pointer;color:var(--accent);font-weight:600;margin-top:8px}
@@ -639,6 +649,7 @@ html,body{overscroll-behavior-y:none}
             <button type="button" class="panesbtn" id="panesBtn">Show RSI and MACD</button>
             <div class="chart-msg" id="chartMsg" hidden></div>
           </div>
+          <div class="card book" id="bookBox" hidden></div>
           <div class="card mnews" id="mktNews"></div>
           <div id="venueBox"></div>
           <details class="card more" id="trendMore"><summary>Trend details</summary><div id="signals"></div></details>
@@ -675,6 +686,7 @@ html,body{overscroll-behavior-y:none}
       <dt>Confirmed</dt><dd>A long or short setup is confirmed when at least one of the 4H and 1D trends points the same way and no delisting is scheduled or announced. In the first nightly backtest, setups that went against both bigger trends did worst. Liquidity and the 24-hour range are shown for context. Setups shows only confirmed setups unless you switch that off in Settings. Confirmed setups can still fail.</dd>
       <dt>Your trades</dt><dd>On the Simulator page, load your position history exported from Gate (CSV). You see your win rate, average win vs average loss, biggest loss, and breakdowns by side, coin, time of day, weekday and holding time. <b>Check what the chart said</b> shows what the 1H and 4H chart reading was when you opened each of your latest 40 trades. The file is read on this device and never uploaded; Remove my trades deletes it.</dd>
       <dt>Last night's backtest</dt><dd>Each night the app's own rules are replayed on the top 30 Gate markets (15m, 1H, 4H). The Simulator page shows how often confirmed and not-confirmed setups reached target 1, with a range for luck, and the chart reading shows the past win rate for setups like the one on screen. It needs at least 100 past trades before it shows a number. Past results don't guarantee future ones.</dd>
+      <dt>Order book</dt><dd>On each chart: how much money is waiting to buy and to sell within 1% and 2% of the price, the spread, and unusually large orders. A thin book means bigger spikes and worse stop fills. Large orders often come from automated market makers and can move or vanish in a second, so they are not reliable support or resistance.</dd>
       <dt>Candle-size strip</dt><dd>Above the chart reading, the reading on 15m, 1H, 4H and 1D side by side, so you can see at a glance whether the bigger picture agrees. Tap one to open it.</dd>
       <dt>Agreement</dt><dd>How many indicators line up, from 0 to 100. Above 70 is strong agreement. It is not a probability of winning.</dd>
       <dt>Position size calculator</dt><dd>Works out a position size from your own account size and risk %. A calculator using your own numbers, not a recommendation.</dd>
@@ -902,6 +914,21 @@ function confirmSetup(o){
   const ok=agree&&!o.delisting;
   return{checks,ok,pending,why:o.delisting?'delisting':!agree&&!pending?'bigger':''};
 }
+// Order-book summary from levels [[price, usdValue], ...] (bids high->low, asks low->high).
+// Depth within 1% and 2% of the mid price, spread, how far the loaded levels reach, and unusually large resting orders ("walls").
+function bookStats(bids,asks){
+  const ok=l=>Array.isArray(l)&&l.length===2&&l[0]>0&&l[1]>0&&isFinite(l[0])&&isFinite(l[1]);
+  bids=(bids||[]).filter(ok).sort((a,b)=>b[0]-a[0]);asks=(asks||[]).filter(ok).sort((a,b)=>a[0]-b[0]);
+  if(!bids.length||!asks.length||bids[0][0]>=asks[0][0])return null;
+  const mid=(bids[0][0]+asks[0][0])/2,dist=p=>Math.abs(p/mid-1);
+  const depth=(side,pct)=>side.reduce((a,l)=>dist(l[0])<=pct?a+l[1]:a,0);
+  const covered=Math.min(dist(bids[bids.length-1][0]),dist(asks[asks.length-1][0]));
+  const near=bids.concat(asks).filter(l=>dist(l[0])<=0.03).map(l=>l[1]).sort((a,b)=>a-b);
+  const med=near.length?near[Math.floor(near.length/2)]:0,minWall=Math.max(1000,5*med);
+  const walls=[];for(const [side,arr] of [['buy',bids],['sell',asks]])
+    arr.filter(l=>dist(l[0])<=0.03&&l[1]>=minWall).sort((a,b)=>b[1]-a[1]).slice(0,2).forEach(l=>walls.push({side,price:l[0],usd:l[1],dist:l[0]/mid-1}));
+  return{mid,spread:(asks[0][0]-bids[0][0])/mid,d1:{bid:depth(bids,0.01),ask:depth(asks,0.01)},d2:{bid:depth(bids,0.02),ask:depth(asks,0.02)},covered,walls,levels:bids.length+asks.length};
+}
 // low-to-high range over the last 24 hours of candles (fraction, e.g. 0.42 = 42%)
 function range24(cs){
   if(!Array.isArray(cs)||!cs.length)return null;const end=cs[cs.length-1].time;let hi=-Infinity,lo=Infinity;
@@ -946,7 +973,7 @@ async function loadGate(){
     const created=c.create_time?c.create_time*1000:(c.launch_time?c.launch_time*1000:null);
     const fr=t.funding_rate!=null&&t.funding_rate!==''?t.funding_rate:c.funding_rate;
     pushMk(out,{ex:'gate',sym:c.name,base,quote,price:+t.last,chg:+t.change_percentage,vol:+(t.volume_24h_quote||t.volume_24h_settle||0),
-      funding:fr!=null&&fr!==''?+fr:null,listed:created,kind:'perp',delist:dl?dl.at:null,delistRo:dl?dl.ro:null,hint:{stock:/STOCK|EQUITY/.test(ctype),tradfi:/TRADFI|COMMOD|METAL|FOREX/.test(ctype)}});}catch(e){}
+      funding:fr!=null&&fr!==''?+fr:null,listed:created,kind:'perp',qm:+c.quanto_multiplier>0?+c.quanto_multiplier:1,delist:dl?dl.at:null,delistRo:dl?dl.ro:null,hint:{stock:/STOCK|EQUITY/.test(ctype),tradfi:/TRADFI|COMMOD|METAL|FOREX/.test(ctype)}});}catch(e){}
   }
   return out;
 }
@@ -2463,7 +2490,7 @@ async function openGroup(key,quiet,cid){
     current={p,cs:r.cs,an:r.an,rc:r.rc,han:r.han};
     if(p.id===g.primary.id)state.trend.set(p.id+'|'+state.tf,{score:r.an.score,rec:r.rc.rec,conf:r.rc.conf,dir:r.rc.dir});
     msg.hidden=true;
-    renderSignal(r.rc);renderTrendDetails(r.an);loadMTF(p,g,tok);
+    renderSignal(r.rc);renderTrendDetails(r.an);loadMTF(p,g,tok);loadBook(p,tok);
     requestAnimationFrame(()=>{try{draw();updateRow(g.key);startChartFeed(p,state.tf)}catch(e){recordErr('chart',e);msg.hidden=false;msg.textContent='The chart hit a snag. Tap a candle size to try again.'}});
   }catch(e){if(tok!==loadToken)return;msg.hidden=false;
     const net=e&&(e.name==='AbortError'||/HTTP|fetch|network|load failed|No data|No candles/i.test(String(e.message||e)));
@@ -2481,6 +2508,36 @@ function renderMTF(){
   const d=MTF.map(t=>res[t]&&res[t].rc?res[t].rc.dir:null).filter(v=>v!=null);
   $('#mtfCap').textContent=d.length<4?'Reading the other candle sizes…':d.every(v=>v>0)?'The trend points up on all four candle sizes.':d.every(v=>v<0)?'The trend points down on all four candle sizes.':
     `Trend direction is mixed: up on ${MTF.filter(t=>res[t]&&res[t].rc&&res[t].rc.dir>0).map(t=>TF_LABEL[t]).join(', ')||'none'}; down on ${MTF.filter(t=>res[t]&&res[t].rc&&res[t].rc.dir<0).map(t=>TF_LABEL[t]).join(', ')||'none'}. Tap one to open it.`;
+}
+// live order book for the open contract (each exchange's public REST endpoint), refreshed every 20s while on screen
+async function fetchBook(p){
+  if(p.demo){const px=p.unitPrice*p.mult,lv=(s,k)=>[px*(1+s*(0.0004+k*0.0009)),(600+((k*37)%11)*180)*(k===9?14:1)];return{bids:Array.from({length:40},(_,k)=>lv(-1,k)),asks:Array.from({length:40},(_,k)=>lv(1,k))}}
+  if(p.ex==='binance'){const r=await getJSON(`https://fapi.binance.com/fapi/v1/depth?symbol=${encodeURIComponent(p.sym)}&limit=500`);
+    const m=l=>(Array.isArray(l)?l:[]).map(x=>[+x[0],+x[0]*+x[1]]);return{bids:m(r&&r.bids),asks:m(r&&r.asks)}}
+  if(p.ex==='gate'){let r;try{r=await getJSON(`https://api.gateio.ws/api/v4/futures/usdt/order_book?contract=${encodeURIComponent(p.sym)}&limit=100`)}
+    catch(e){r=await getJSON(`https://api.gateio.ws/api/v4/futures/usdt/order_book?contract=${encodeURIComponent(p.sym)}&limit=50`)}
+    const q=p.qm||1,m=l=>(Array.isArray(l)?l:[]).map(x=>[+x.p,+x.p*+x.s*q]);return{bids:m(r&&r.bids),asks:m(r&&r.asks)}}
+  if(p.ex==='bybit'){const r=await getJSON(`${BY}/orderbook?category=linear&symbol=${encodeURIComponent(p.sym)}&limit=500`);
+    const res=r&&!r.retCode&&r.result||{},m=l=>(Array.isArray(l)?l:[]).map(x=>[+x[0],+x[0]*+x[1]]);return{bids:m(res.b),asks:m(res.a)}}
+  return null;
+}
+let bookT=null;
+async function loadBook(p,tok){
+  clearTimeout(bookT);const el=$('#bookBox');
+  try{const b=await fetchBook(p);if(tok!==loadToken)return;const st=b&&bookStats(b.bids,b.asks);el.hidden=!st;if(st)el.innerHTML=bookHTML(st,p)}
+  catch(e){if(tok!==loadToken)return;el.hidden=true}
+  bookT=setTimeout(()=>{if(tok!==loadToken)return;const vis=document.visibilityState==='visible'&&(document.body.classList.contains('d-open')||matchMedia('(min-width:980px)').matches);
+    if(vis)loadBook(p,tok);else bookT=setTimeout(()=>loadBook(p,tok),20000)},20000);
+}
+function bookHTML(st,p){
+  const px=v=>fmtPrice(v/(p.mult||1)),k=v=>fmtVol(v),row=(lbl,d)=>{const t=d.bid+d.ask,b=t?d.bid/t*100:50;
+    return `<div class="bk-row"><div class="lbl"><span>${lbl}</span><span><b class="up">${k(d.bid)}</b> buy · <b class="down">${k(d.ask)}</b> sell</span></div><div class="bk-bar"><i class="b" style="width:${b.toFixed(1)}%"></i><i class="a" style="width:${(100-b).toFixed(1)}%"></i></div></div>`};
+  const part=st.covered<0.02?` (only the nearest levels loaded, reaching ±${(st.covered*100).toFixed(2)}%)`:'';
+  const thin=st.d2.bid+st.d2.ask<50000&&st.covered>=0.02?`<p class="thin">Thin order book: under ${k(50000)} within 2% of price. Expect bigger spikes and worse stop fills.</p>`:'';
+  const walls=st.walls.length?`<ul class="bk-walls">${st.walls.map(w=>`<li><b class="${w.side==='buy'?'up':'down'}">Large ${w.side} order</b> ${k(w.usd)} at ${px(w.price)} <span class="muted">(${w.dist>0?'+':''}${(w.dist*100).toFixed(2)}%)</span></li>`).join('')}</ul>`:'<p class="note">No unusually large orders near the price right now.</p>';
+  return `<h3>Order book</h3><p class="sub">${esc(EX[p.ex].name)} · live snapshot, refreshes every 20 seconds · spread ${(st.spread*100).toFixed(3)}%${part}</p>
+    ${row('Within 1% of price',st.d1)}${row('Within 2% of price',st.d2)}${thin}${walls}
+    <p class="note">Large orders can be moved or cancelled in a second, and many come from automated market makers that follow the price, so they aren't reliable support or resistance. The buy/sell balance also swings quickly.</p>`;
 }
 async function loadMTF(p,g,tok){
   current.mtf={};current.cf=null;renderMTF();

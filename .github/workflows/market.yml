@@ -1,0 +1,42 @@
+name: Hourly market snapshot
+
+# Saves order-book depth, open interest, funding and liquidations for the 30 busiest Gate USDT perpetuals
+# every hour (kept 90 days) on the market-data branch, so the nightly backtest can later test them.
+on:
+  schedule:
+    - cron: "7 * * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - scripts/snapshot.py
+      - .github/workflows/market.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: market
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Snapshot Gate order books, open interest and funding
+        run: |
+          mkdir -p out
+          python3 scripts/snapshot.py out/market.json
+      - name: Publish to the market-data branch
+        run: |
+          cd out
+          git init -q -b market-data
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add market.json
+          git commit -q -m "Market snapshot $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push -q -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" market-data
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -232,6 +232,10 @@ async def main():
             sig = await pg.inner_text("#sigCard")
             if ("Long setup" in sig or "Short setup" in sig) and "confirmed" not in sig.lower(): problems.append(f"[{scheme}] chart screen: confirmation missing under a setup")
             if "Checking the bigger picture" in sig: problems.append(f"[{scheme}] chart screen: confirmation never finished")
+            bk = await pg.inner_text("#bookBox") if await pg.is_visible("#bookBox") else ""
+            if "Order book" not in bk or "Within 2% of price" not in bk or "Large" not in bk: problems.append(f"[{scheme}] chart screen: order book card missing")
+            for bad in ("undefined", "NaN", "Infinity"):
+                if bad in bk: problems.append(f"[{scheme}] order book shows '{bad}'")
             if ("Long setup" in sig or "Short setup" in sig) and "In last night's backtest" not in sig: problems.append(f"[{scheme}] chart screen: past win rate missing under a setup")
             for old in ("signal ·", "enter long", "enter short", "avoid for now", "confidence", "size this trade"):
                 if old in sig.lower(): problems.append(f"[{scheme}] chart screen: old wording '{old}' still shown")

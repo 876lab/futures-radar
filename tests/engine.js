@@ -61,6 +61,15 @@ ok(oddsKey('15m',1,72,true)==='15m|long|70+|1'&&oddsKey('4h',-1,49,false)==='4h|
 const p=demoPairs()[2],cs=demoCandles(p,'1h',900),hcs=demoCandles(p,'4h',900),o={plan:'split',minConf:0,fee:0.0005,slip:0.0002,maxHold:96};
 let seen=0;const a=backtestSeries(cs,hcs,p,'1h',o),b=backtestSeries(cs,hcs,p,'1h',Object.assign({},o,{onEntry:(t,x)=>{if(x.an&&x.rc&&x.i===t.i)seen++}}));
 ok(a.length>0&&JSON.stringify(a)===JSON.stringify(b)&&seen===b.length,'onEntry hook does not change the backtest');}
+// order book summary
+{const b=bookStats([[99.5,1000],[98.5,2000],[97,5000]],[[100.5,1500],[101.5,500],[103,9000]]);
+ok(b&&Math.abs(b.mid-100)<1e-9&&Math.abs(b.spread-0.01)<1e-12,'bookStats: mid and spread');
+ok(b.d1.bid===1000&&b.d1.ask===1500&&b.d2.bid===3000&&b.d2.ask===2000,'bookStats: depth within 1% and 2%');
+ok(Math.abs(b.covered-0.03)<1e-9,'bookStats: how far the loaded levels reach');
+ok(bookStats([[101,5]],[[100,5]])===null&&bookStats([],[[1,1]])===null&&bookStats([[1,NaN]],[[2,1]])===null,'bookStats: crossed, empty or junk book');
+const lv=(s,k)=>[100*(1+s*0.001*(k+1)),k===4?20000:1000],w=bookStats(Array.from({length:10},(_,k)=>lv(-1,k)),Array.from({length:10},(_,k)=>lv(1,k)));
+ok(w.walls.length===2&&w.walls.every(x=>x.usd===20000)&&w.walls.some(x=>x.side==='buy')&&w.walls.some(x=>x.side==='sell'),'bookStats: finds one large order on each side');
+ok(bookStats([[99,1000],[98,1100]],[[101,900],[102,1000]]).walls.length===0,'bookStats: no walls in an even book');}
 // 2. trade rules
 const C=(o,h,l,c)=>({time:0,open:o,high:h,low:l,close:c,volume:1}),base={plan:'tp1',fee:0,slip:0,maxHold:50},L1={dir:1,conf:60,levels:{R:1}},S1={dir:-1,conf:60,levels:{R:1}};
 let t=simTrade([C(100,100,100,100),C(100,100.5,99.5,100.2),C(100.2,101.6,100,101.4),C(101,101,101,101)],0,L1,base);ok(t.how==='target'&&Math.abs(t.r-1.5)<1e-9,'long target 1');

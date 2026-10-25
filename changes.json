@@ -1,4 +1,9 @@
 [
+  {"date": "2026-10-25", "title": "Simulator: run again, clear and reset", "items": [
+    "Each run now clears the old result first and is labelled 'run 2 at 4:10 PM', so you can see a re-run really happened (the same settings within a few minutes give the same numbers, because the same candles are used).",
+    "New buttons: 'Clear results' under the result and 'Reset settings' next to Run.",
+    "Fixed the bottom menu bar getting stuck in the middle of the screen on iPhone after typing in a box."
+  ]},
   {"date": "2026-10-25", "title": "New app icon and tidier rows", "items": [
     "The app has its own icon: the amber radar on deep navy. Remove the old 'F' from your Home Screen and add the app again (Share, then Add to Home Screen) to get it.",
     "In compact rows the tags now sit in one straight column, so tags, prices and changes line up.",

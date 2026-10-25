@@ -2,6 +2,11 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-10-25 (owner report: simulator "only runs once", menu bar mid-screen)
+- **Simulator re-runs:** running again worked, but looked like nothing happened: the old result stayed until the new one replaced it, and the same settings within 5 minutes reuse the cached candles and give identical numbers. A run now clears the old result first, the result header says "run N at h:mm", and the button reads "Run again". New **Clear results** button under the result and **Reset settings** (back to the defaults) next to Run. Browser test runs twice, clears and resets.
+- **Bottom bar stuck mid-screen (iPhone Home Screen app):** after the keyboard for the Fee/Slippage/Risk boxes closed, iOS left the fixed bottom bar where the keyboard's top edge had been. When a text box loses focus, or the visible area grows back by more than 80px (`visualViewport` resize), the bar is now re-anchored (hidden for one layout pass and the scroll position re-applied). Can't be reproduced in desktop Chromium; needs a check on the phone.
+- No signal, score or trade-maths change.
+
 ## 2026-10-25 (owner request: cloud server plan; not created yet)
 - New `server/` folder, ready for a cloud server the owner may approve (nothing is created or paid for yet): `cloud-init.yaml` (Ubuntu 24.04: daily security updates with 4am Jamaica restarts, firewall blocking all incoming connections, SSH switched off, a no-rights `radar` user, a GitHub deploy key generated on the server and shown on its console, a systemd timer every 5 minutes), `tick.sh` (updates a read-only copy of `main`, runs due jobs from `server/jobs/`), `publish.sh` (force-pushes data branches only; refuses `main`), and the first job `jobs/reach.sh` + `reach.py` (hourly check that Binance, Bybit, Gate and the SEC answer from the server; publishes `server-status.json` to `server-data`). `server/README.md` has the cost explanation for approval and tap-by-tap owner steps. Tested locally against a stand-in repo (job runs once per hour, publishes the branch).
 - New rule 5 in ROADMAP (owner, 25 Oct 2026): anything that costs money needs a plain explanation first and the owner's own approval; nightly runs never approve or sign up for anything.

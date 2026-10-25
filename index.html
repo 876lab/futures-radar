@@ -2106,7 +2106,7 @@ async function runSim(){
   const gs=simMarkets(o.scope);
   if(!gs.length){sim.err=o.scope==='starred'?'You have no starred markets yet. Star a few, or pick another option.':'Markets are still loading. Try again in a moment.';renderSim(true);return}
   const jobs=[];gs.forEach(g=>o.tfs.forEach(tf=>{const p=(g.key===state.selected&&state.byId.get(state.selContract))||g.primary;jobs.push({g,p,tf})}));
-  sim.running=true;sim.cancel=false;sim.err=null;sim.prog={done:0,total:jobs.length,label:''};renderSim(true);
+  sim.running=true;sim.cancel=false;sim.err=null;sim.result=null;sim.runs=(sim.runs||0)+1;sim.prog={done:0,total:jobs.length,label:''};renderSim(true);
   const rows=[],all=[];let next=0,fails=0;
   const worker=async()=>{while(next<jobs.length&&!sim.cancel){const jb=jobs[next++];sim.prog.label=`${jb.g.root} · ${TF_LABEL[jb.tf]}`;simProgress();
     try{
@@ -2291,7 +2291,7 @@ function renderSim(force){
       <label for="simHold">Close after (candles)<input id="simHold" data-simin="maxHold" type="number" inputmode="numeric" min="5" step="1" value="${o.maxHold}"></label>
     </div>
     <div class="simbtns">
-      ${sim.running?`<button type="button" class="btn" id="simCancel">Stop</button>`:`<button type="button" class="btn primary" id="simRun">Run simulation</button><button type="button" class="btn" id="simStress">Stress test: top 25 × 15m, 1H, 4H</button>`}
+      ${sim.running?`<button type="button" class="btn" id="simCancel">Stop</button>`:`<button type="button" class="btn primary" id="simRun">${sim.result?'Run again':'Run simulation'}</button><button type="button" class="btn" id="simStress">Stress test: top 25 × 15m, 1H, 4H</button><button type="button" class="btn" id="simReset">Reset settings</button>`}
     </div>
     <div class="simprog" id="simProg" ${sim.running?'':'hidden'}></div>
     ${sim.err?`<p class="simerr">${esc(sim.err)}</p>`:''}
@@ -2301,12 +2301,14 @@ function renderSim(force){
   if(sim.running)simProgress();
   const run=$('#simRun');if(run)run.onclick=()=>runSim();
   const st=$('#simStress');if(st)st.onclick=()=>{sim.opts.scope='top25';sim.opts.tfs=['15m','1h','4h'];LS.set('sim',sim.opts);runSim()};
+  const rs=$('#simReset');if(rs)rs.onclick=()=>{sim.opts=simOpts({});LS.set('sim',sim.opts);sim.err=null;renderSim(true)};
+  const cr=$('#simClear');if(cr)cr.onclick=()=>{sim.result=null;state.simShow=null;renderSim(true);const f=$('.sim-form');if(f)f.scrollIntoView({behavior:'smooth',block:'start'})};
   const cn=$('#simCancel');if(cn)cn.onclick=()=>{sim.cancel=true;cn.disabled=true;cn.textContent='Stopping…'};
 }
 function simResultsHTML(){
   const res=sim.result;if(!res)return '';
   const s=res.st,o=res.o;
-  if(!s.n)return `<div class="card sim-res" id="simRes"><div class="sim-verdict meh"><div class="sc-eyebrow">Result</div><div class="sc-head">No trades</div><p>None of the ${res.rows.length} market and candle-size combinations produced a setup${o.minConf?` with agreement ${o.minConf} or more`:''}. More markets, other candle sizes or a lower agreement filter give more trades.${res.fails?` ${res.fails} could not be loaded.`:''}</p></div></div>`;
+  if(!s.n)return `<div class="card sim-res" id="simRes"><div class="sim-verdict meh"><div class="sc-eyebrow">Result</div><div class="sc-head">No trades</div><p>None of the ${res.rows.length} market and candle-size combinations produced a setup${o.minConf?` with agreement ${o.minConf} or more`:''}. More markets, other candle sizes or a lower agreement filter give more trades.${res.fails?` ${res.fails} could not be loaded.`:''}</p></div><div class="simbtns"><button type="button" class="btn" id="simClear">Clear results</button></div></div>`;
   const cls=s.n<30?'meh':s.avgR>=0.1?'good':s.avgR>-0.05?'meh':'bad';
   const head=s.avgR>=0.1?'Profitable':s.avgR>-0.05?'About break-even':'Losing';
   const perTrade=s.avgR*o.risk;
@@ -2329,7 +2331,7 @@ function simResultsHTML(){
   const from=Math.min(...res.rows.filter(r=>r.from).map(r=>r.from));
   return `<div class="card sim-res" id="simRes">
     <div class="sim-verdict ${cls}">
-      <div class="sc-eyebrow">Result · ${res.markets} market${res.markets===1?'':'s'} · ${tfsUsed}${res.cancelled?' · stopped early':''}</div>
+      <div class="sc-eyebrow">Result · ${res.markets} market${res.markets===1?'':'s'} · ${tfsUsed}${res.cancelled?' · stopped early':''} · run ${sim.runs||1} at ${new Date(res.at).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}</div>
       <div class="sc-head">${head}</div>
       <p>${esc(text)}</p>
       ${res.demo?'<p class="demo">Sample data: these numbers come from made-up prices and mean nothing. Run it on your live app for real results.</p>':''}
@@ -2348,6 +2350,7 @@ function simResultsHTML(){
       <li>Data covers ${from&&isFinite(from)?'from '+dateStr(from*1000):'the last '+SIM_N+' candles'} to now${res.fails?`; ${res.fails} market${res.fails===1?'':'s'} could not be loaded`:''}.</li>
       <li>Past results don't guarantee future ones. The live chart reading can change before a candle closes.</li>
     </ul></div>
+    <div class="simbtns" style="padding:4px 16px 16px"><button type="button" class="btn" id="simClear">Clear results</button></div>
   </div>`;
 }
 
@@ -2814,6 +2817,12 @@ $('#settingsForm').addEventListener('click',e=>{const b=e.target.closest('button
   else if(b.id==='setHelp')$('#openHelp').click();
   else if(b.dataset.themeSet)setTimeout(renderSettings,0)});
 $('#settingsForm').addEventListener('click',e=>{if(e.target.closest('button'))return;const r=e.target.closest('[data-sw]');if(r)r.querySelector('.switch').click()});
+// iOS keyboard: when the keyboard closes, re-anchor the bottom bar (iOS home-screen apps can leave fixed bars stranded mid-screen)
+function reanchorNav(){const n=$('#nav');if(!n)return;n.style.display='none';void n.offsetHeight;n.style.display='';window.scrollTo(window.scrollX,window.scrollY)}
+const isField=t=>t&&t.matches&&t.matches('input:not([type=checkbox]):not([type=radio]):not([type=file]),select,textarea');
+document.addEventListener('focusin',e=>{if(isField(e.target))document.body.classList.add('typing')});
+document.addEventListener('focusout',e=>{if(!isField(e.target))return;setTimeout(()=>{if(!isField(document.activeElement)){document.body.classList.remove('typing');reanchorNav()}},120)});
+if(window.visualViewport){let vh=visualViewport.height;visualViewport.addEventListener('resize',()=>{const h=visualViewport.height;if(h>vh+80)setTimeout(reanchorNav,60);vh=h})}
 // bottom bar: slide away while the page scrolls, come back once scrolling stops (phones only; switch in Settings)
 let navT=null;window.addEventListener('scroll',()=>{if(!state.navHide||!matchMedia('(max-width:979px)').matches)return;
   document.body.classList.add('nav-away');clearTimeout(navT);navT=setTimeout(()=>document.body.classList.remove('nav-away'),450)},{passive:true});

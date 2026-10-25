@@ -511,7 +511,18 @@ button.ncoin:hover{border-color:var(--accent)}
 .nfoot{font-size:12.5px;color:var(--muted);margin:0}
 #openHelp{position:relative}
 .newdot{position:absolute;top:5px;right:5px;width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 2px var(--surface)}
-.wn{display:grid;gap:10px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.wn{display:grid;gap:10px}
+/* help sheet: back button, tabs, guide */
+.helpsheet{padding-top:0}
+.hhead{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:10px;margin:0 -4px;padding:12px 4px 8px;background:var(--surface)}
+.hhead b{font-family:var(--f-display);font-size:16px}
+.htabs{display:flex;gap:4px;padding:4px;background:var(--surface-2);border-radius:12px;position:sticky;top:52px;z-index:2}
+.htabs button{flex:1;border:0;background:none;border-radius:9px;padding:8px 6px;font-weight:600;font-size:13px;color:var(--muted)}
+.htabs button[aria-selected="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 2px rgb(0 0 0 / .12)}
+.hpanel{display:grid;gap:12px} .hpanel[hidden]{display:none}
+.sheet .lead{font-size:14px;color:var(--fg);line-height:1.5}
+.steps,.keep{margin:0;padding-left:20px;display:grid;gap:8px;font-size:13.5px;color:var(--muted);line-height:1.45} .steps b{color:var(--fg)}
+.hpanel a{color:var(--accent)} .hpanel dt .rec{font-size:12px}
 .wn h2{margin:0}
 .wn ul{margin:4px 0 0;padding-left:18px;font-size:14px;color:var(--muted);display:grid;gap:2px}
 .wn b{font-size:14.5px}
@@ -682,8 +693,53 @@ html,body{overscroll-behavior-y:none}
 </div>
 
 <div class="sheet-bg" id="help" hidden>
-  <div class="sheet" role="dialog" aria-labelledby="helpTitle">
-    <div id="whatsNew"></div>
+  <div class="sheet helpsheet" role="dialog" aria-labelledby="helpHead">
+    <div class="hhead">
+      <button type="button" class="back" id="helpBack" aria-label="Back to the app"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M15 18 9 12l6-6"/></svg>Back</button>
+      <b id="helpHead">Help</b>
+    </div>
+    <div class="htabs" role="tablist" aria-label="Help sections">
+      <button type="button" role="tab" data-htab="guide" aria-selected="true">Start here</button>
+      <button type="button" role="tab" data-htab="new" aria-selected="false">What's new</button>
+      <button type="button" role="tab" data-htab="terms" aria-selected="false">Glossary</button>
+    </div>
+    <section class="hpanel" data-hpanel="guide">
+      <h2>Start here</h2>
+      <p class="lead">Futures Radar scans crypto futures on Binance, Gate and Bybit and describes what each chart shows in plain words, using fixed rules built from the same indicators as the Gate app: Bollinger bands, Supertrend, RSI and MACD. The reading is the same for everyone. It is a tool for reading charts and learning, not advice and not a prediction.</p>
+      <h3>How the pages fit together</h3>
+      <ol class="steps">
+        <li><b>News.</b> Headlines and the economic calendar. An amber note appears on Setups and on each chart when a big US release (CPI, jobs, a Fed decision) is close, because prices often spike both ways then.</li>
+        <li><b>Setups.</b> Markets where the chart currently shows a long or short setup, highest agreement first. By default only <i>confirmed</i> setups are listed: at least one of the 4H and 1D trends points the same way and no delisting is known.</li>
+        <li><b>A market's chart screen.</b> The candle-size strip at the top shows the reading on 15m, 1H, 4H and 1D side by side; in the backtest, setups going against both bigger trends did worst. Below it, the chart reading card has the headline, the agreement score, the checklist, the confirmation box and, when there's enough history, how similar setups did in last night's backtest.</li>
+        <li><b>Levels on the chart.</b> Entry zone, stop and the two targets for a setup; Fibonacci levels showing how deep the current pullback is and the next levels each way; the order book showing whether the market is thin (thin books mean bigger spikes and worse stop fills).</li>
+        <li><b>Position size calculator.</b> Under a setup: your account size and risk % turn into a position size. With a max loss per trade set in Settings, it turns red when a plan would lose more than that at the stop.</li>
+        <li><b>Simulator.</b> Replays the app's rules on past prices, shows last night's backtest on the top Gate markets, and reads your own Gate history (Your trades): win rate by coin, side and time, and what the reading said when you opened.</li>
+        <li><b>Starred.</b> Tap the star on any row to keep a market in your own list.</li>
+      </ol>
+      <h3>The four readings</h3>
+      <dl>
+        <dt><span class="rec long">Long setup</span></dt><dd>Uptrend, the bigger timeframe agrees, and there's a fresh trigger or a pullback that held, without price being stretched. The entry zone, stop and targets are shown.</dd>
+        <dt><span class="rec short">Short setup</span></dt><dd>The same, pointing down. A short gains when price falls.</dd>
+        <dt><span class="rec hold">Wait</span></dt><dd>A trend is in place, but there's no fresh trigger or price has run far from its average. The card shows a better-entry area and where the trend would break.</dd>
+        <dt><span class="rec avoid">No setup</span></dt><dd>No clear direction, a choppy market, or the candle size and the bigger timeframe disagree.</dd>
+      </dl>
+      <h3>Numbers worth knowing</h3>
+      <dl>
+        <dt>Agreement (0–100)</dt><dd>How many indicators line up. 70 or more is strong agreement. It is not the chance of winning.</dd>
+        <dt>Past win rate</dt><dd>How often setups like this one reached target 1 in the nightly backtest, with a range. Shown only when there are at least 100 past trades.</dd>
+        <dt>R</dt><dd>The amount at risk on one trade (entry to stop). Target 1 is 1.5R, target 2 is 3R; +1R means a gain the size of the risk, −1R means the stop was hit.</dd>
+      </dl>
+      <h3>Keep in mind</h3>
+      <ul class="keep">
+        <li>Readings update while a candle is still forming, so a setup can appear and disappear before the candle closes. 1H and 4H readings change less often than 15m.</li>
+        <li>Setups lose often. In the nightly backtests roughly 4 in 10 setups reached target 1, and the average result across all setups is close to break-even after fees. Results depend heavily on keeping each loss small and similar in size.</li>
+        <li>A single oversized loss can wipe out weeks of gains. The stop level and the max-loss setting exist for that reason.</li>
+        <li>Leverage magnifies losses as well as gains, and a position can be liquidated before the stop. See the <a href="risk.html">Risk Disclosure</a>.</li>
+      </ul>
+      <p>Every term and indicator is explained under <a href="#" data-htab="terms">Glossary</a>.</p>
+    </section>
+    <section class="hpanel" data-hpanel="new" hidden><div id="whatsNew"><p>Loading…</p></div></section>
+    <section class="hpanel" data-hpanel="terms" hidden>
     <h2 id="helpTitle">How to read Futures Radar</h2>
     <p>Each row is one market. When the same coin trades on several exchanges, it appears once. Its price and 24-hour change come from the exchange with the most trading, and volume adds up all of them.</p>
     <h3>Getting around</h3>
@@ -730,6 +786,7 @@ html,body{overscroll-behavior-y:none}
     <h3>About &amp; legal</h3>
     <p>Futures Radar shows general market analysis and learning tools, the same for everyone. It is not financial advice, and futures trading is high risk.</p>
     <div class="legallinks"><a href="terms.html">Terms of Use</a><a href="risk.html">Risk Disclosure</a><a href="privacy.html">Privacy Notice</a></div>
+    </section>
     <div class="acts"><button type="button" class="btn primary" data-close="help">Got it</button></div>
   </div>
 </div>
@@ -1922,8 +1979,9 @@ function renderMktNews(){
 /* ---------- what's new (changes.json, written by each update) ---------- */
 let changes=null;
 async function loadChanges(){
-  try{const r=await fetch('changes.json?t='+Math.floor(NOW()/600000));if(!r.ok)return;const j=await r.json();
-    if(!Array.isArray(j)||!j.length)return;changes=j;$('#newDot').hidden=LS.get('seenChanges','')===j[0].date+'|'+j[0].title;renderChanges();if(state.cat==='settings')renderSettings()}catch(e){}
+  const fail=()=>{const el=$('#whatsNew');if(el&&!changes)el.innerHTML='<p>The list of changes could not be loaded. Check your connection and open this again.</p>'};
+  try{const r=await fetch('changes.json?t='+Math.floor(NOW()/600000));if(!r.ok){fail();return}const j=await r.json();
+    if(!Array.isArray(j)||!j.length)return;changes=j;$('#newDot').hidden=LS.get('seenChanges','')===j[0].date+'|'+j[0].title;renderChanges();if(state.cat==='settings')renderSettings()}catch(e){fail()}
 }
 function renderChanges(){
   const el=$('#whatsNew');if(!el||!changes)return;
@@ -2685,7 +2743,7 @@ function closeDetail(){
   if(histOpen){histOpen=false;try{history.back();setTimeout(()=>document.body.classList.remove('d-open'),400);return}catch(e){}}
   document.body.classList.remove('d-open');
 }
-window.addEventListener('popstate',()=>{if(document.body.classList.contains('d-open')){histOpen=false;document.body.classList.remove('d-open')}});
+window.addEventListener('popstate',()=>{if(helpPopping||(helpHist&&!$('#help').hidden))return;if(document.body.classList.contains('d-open')){histOpen=false;document.body.classList.remove('d-open')}});
 function setTf(tf){state.tf=tf;LS.set('tf2',tf);renderTf();renderTabs();renderList();if(state.selected)openGroup(state.selected,true);scan(state.cat==='setups'?SETUP_POOL:30)}
 (function(){
   const d=$('#detail');let sx=0,sy=0,st=0,tgt=null;
@@ -2767,7 +2825,7 @@ $('#panesBtn').addEventListener('click',()=>{state.ind.panes=!state.ind.panes;LS
 $('#dStar').addEventListener('click',()=>{if(state.selected)toggleStar(state.selected)});
 $('#back').addEventListener('click',closeDetail);
 $('#mtf').addEventListener('click',e=>{const b=e.target.closest('[data-mtf]');if(b&&b.dataset.mtf!==state.tf)setTf(b.dataset.mtf)});
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(!$('#legal').hidden)return;if(!$('#help').hidden)$('#help').hidden=true;else closeDetail()}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(!$('#legal').hidden)return;if(!$('#help').hidden)closeHelp();else closeDetail()}});
 $('#refresh').addEventListener('click',()=>{candleCache.clear();state.trend.clear();state.conf.clear();loadAll(true).then(()=>{if(state.selected&&state.gByKey.has(state.selected))openGroup(state.selected,true)})});
 // pull to refresh: at the top of a page, pull down and let go to reload prices (and headlines on News), like the refresh button
 function refreshAll(){
@@ -2791,7 +2849,16 @@ function refreshAll(){
   document.addEventListener('touchend',end,{passive:true});document.addEventListener('touchcancel',()=>{if(y0!=null&&on){y0=null;on=false;hide()}else y0=null},{passive:true});
 })();
 
-$('#openHelp').addEventListener('click',()=>{$('#help').hidden=false;$('#help .sheet').scrollTop=0;if(changes){LS.set('seenChanges',changes[0].date+'|'+changes[0].title);$('#newDot').hidden=true}});
+function helpTab(t){document.querySelectorAll('[data-hpanel]').forEach(p=>p.hidden=p.dataset.hpanel!==t);
+  document.querySelectorAll('.htabs [data-htab]').forEach(b=>b.setAttribute('aria-selected',b.dataset.htab===t));$('#help .sheet').scrollTop=0}
+let helpHist=false,helpPopping=false;   // helpPopping: the next history step is the help sheet's own, not the chart screen's
+function closeHelp(){if($('#help').hidden)return;$('#help').hidden=true;if(helpHist){helpHist=false;helpPopping=true;try{history.back()}catch(e){helpPopping=false}}}
+$('#openHelp').addEventListener('click',()=>{const fresh=!$('#newDot').hidden;$('#help').hidden=false;helpTab(fresh?'new':'guide');
+  try{history.pushState({fr:'help'},'');helpHist=true}catch(e){helpHist=false}
+  if(changes){LS.set('seenChanges',changes[0].date+'|'+changes[0].title);$('#newDot').hidden=true}});
+$('#help').addEventListener('click',e=>{const t=e.target.closest('[data-htab]');if(t){e.preventDefault();helpTab(t.dataset.htab)}});
+$('#helpBack').addEventListener('click',closeHelp);
+window.addEventListener('popstate',()=>{if(helpPopping){helpPopping=false;return}if(helpHist&&!$('#help').hidden){helpHist=false;$('#help').hidden=true}});
 $('#errBox').addEventListener('click',e=>{const b=e.target.closest('[data-err]');if(!b)return;
   if(b.dataset.err==='clear'){errLog.length=0;LS.set('errs',[]);renderErrBox();return}
   const txt=errReport(),done=()=>{b.textContent='Copied';setTimeout(()=>{b.textContent='Copy details'},2000)};
@@ -2829,8 +2896,8 @@ let navT=null;window.addEventListener('scroll',()=>{if(!state.navHide||!matchMed
 $('#setAcct').addEventListener('input',e=>{const v=parseFloat(e.target.value);if(v>0){state.acct=v;LS.set('acct',v);refreshCalc()}});
 $('#setRisk').addEventListener('input',e=>{const v=parseFloat(e.target.value);if(v>0&&v<=100){state.risk=v;LS.set('risk',v);refreshCalc()}});
 $('#maxLoss').addEventListener('input',e=>{const v=parseFloat(e.target.value);state.maxLoss=v>0?v:0;LS.set('maxLoss',state.maxLoss);refreshCalc()});
-document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>{$('#'+b.dataset.close).hidden=true}));
-$('#help').addEventListener('click',e=>{if(e.target.id==='help')e.currentTarget.hidden=true});
+document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>{if(b.dataset.close==='help')closeHelp();else $('#'+b.dataset.close).hidden=true}));
+$('#help').addEventListener('click',e=>{if(e.target.id==='help')closeHelp()});
 // Before you start: shown on first launch and again whenever TERMS_V goes up; works without storage (shows every launch, can still continue)
 const TERMS_V=1;
 if(LS.get('terms',0)!==TERMS_V){$('#legal').hidden=false;setTimeout(()=>{try{$('#legalOk').focus({preventScroll:true})}catch(e){}},0)}

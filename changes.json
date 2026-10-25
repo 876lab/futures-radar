@@ -1,4 +1,9 @@
 [
+  {"date": "2026-10-25", "title": "A proper guide, and a Back button in Help", "items": [
+    "The ? button now opens Help with three tabs: Start here, What's new and Glossary.",
+    "Start here explains what the app is, how the pages fit together, what Long setup, Short setup, Wait and No setup mean, and the numbers worth knowing.",
+    "Help has a Back button at the top that stays visible while you scroll, and your phone's back gesture closes it too."
+  ]},
   {"date": "2026-10-25", "title": "Simulator: run again, clear and reset", "items": [
     "Each run now clears the old result first and is labelled 'run 2 at 4:10 PM', so you can see a re-run really happened (the same settings within a few minutes give the same numbers, because the same candles are used).",
     "New buttons: 'Clear results' under the result and 'Reset settings' next to Run.",

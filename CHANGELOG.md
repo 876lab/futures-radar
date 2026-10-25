@@ -2,6 +2,13 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-10-25 (owner request: app guide, Back button in Help)
+- **Help sheet reorganised** into three tabs: **Start here** (new guide), **What's new** and **Glossary** (the existing definitions, unchanged). It opens on What's new when the red dot shows something new, otherwise on Start here.
+- **Start here** guide (descriptive wording, no trade instructions): what the app is; how News, Setups, the chart screen (candle-size strip, reading card, confirmation, past win rate), the levels (entry/stop/targets, Fibonacci, order book), the position size calculator with max loss, the Simulator (backtest, Your trades) and Starred fit together; the four readings with their tags; Agreement, past win rate and R; and limits (readings change while a candle forms; roughly 4 in 10 setups reached target 1 in the nightly backtests and the average across all setups is close to break-even after fees; oversized losses; leverage and liquidation, with a link to the Risk Disclosure).
+- **Back button** in a sticky header at the top of Help; the phone's back gesture closes Help without also closing a chart screen underneath it (shared history handling with the chart screen). Escape and tapping outside also close it.
+- What's new now says when the list can't be loaded instead of staying blank.
+- Browser test: tabs, guide content, Back visible after scrolling and closing the sheet.
+
 ## 2026-10-25 (owner report: simulator "only runs once", menu bar mid-screen)
 - **Simulator re-runs:** running again worked, but looked like nothing happened: the old result stayed until the new one replaced it, and the same settings within 5 minutes reuse the cached candles and give identical numbers. A run now clears the old result first, the result header says "run N at h:mm", and the button reads "Run again". New **Clear results** button under the result and **Reset settings** (back to the defaults) next to Run. Browser test runs twice, clears and resets.
 - **Bottom bar stuck mid-screen (iPhone Home Screen app):** after the keyboard for the Fee/Slippage/Risk boxes closed, iOS left the fixed bottom bar where the keyboard's top edge had been. When a text box loses focus, or the visible area grows back by more than 80px (`visualViewport` resize), the bar is now re-anchored (hidden for one layout pass and the scroll position re-applied). Can't be reproduced in desktop Chromium; needs a check on the phone.

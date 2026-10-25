@@ -164,6 +164,11 @@ button{cursor:pointer}
 .bk-walls{list-style:none;margin:0;padding:0;display:grid;gap:4px;font-size:13px}
 .card.book .note{margin:0;padding:0;font-size:12px;color:var(--muted)}
 .book .thin{color:var(--down);font-weight:600;font-size:13px;margin:0}
+/* fibonacci card */
+.fib .big{font-size:14px;margin:0;line-height:1.45} .fib .next{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.fib .next>div{background:var(--surface-2);border-radius:10px;padding:8px 10px;font-size:12px;color:var(--muted)} .fib .next b{display:block;font-size:14px;color:var(--fg);font-weight:600}
+.fib table{width:100%;border-collapse:collapse;font-size:13px} .fib td{padding:5px 0;border-top:1px solid var(--line)} .fib td:nth-child(n+2){text-align:right;font-variant-numeric:tabular-nums}
+.fib tr.here td{font-weight:700;color:var(--accent)} .fib tr.ext td:first-child{color:var(--c2)}
 .bt h3{margin:0;font-size:16px} .bt .sub{font-size:12px;color:var(--muted);margin:2px 0 10px}
 .bt .big{font-size:14px;margin:0 0 6px} .bt .verdict{font-weight:700;margin:6px 0}
 .bt details summary{cursor:pointer;color:var(--accent);font-weight:600;margin-top:8px}
@@ -649,6 +654,7 @@ html,body{overscroll-behavior-y:none}
             <button type="button" class="panesbtn" id="panesBtn">Show RSI and MACD</button>
             <div class="chart-msg" id="chartMsg" hidden></div>
           </div>
+          <div class="card book fib" id="fibBox" hidden></div>
           <div class="card book" id="bookBox" hidden></div>
           <div class="card mnews" id="mktNews"></div>
           <div id="venueBox"></div>
@@ -686,6 +692,7 @@ html,body{overscroll-behavior-y:none}
       <dt>Confirmed</dt><dd>A long or short setup is confirmed when at least one of the 4H and 1D trends points the same way and no delisting is scheduled or announced. In the first nightly backtest, setups that went against both bigger trends did worst. Liquidity and the 24-hour range are shown for context. Setups shows only confirmed setups unless you switch that off in Settings. Confirmed setups can still fail.</dd>
       <dt>Your trades</dt><dd>On the Simulator page, load your position history exported from Gate (CSV). You see your win rate, average win vs average loss, biggest loss, and breakdowns by side, coin, time of day, weekday and holding time. <b>Check what the chart said</b> shows what the 1H and 4H chart reading was when you opened each of your latest 40 trades. The file is read on this device and never uploaded; Remove my trades deletes it.</dd>
       <dt>Last night's backtest</dt><dd>Each night the app's own rules are replayed on the top 30 Gate markets (15m, 1H, 4H). The Simulator page shows how often confirmed and not-confirmed setups reached target 1, with a range for luck, and the chart reading shows the past win rate for setups like the one on screen. It needs at least 100 past trades before it shows a number. Past results don't guarantee future ones.</dd>
+      <dt>Fibonacci levels</dt><dd>Lines on the chart and a card under it, from the last main move (a swing of at least 3× the average candle range). Retracements (23.6%, 38.2%, 50%, 61.8%, 78.6%) show how much of the move price has given back; pullbacks in a trend often pause around 38.2–61.8%. Extensions (127.2%, 161.8%) are levels traders watch past the swing end after a breakout. They are zones, not exact prices, and don't change the chart reading. Switch them off with the Fibonacci chip above the chart.</dd>
       <dt>Order book</dt><dd>On each chart: how much money is waiting to buy and to sell within 1% and 2% of the price, the spread, and unusually large orders. A thin book means bigger spikes and worse stop fills. Large orders often come from automated market makers and can move or vanish in a second, so they are not reliable support or resistance.</dd>
       <dt>Candle-size strip</dt><dd>Above the chart reading, the reading on 15m, 1H, 4H and 1D side by side, so you can see at a glance whether the bigger picture agrees. Tap one to open it.</dd>
       <dt>Agreement</dt><dd>How many indicators line up, from 0 to 100. Above 70 is strong agreement. It is not a probability of winning.</dd>
@@ -777,10 +784,12 @@ const state={
   pairs:[],groups:[],gByKey:new Map(),byId:new Map(),mode:'loading',status:{binance:'load',gate:'load',bybit:'load'},errors:{},updated:0,
   view:LS.get('view','all'),cat:LS.get('cat3','setups'),sort:LS.get('sort','vol'),q:'',
   watch:new Set(LS.get('watch2',[])),tf:LS.get('tf2','15m'),selected:null,selContract:null,trend:new Map(),scanning:null,
-  proxy:LS.get('proxy',''),ind:LS.get('ind3',{ema:false,bb:true,st:true,vol:true,marks:true}),limit:120,loading:false,
+  proxy:LS.get('proxy',''),ind:LS.get('ind3',{ema:false,bb:true,st:true,vol:true,marks:true,fib:true}),limit:120,loading:false,
   acct:LS.get('acct',100),evOn:LS.get('evOn',true),evAll:LS.get('evAll',false),confOnly:LS.get('confOnly',true),conf:new Map(),ann:{bybit:[],at:0,loading:false},navHide:LS.get('navHide',true),risk:LS.get('risk',2),maxLoss:LS.get('maxLoss',0),stream:{},lastTick:{},lastSeen:{}
 };
 if(!TFS[state.tf])state.tf='15m';
+if(!state.ind||typeof state.ind!=='object')state.ind={ema:false,bb:true,st:true,vol:true,marks:true};
+if(typeof state.ind.fib!=='boolean')state.ind.fib=true;   // Fibonacci levels (added 25 Oct 2026) start switched on
 if(state.view!=='all'&&!EX[state.view])state.view='all';
 if(!(MKT_CATS.includes(state.cat)||PAGES.includes(state.cat)))state.cat='setups';
 state.mcat=LS.get('mcat','hot');if(!MKT_CATS.includes(state.mcat))state.mcat='hot';
@@ -1700,6 +1709,45 @@ function recommend(an,cs,han,tf,lite){
   return{rec,dir,headline,text,checks,levels,conf,htfL,support:an.support,resist:an.resist};
 }
 
+/* fibonacci levels: information only, never part of the chart reading's rules */
+// Swings come from a zigzag: a new swing needs a move of at least `th` (price) against the last one. Only past candles are used.
+function zigzag(cs,th,from){
+  from=Math.max(0,from|0);const piv=[];if(!(th>0)||cs.length-from<3)return piv;
+  let dir=0,hi=from,lo=from;
+  for(let i=from;i<cs.length;i++){const k=cs[i];
+    if(dir===0){if(k.high>cs[hi].high)hi=i;if(k.low<cs[lo].low)lo=i;
+      if(cs[hi].high-cs[lo].low>=th){if(hi>lo){piv.push({i:lo,p:cs[lo].low});dir=1}else{piv.push({i:hi,p:cs[hi].high});dir=-1}}}
+    else if(dir===1){if(k.high>=cs[hi].high)hi=i;else if(cs[hi].high-k.low>=th){piv.push({i:hi,p:cs[hi].high});dir=-1;lo=i}}
+    else{if(k.low<=cs[lo].low)lo=i;else if(k.high-cs[lo].low>=th){piv.push({i:lo,p:cs[lo].low});dir=1;hi=i}}}
+  if(dir===1)piv.push({i:hi,p:cs[hi].high,open:true});else if(dir===-1)piv.push({i:lo,p:cs[lo].low,open:true});
+  return piv;
+}
+const FIB_R=[0.236,0.382,0.5,0.618,0.786],FIB_X=[1.272,1.618],FIB_ATR=3,FIB_LOOK=200;
+// The last main move (A -> B) and where price sits on it. While price is pulling back by less than the move itself,
+// the move stays the one measured; once the pullback grows bigger than the move, it becomes the new main move.
+function fibLevels(cs,atr){
+  const n=cs?cs.length:0;if(n<40||!(atr>0))return null;
+  const piv=zigzag(cs,FIB_ATR*atr,n-FIB_LOOK),m=piv.length;if(m<2)return null;
+  let a=piv[m-2],b=piv[m-1];
+  if(m>=3&&Math.abs(b.p-a.p)<Math.abs(a.p-piv[m-3].p)){b=a;a=piv[m-3]}
+  const span=b.p-a.p;if(!span)return null;
+  const price=cs[n-1].close,dir=span>0?1:-1,lv=[];
+  lv.push({r:0,p:b.p,name:dir>0?'Swing high':'Swing low'});
+  for(const r of FIB_R)lv.push({r,p:b.p-span*r,name:+(r*100).toFixed(1)+'%'});
+  lv.push({r:1,p:a.p,name:dir>0?'Swing low':'Swing high'});
+  for(const x of FIB_X)lv.push({r:-(x-1),p:a.p+span*x,name:+(x*100).toFixed(1)+'%',ext:true});
+  const ok=lv.filter(l=>l.p>0),above=ok.filter(l=>l.p>price).sort((x,y)=>x.p-y.p)[0]||null,below=ok.filter(l=>l.p<price).sort((x,y)=>y.p-x.p)[0]||null;
+  // breakout: the move still running has gone past the previous swing on its side (a new high above the last high, or low below the last low)
+  const run=b===piv[m-1]&&b.open&&m>=3?piv[m-3].p:null,brk=run!=null&&(dir>0?b.p>run:b.p<run)?run:null;
+  const retr=(b.p-price)/span;
+  return{dir,a,b,span,price,retr,brk,breakout:brk!=null&&retr<0.236,levels:ok,above,below,bars:n-1-b.i,legBars:b.i-a.i};
+}
+// which part of the last move price is in (used for wording and for the backtest's buckets)
+function fibZone(retr){
+  if(!isFinite(retr))return null;if(retr<0)return 'Past the swing end';if(retr>1)return 'Past 100%';
+  return retr<0.236?'Under 23.6%':retr<0.382?'23.6–38.2%':retr<0.5?'38.2–50%':retr<0.618?'50–61.8%':retr<0.786?'61.8–78.6%':'78.6–100%';
+}
+
 /* ---------- sparklines: last 24 hours per row, loaded as rows scroll into view ---------- */
 const sparkCache=new Map(),sparkSeen=new Set();let sparkQ=[],sparkBusy=0,sparkObs=null;
 function sparkSVG(pts){
@@ -1749,7 +1797,7 @@ function cleanBT(j){
   const st=x=>x&&typeof x==='object'&&fin(x.n)&&x.n>=0?{n:Math.round(x.n),reach:fin(x.reach)?x.reach:0,lo:fin(x.lo)?x.lo:0,hi:fin(x.hi)?x.hi:0,win:fin(x.win)?x.win:0,avgR:fin(x.avgR)?x.avgR:0}:null;
   const rows=a=>(Array.isArray(a)?a:[]).slice(0,12).map(r=>{const o=st(r);return o&&typeof r.k==='string'?Object.assign({k:r.k.slice(0,40)},o):null}).filter(Boolean);
   const overall=st(j.overall);if(!overall)return null;
-  const groups={};if(j.groups&&typeof j.groups==='object')for(const k of ['confirmed','tf','side','agreement','bigger','range','adx','session','weekday'])groups[k]=rows(j.groups[k]);
+  const groups={};if(j.groups&&typeof j.groups==='object')for(const k of ['confirmed','tf','side','agreement','bigger','range','adx','session','weekday','fib'])groups[k]=rows(j.groups[k]);
   const odds={};if(j.odds&&typeof j.odds==='object')for(const k of Object.keys(j.odds).slice(0,200))if(/^(5m|15m|1h|4h|1d)\|(long|short)\|(70\+|50-69|<50)\|[01]$/.test(k)){const o=st(j.odds[k]);if(o)odds[k]=o}
   const w=j.walk&&typeof j.walk==='object'?j.walk:{};
   return{updated:fin(j.updated)?j.updated:0,from:fin(j.from)?j.from:null,to:fin(j.to)?j.to:null,source:typeof j.source==='string'?j.source.slice(0,60):'',
@@ -2123,7 +2171,7 @@ function btCardHTML(){
     <p class="big">${line(Y,'Confirmed setups')}</p><p class="big">${line(N,'Not confirmed')}</p>${verdict?`<p class="verdict">${verdict}</p>`:''}${walk}
     <details><summary>All the breakdowns</summary>
       ${btTable('Bigger picture (4H and 1D)',G.bigger,m)}${btTable('By agreement',G.agreement,m)}${btTable('By candle size',G.tf,m)}${btTable('Long vs short',G.side,m)}
-      ${btTable('By 24h range',G.range,m)}${btTable('By trend strength',G.adx,m)}${btTable('By session',G.session,m)}${btTable('By weekday',G.weekday,m)}
+      ${btTable('By 24h range',G.range,m)}${btTable('By trend strength',G.adx,m)}${btTable('By session',G.session,m)}${btTable('By weekday',G.weekday,m)}${btTable('Where price was on the last move (Fibonacci)',G.fib,m)}
       <ul class="sim-notes"><li>Same rules as the app: entry at the next candle's open, half closed at target 1 and the stop moved to entry, fees and slippage both sides, stop assumed first if both are touched.</li>
       <li>Only Gate data (Binance and Bybit block GitHub's servers). Past delistings aren't known, and 24h volume is Gate's alone.</li>
       <li>Ranges show where the true rate probably lies given the number of trades; rows with fewer than ${m} trades are hidden. Past results don't guarantee future ones.</li></ul>
@@ -2304,7 +2352,7 @@ function ensureCharts(){
   const line=(ch,color,w,extra)=>ch.addLineSeries(Object.assign({color,lineWidth:w||1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false},extra||{}));
   const c={main,rs,md,
     bbU:line(main,bbc,1),bbL:line(main,bbc,1),bbM:line(main,css('--up'),1,{lineStyle:0}),
-    e200:line(main,css('--c3'),2),e50:line(main,css('--c2'),2),e20:line(main,css('--c1'),2),stU:line(main,up,2),stD:line(main,dn,2),plines:[]};
+    e200:line(main,css('--c3'),2),e50:line(main,css('--c2'),2),e20:line(main,css('--c1'),2),stU:line(main,up,2),stD:line(main,dn,2),plines:[],flines:[]};
   c.candle=main.addCandlestickSeries({upColor:up,downColor:dn,borderUpColor:up,borderDownColor:dn,wickUpColor:up,wickDownColor:dn});
   c.vol=main.addHistogramSeries({priceScaleId:'vol',priceFormat:{type:'volume'},lastValueVisible:false,priceLineVisible:false});
   main.priceScale('vol').applyOptions({scaleMargins:{top:0.82,bottom:0}});
@@ -2322,6 +2370,9 @@ function destroyCharts(){if(!charts)return;['main','rs','md'].forEach(k=>{try{ch
 const tzOff=-new Date().getTimezoneOffset()*60;
 function draw(keep){
   if(!current)return;const ch=ensureCharts(),msg=$('#chartMsg');
+  // Fibonacci levels of the last main swing (card always; chart lines with the "Fibonacci" chip). Information only.
+  let fib=null;try{fib=fibLevels(current.cs,current.an&&current.an.atr)}catch(e){recordErr('fibonacci',e)}
+  current.fib=fib;renderFib();
   if(!ch){msg.hidden=false;msg.textContent="The chart library didn't load. Check your connection and refresh.";return}
   const {cs,an,rc}=current;if(keep){try{current.range=ch.main.timeScale().getVisibleLogicalRange()}catch(e){}}
   const T=cs.map(k=>k.time+tzOff);current.tIndex=new Map(T.map((t,i)=>[t,i]));
@@ -2359,6 +2410,11 @@ function draw(keep){
   }else if(Lv&&rc.rec==='hold'){
     ch.plines.push(ch.candle.createPriceLine({price:Lv.stop,color:dn,lineWidth:1,lineStyle:0,axisLabelVisible:true,title:'Trend breaks'}));
   }
+  ch.flines.forEach(pl=>{try{ch.candle.removePriceLine(pl)}catch(e){}});ch.flines=[];
+  if(fib&&state.ind.fib){const gc=css('--c4'),xc=css('--c2');
+    for(const l of fib.levels){const key=l.r===0||l.r===1;
+      ch.flines.push(ch.candle.createPriceLine({price:l.p,color:hexA(l.ext?xc:gc,key||l.r===0.618||l.r===0.5?.9:.6),lineWidth:1,lineStyle:key?0:1,axisLabelVisible:false,title:l.r===0||l.r===1?(l.r===0?'0%':'100%'):l.name}))}}
+  $('#cMain').dataset.fib=ch.flines.length;
   applyToggles();applyPanes();
   const bars=matchMedia('(max-width:600px)').matches?70:120;
   if(keep&&current.range){const r=current.range,atEdge=r.to>=cs.length-4;ch.main.timeScale().setVisibleLogicalRange(atEdge?{from:r.from+1,to:r.to+1}:r)}
@@ -2389,7 +2445,7 @@ function renderLegend(idx){
   }else{$('#rsiLegend').innerHTML='<span>RSI 6 / 12 / 24</span>';$('#macdLegend').innerHTML='<span>MACD(12,26,9)</span>'}
 }
 function renderToggles(){
-  const T=[['bb','Bollinger','--bb'],['st','Supertrend','--up'],['marks','B/S marks','--accent'],['ema','EMA 20/50/200','--c2'],['vol','Volume','--muted']];
+  const T=[['bb','Bollinger','--bb'],['st','Supertrend','--up'],['marks','B/S marks','--accent'],['fib','Fibonacci','--c4'],['ema','EMA 20/50/200','--c2'],['vol','Volume','--muted']];
   $('#toggles').innerHTML=T.map(([k,l,c])=>`<button class="chip" data-ind="${k}" aria-pressed="${!!state.ind[k]}"><i style="background:var(${c})"></i>${l}</button>`).join('');
 }
 
@@ -2539,6 +2595,32 @@ function bookHTML(st,p){
     ${row('Within 1% of price',st.d1)}${row('Within 2% of price',st.d2)}${thin}${walls}
     <p class="note">Large orders can be moved or cancelled in a second, and many come from automated market makers that follow the price, so they aren't reliable support or resistance. The buy/sell balance also swings quickly.</p>`;
 }
+// Fibonacci card under the chart: the last main move, where price sits on it, and the next levels each way (information only)
+function fibHTML(f,tf){
+  const up=f.dir>0,mv=up?'up-move':'down-move',pc=v=>(v>=0?'+':'−')+Math.abs(v).toFixed(2)+'%',dist=l=>pc((l.p/f.price-1)*100);
+  const lvl=r=>f.levels.find(l=>Math.abs(l.r-r)<1e-9),x1=lvl(-0.272),x2=lvl(-0.618),l786=lvl(0.786);
+  const head=`The last main ${mv} on ${TF_LABEL[tf]} went from <b>${fmtUsd(f.a.p)}</b> to <b>${fmtUsd(f.b.p)}</b> (${pc((f.b.p/f.a.p-1)*100)}, ${plural(f.legBars,'candle')}).`;
+  const r=f.retr,z=fibZone(r),pct=Math.round(r*100);
+  let now;
+  if(f.breakout||r<0)now=`Price ${f.breakout?`has broken ${up?'above the previous swing high':'below the previous swing low'} (${fmtUsd(f.brk)}) and is near the end of this move`:`has moved past the ${up?'swing high':'swing low'}`}, a breakout. Extensions such as 127.2%${x1?` (${fmtUsd(x1.p)})`:''} and 161.8%${x2?` (${fmtUsd(x2.p)})`:''} are where traders often watch for the move to pause.`;
+  else if(r>1)now=`Price has gone back past the start of the ${mv}, so this move no longer holds.`;
+  else{now=`Price has given back <b>${pct}%</b> of that ${mv}`+(z==='Under 23.6%'?', a shallow pullback; strong trends often pull back only this little.':
+    z==='23.6–38.2%'||z==='38.2–50%'||z==='50–61.8%'?`, inside the 38.2–61.8% area where pullbacks within a trend often pause (the 50–61.8% band is the most watched).`:
+    z==='61.8–78.6%'?`, a deep pullback. Many traders read a move beyond 78.6%${l786?` (${fmtUsd(l786.p)})`:''} as the ${mv} failing.`:', very deep: price is close to undoing the whole move.');
+    if(r>=0.236&&r<=1)now+=` If the ${mv} resumes, the ${up?'swing high':'swing low'} (${fmtUsd(f.b.p)}) and then the 127.2%${x1?` (${fmtUsd(x1.p)})`:''} and 161.8%${x2?` (${fmtUsd(x2.p)})`:''} extensions are the usual levels traders watch next.`}
+  const nb=(l,w)=>`<div>${w}${l?`<b>${esc(l.name)} · ${fmtUsd(l.p)}</b>${dist(l)}`:'<b>—</b>none in range'}</div>`;
+  const near=l=>f.above===l||f.below===l;
+  const rows=[...f.levels].sort((x,y)=>y.p-x.p).map(l=>`<tr class="${l.ext?'ext':''}${near(l)?' here':''}"><td>${esc(l.name)}${l.ext?' extension':''}</td><td>${fmtUsd(l.p)}</td><td>${dist(l)}</td></tr>`).join('');
+  return `<h3>Fibonacci levels</h3><p class="sub">${TF_LABEL[tf]} candles · from the last main swing · information only</p>
+    <p class="big">${head} ${now}</p>
+    <div class="next">${nb(f.above,'Next level above')}${nb(f.below,'Next level below')}</div>
+    <details><summary>All levels</summary><table>${rows}</table></details>
+    <p class="note">Fibonacci levels are zones, not exact prices. Many traders watch them, which is part of why price sometimes reacts there, but studies disagree on whether they work better than other levels. The nightly backtest now measures how setups did in each zone (Simulator → Last night's backtest).</p>`;
+}
+function renderFib(){
+  const el=$('#fibBox');if(!el)return;const f=current&&current.fib;
+  el.hidden=!f;el.innerHTML=f?fibHTML(f,state.tf):'';
+}
 async function loadMTF(p,g,tok){
   current.mtf={};current.cf=null;renderMTF();
   const res={};await Promise.all(MTF.map(t=>(t===state.tf&&current.rc?Promise.resolve({rc:current.rc}):evaluate(p,t)).then(r=>{res[t]=r||null},()=>{res[t]=null})));
@@ -2657,7 +2739,7 @@ $('#tabs').addEventListener('click',e=>{const b=e.target.closest('[data-cat]');i
 $('#sort').addEventListener('change',e=>{state.sort=e.target.value;LS.set('sort',state.sort);renderList();if(/^trend/.test(state.sort))scan(40)});
 let qT;$('#q').addEventListener('input',e=>{clearTimeout(qT);qT=setTimeout(()=>{state.q=e.target.value.trim().toUpperCase();state.limit=120;renderTabs();renderList(state.cat==='news')},120)});
 $('#tfSeg').addEventListener('click',e=>{const b=e.target.closest('[data-tf]');if(b)setTf(b.dataset.tf)});
-$('#toggles').addEventListener('click',e=>{const b=e.target.closest('[data-ind]');if(!b)return;const k=b.dataset.ind;state.ind[k]=!state.ind[k];LS.set('ind3',state.ind);renderToggles();applyToggles();renderLegend(null)});
+$('#toggles').addEventListener('click',e=>{const b=e.target.closest('[data-ind]');if(!b)return;const k=b.dataset.ind;state.ind[k]=!state.ind[k];LS.set('ind3',state.ind);renderToggles();if(k==='fib'&&current)draw(true);else applyToggles();renderLegend(null)});
 $('#venueBox').addEventListener('click',e=>{const r=e.target.closest('[data-cid]');if(r&&state.selected)openGroup(state.selected,true,r.dataset.cid)});
 $('#venueBox').addEventListener('keydown',e=>{const r=e.target.closest('[data-cid]');if(r&&(e.key==='Enter'||e.key===' ')){e.preventDefault();openGroup(state.selected,true,r.dataset.cid)}});
 $('#themeOpts').addEventListener('click',e=>{const b=e.target.closest('[data-theme-set]');if(!b)return;state.theme=b.dataset.themeSet;LS.set('theme',state.theme);applyTheme(state.theme)});

@@ -1,4 +1,10 @@
 [
+  {"date": "2026-10-25", "title": "Fibonacci levels on every chart", "items": [
+    "The chart now draws Fibonacci levels from the last big move: 23.6% to 78.6% pullback levels in grey and 127.2% / 161.8% extensions in blue. Tap the Fibonacci chip to hide them.",
+    "A new card under the chart says how much of the last move price has given back, whether it has broken out, and the next level above and below.",
+    "The nightly backtest now also records where each setup sat on the last move, so you can see in the Simulator whether Fibonacci zones made any difference.",
+    "Information only: setups, stops and targets have not changed."
+  ]},
   {"date": "2026-10-24", "title": "Order book on every chart", "items": [
     "Each chart now shows how much money is waiting to buy and to sell near the price, the spread, and any unusually large orders.",
     "A red note warns when the order book is thin, which means bigger spikes and worse stop fills.",

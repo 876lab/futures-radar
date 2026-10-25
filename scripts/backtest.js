@@ -68,12 +68,14 @@ function runMarket(m, c) {
       const r6 = S.r6[i], up = S.bb.up[i], lb = S.bb.lo[i], e20 = S.e20[i], A = x.an.atr || price * 0.01;
       const vs = cs.slice(Math.max(0, i - 20), i).map(k => k.volume), va = vs.reduce((a, b) => a + b, 0) / Math.max(1, vs.length);
       const d = new Date(t.t0 * 1000);
+      const fb = fibLevels(cs.slice(Math.max(0, i - FIB_LOOK - 60), i + 1), x.an.atr);   // only candles up to the signal
+      const fib = !fb ? null : fb.dir !== t.dir ? 'Last move went the other way' : fb.breakout || fb.retr < 0 ? 'Breakout past the swing end' : 'Pullback ' + fibZone(fb.retr);
       out.push({ m: m.root, tf, dir: t.dir, conf: t.conf, t0: t.t0, r: +t.r.toFixed(3), reach: t.mfe >= 1.5, how: t.how, bars: t.bars,
         confirmed: cf.ok, d4h: dirs['4h'], d1d: dirs['1d'], range: range == null ? null : +range.toFixed(4), vol: Math.round(vol),
         adx: x.an.adx == null ? null : +x.an.adx.toFixed(1), score: x.an.score, htf: x.han ? (x.han.score >= 20 ? 1 : x.han.score <= -20 ? -1 : 0) : null,
         r6: r6 == null ? null : +r6.toFixed(1), pctB: up != null && up > lb ? +((price - lb) / (up - lb)).toFixed(3) : null,
         ext: e20 != null ? +((price - e20) / A).toFixed(2) : null, vRatio: va ? +(cs[i].volume / va).toFixed(2) : null,
-        hour: d.getUTCHours(), wday: d.getUTCDay() });
+        hour: d.getUTCHours(), wday: d.getUTCDay(), fib });
     };
     backtestSeries(cs, hcs, m, tf, Object.assign({}, OPTS, { onEntry }));
   }
@@ -103,7 +105,9 @@ function report(trades, meta) {
       range: group(trades, t => t.range == null ? null : t.range < 0.1 ? '24h range under 10%' : t.range < 0.25 ? '24h range 10–25%' : '24h range 25%+', ['24h range under 10%', '24h range 10–25%', '24h range 25%+']),
       adx: group(trades, t => t.adx == null ? null : t.adx >= 30 ? 'ADX 30+' : t.adx >= 22 ? 'ADX 22–30' : 'ADX under 22', ['ADX 30+', 'ADX 22–30', 'ADX under 22']),
       session: group(trades, t => SESSION(t.hour), ['Asia (0–8 UTC)', 'London (8–13 UTC)', 'New York (13–21 UTC)', 'Late (21–24 UTC)']),
-      weekday: group(trades, t => WDAY[t.wday], ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'])
+      weekday: group(trades, t => WDAY[t.wday], ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']),
+      fib: group(trades, t => t.fib, ['Breakout past the swing end', 'Pullback Under 23.6%', 'Pullback 23.6–38.2%', 'Pullback 38.2–50%', 'Pullback 50–61.8%',
+        'Pullback 61.8–78.6%', 'Pullback 78.6–100%', 'Pullback Past 100%', 'Last move went the other way'])
     },
     // walk-forward check: does the confirmed vs not-confirmed gap hold on the newer half of the data too?
     walk: { split: mid, older: group(trades.filter(t => t.t0 < mid), yes, ['Confirmed', 'Not confirmed']), newer: group(trades.filter(t => t.t0 >= mid), yes, ['Confirmed', 'Not confirmed']) },

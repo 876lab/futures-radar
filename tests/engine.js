@@ -56,6 +56,32 @@ ok(delistTickers('New listing: EPICUSDT').length===0,'delistTickers: needs the w
 ok(wilson(0,0)[0]===0&&wilson(0,0)[1]===0,'wilson with no trades');
 const s=btStat([{reach:true,r:1.2},{reach:false,r:-1},{reach:true,r:0.5},{reach:false,r:0.1}]);ok(s.n===4&&s.reach===0.5&&s.win===0.75&&Math.abs(s.avgR-0.2)<1e-9&&s.lo<0.5&&s.hi>0.5,'btStat');
 ok(btStat([]).n===0,'btStat empty');
+// Fibonacci levels (information only): swings, the measured move, retracement maths and look-ahead
+{const mkc=ps=>ps.map((p,i)=>({time:i*3600,open:p,high:p+0.5,low:p-0.5,close:p,volume:1}));
+const path=[];for(let i=0;i<20;i++)path.push(100);for(let i=0;i<=20;i++)path.push(100+i*5);for(let i=1;i<=8;i++)path.push(200-i*5);   // flat, up 100 -> 200, back to 160
+const cs=mkc(path);
+const z=zigzag(cs,20,0);ok(z.length>=2&&Math.abs(z[z.length-1].p-159.5)<1e-9&&z[z.length-1].open,'zigzag: last swing is the open pullback low');
+let f=fibLevels(cs,5);   // threshold 15
+ok(f&&f.dir===1&&Math.abs(f.a.p-99.5)<1e-9&&Math.abs(f.b.p-200.5)<1e-9,'fib: measures the main up-move, not the smaller pullback');
+const l618=f.levels.find(l=>l.r===0.618),x16=f.levels.find(l=>l.ext&&Math.abs(l.r+0.618)<1e-9);
+ok(Math.abs(l618.p-(200.5-101*0.618))<1e-9&&Math.abs(x16.p-(99.5+101*1.618))<1e-9,'fib: 61.8% retracement and 161.8% extension prices');
+ok(Math.abs(f.retr-(200.5-160)/101)<1e-9&&fibZone(f.retr)==='38.2–50%','fib: price has given back about 40% (38.2–50% zone)');
+ok(f.above&&f.above.name==='38.2%'&&f.below&&f.below.name==='50%','fib: next levels above and below');
+// a pullback bigger than the move becomes the new main move (down)
+const p2=path.concat(Array.from({length:30},(_,i)=>155-i*5));f=fibLevels(mkc(p2),5);
+ok(f&&f.dir===-1&&Math.abs(f.b.p-(10-0.5))<1e-9,'fib: once the drop is bigger than the up-move, the drop is measured');
+// breakout past the swing high reads as an extension
+const p3=path.concat(Array.from({length:12},(_,i)=>165+i*5));f=fibLevels(mkc(p3),5);
+ok(f&&f.dir===1&&Math.abs(f.a.p-159.5)<1e-9&&Math.abs(f.b.p-220.5)<1e-9&&f.breakout&&Math.abs(f.brk-200.5)<1e-9,'fib: new high past the old swing high reads as a breakout');
+ok(fibLevels(cs,5).breakout===false,'fib: a pullback is not a breakout');
+ok(fibLevels(mkc(path.slice(0,30)),5)===null,'fib: under 40 candles gives nothing');ok(fibLevels(cs,0)===null&&fibLevels([],5)===null,'fib: no ATR or no candles gives nothing');
+ok(fibZone(-0.1)==='Past the swing end'&&fibZone(0.1)==='Under 23.6%'&&fibZone(0.7)==='61.8–78.6%'&&fibZone(1.2)==='Past 100%'&&fibZone(NaN)===null,'fibZone bands');
+// no look-ahead: levels at a past candle equal levels computed on candles up to that point
+const p=state.pairs[0],dc=demoCandles(p,'1h',600),S=computeSeries(dc);let same=true;
+for(const L of [250,333,420,599]){const a=fibLevels(dc.slice(0,L+1),S.at[L]),b=fibLevels(dc.slice(0,L+1).map(k=>({...k})),S.at[L]);if(JSON.stringify(a)!==JSON.stringify(b))same=false;
+  if(a)for(const l of a.levels)if(!(isFinite(l.p)&&l.p>0))same=false;
+  if(a&&(a.a.i>L||a.b.i>L))same=false}
+ok(same,'fib: uses only candles up to the reading, all prices finite');}
 ok(oddsKey('15m',1,72,true)==='15m|long|70+|1'&&oddsKey('4h',-1,49,false)==='4h|short|<50|0'&&oddsKey('1h',1,50,false)==='1h|long|50-69|0','oddsKey');
 // the onEntry hook only observes: same trades with and without it
 const p=demoPairs()[2],cs=demoCandles(p,'1h',900),hcs=demoCandles(p,'4h',900),o={plan:'split',minConf:0,fee:0.0005,slip:0.0002,maxHold:96};

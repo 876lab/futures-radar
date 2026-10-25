@@ -236,6 +236,20 @@ async def main():
             if "Order book" not in bk or "Within 2% of price" not in bk or "Large" not in bk: problems.append(f"[{scheme}] chart screen: order book card missing")
             for bad in ("undefined", "NaN", "Infinity"):
                 if bad in bk: problems.append(f"[{scheme}] order book shows '{bad}'")
+            # Fibonacci card and chart lines (information only), switchable with the chip above the chart
+            fb = await pg.inner_text("#fibBox") if await pg.is_visible("#fibBox") else ""
+            if "Fibonacci levels" not in fb or "Next level above" not in fb or "%" not in fb: problems.append(f"[{scheme}] chart screen: Fibonacci card missing")
+            for bad in ("undefined", "NaN", "Infinity", "null"):
+                if bad in fb: problems.append(f"[{scheme}] Fibonacci card shows '{bad}'")
+            if await pg.evaluate("!!window.LightweightCharts"):   # the chart library comes from jsDelivr; some test machines can't reach it
+                nfl = int(await pg.get_attribute("#cMain", "data-fib") or 0)
+                if nfl < 7: problems.append(f"[{scheme}] chart: Fibonacci lines missing ({nfl})")
+                await pg.click('[data-ind="fib"]'); await pg.wait_for_timeout(200)
+                if (await pg.get_attribute("#cMain", "data-fib")) != "0": problems.append(f"[{scheme}] chart: Fibonacci chip did not hide the lines")
+                await pg.click('[data-ind="fib"]'); await pg.wait_for_timeout(200)
+                if scheme == "dark": await pg.locator(".chartbox").screenshot(path=os.path.join(OUT, "fibonacci-chart.png"))
+            else: print("  note: chart library unreachable here, Fibonacci chart lines not checked")
+            if scheme == "dark" and fb: await pg.locator("#fibBox").screenshot(path=os.path.join(OUT, "fibonacci.png"))
             if ("Long setup" in sig or "Short setup" in sig) and "In last night's backtest" not in sig: problems.append(f"[{scheme}] chart screen: past win rate missing under a setup")
             for old in ("signal ·", "enter long", "enter short", "avoid for now", "confidence", "size this trade"):
                 if old in sig.lower(): problems.append(f"[{scheme}] chart screen: old wording '{old}' still shown")

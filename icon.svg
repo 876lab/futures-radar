@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Futures Radar app icon: the header's radar mark on the app's deep navy. Full-bleed square; phones round the corners. -->
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="42%" r="75%">
+      <stop offset="0" stop-color="#172433"/><stop offset=".62" stop-color="#0E151F"/><stop offset="1" stop-color="#080C12"/>
+    </radialGradient>
+    <linearGradient id="sweep" x1="512" y1="512" x2="760" y2="260" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F0A63E" stop-opacity=".0"/><stop offset="1" stop-color="#F0A63E" stop-opacity=".38"/>
+    </linearGradient>
+    <radialGradient id="blip" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#2DBE87" stop-opacity=".55"/><stop offset="1" stop-color="#2DBE87" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="10" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <!-- faint crosshair -->
+  <path d="M512 172v680M172 512h680" stroke="#E6ECF3" stroke-opacity=".07" stroke-width="6"/>
+  <!-- sweep wedge trailing the beam -->
+  <path d="M512 512 L782 306 A340 340 0 0 0 707 233 Z" fill="url(#sweep)"/>
+  <path d="M512 512 L782 306 A340 340 0 0 0 600 184 Z" fill="#F0A63E" fill-opacity=".10"/>
+  <!-- rings -->
+  <circle cx="512" cy="512" r="340" fill="none" stroke="#F0A63E" stroke-width="40" filter="url(#glow)"/>
+  <circle cx="512" cy="512" r="200" fill="none" stroke="#F0A63E" stroke-opacity=".55" stroke-width="22"/>
+  <!-- beam -->
+  <path d="M512 512 L766 318" stroke="#E6ECF3" stroke-width="40" stroke-linecap="round"/>
+  <circle cx="512" cy="512" r="30" fill="#E6ECF3"/>
+  <!-- the signal it found -->
+  <circle cx="690" cy="378" r="96" fill="url(#blip)"/>
+  <circle cx="690" cy="378" r="44" fill="#2DBE87" filter="url(#glow)"/>
+</svg>

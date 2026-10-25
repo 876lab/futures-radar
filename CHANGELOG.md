@@ -2,6 +2,13 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-10-25 (owner request: app icon and UI tidy-up)
+- **App icon and home-screen settings:** new `icon.svg` (the header's radar mark on the app's navy: amber rings with a glow, white beam, green blip, faint sweep and crosshair), rendered to `apple-touch-icon.png` (180), `icon-192.png` and `icon-512.png`; `manifest.webmanifest` (standalone, navy background and theme colour). Before this the page had no icon, so iOS drew a letter "F". Existing Home Screen shortcuts keep the old icon until removed and added again.
+- **Compact rows:** ticker and tag in fixed-width columns (ticker 56–66px with ellipsis and a tooltip, tag 80–86px), price at least 6.6em and right-aligned, so tags, sparklines, prices and changes line up; the sparkline shrinks to 40px under 440px wide and is hidden under 390px, where it used to overlap the tags.
+- **Wait tag** on rows uses the pause icon (as on the chart screen's strip) instead of an up/down arrow; the trend direction is in its tooltip.
+- **Header and list bar:** "Updated" is dropped before the time under 440px wide; the "markets up today" line stays on one line (shorter bar and "of N up today" under 480px), so the Compact button sits beside it.
+- Looks only: no reading, score, threshold or entry/stop/target change.
+
 ## 2026-10-25 (owner request: Fibonacci levels)
 - **Fibonacci levels on the chart screen** (information only; signal rules, scores and entry/stop/target maths unchanged). New pure functions `zigzag`, `fibLevels`, `fibZone` (after `recommend`). Swings come from a zigzag that needs a move of at least 3× ATR(14) against the last swing, over the last 200 candles. The measured move is the last zigzag leg, except while price is pulling back by less than that leg (then the leg before it is kept, so the pullback is measured against the main move). Levels: 0%, 23.6%, 38.2%, 50%, 61.8%, 78.6%, 100% and extensions 127.2% / 161.8%. A "breakout" is a still-running move that has gone past the previous swing on its side.
 - Chart: dotted price lines (grey retracements, blue extensions; solid 0% / 100%), on by default with a new **Fibonacci** chip (`state.ind.fib`; older saved chip settings get it switched on). Card under the chart: the move measured, how much has been given back and what that zone usually means, breakout wording, next level above and below with distance, all levels in a fold-out, and a note that the evidence is mixed. Help entry added.

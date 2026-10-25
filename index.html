@@ -7,6 +7,10 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Futures Radar">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="icon" href="icon-192.png" type="image/png" sizes="192x192">
+<link rel="manifest" href="manifest.webmanifest">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{-webkit-text-size-adjust:100%}body{margin:0}img{max-width:100%}</style>
 <title>Futures Radar</title>
 <meta name="claude:viewport-fit-sides" content="cover">
@@ -68,6 +72,7 @@ button{cursor:pointer}
 .spin svg{animation:rot 1s linear infinite}
 @keyframes rot{to{transform:rotate(360deg)}}
 @media (max-width:420px){.brand .word{display:none}}
+@media (max-width:440px){.live .lw{display:none}}
 
 .wrap{max-width:1440px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:14px 48px}
 .banner{display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:var(--r);padding:12px 14px;margin-bottom:14px;font-size:13.5px}
@@ -104,10 +109,11 @@ button{cursor:pointer}
 .tab svg{width:14px;height:14px;color:var(--accent)}
 .tab[aria-selected="true"] svg{color:inherit}
 .tabdesc{margin:0;font-size:12.5px;color:var(--muted)}
-.bar2{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.bar2{display:flex;gap:10px;align-items:center;flex-wrap:wrap;row-gap:8px}
 .sel{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);margin-left:auto}
 .sel select{padding:7px 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font-size:12.5px;font-weight:600;color:var(--fg)}
-.mood{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12.5px;color:var(--muted)}
+.mood{display:flex;align-items:center;gap:10px;flex-wrap:nowrap;min-width:0;flex:1 1 auto;white-space:nowrap;font-size:12.5px;color:var(--muted)}
+@media (max-width:480px){.breadth{width:64px!important} .mood .mw{display:none}}
 .breadth{width:120px;height:8px;border-radius:4px;background:var(--down);overflow:hidden;flex:none}
 .breadth i{display:block;height:100%;background:var(--up)}
 @media (max-width:480px){.sel{margin-left:0;width:100%}.sel select{flex:1}}
@@ -444,6 +450,15 @@ body.compact .r-sub{margin-top:0;flex-wrap:nowrap;min-width:0}
 body.compact .r-sub>:not(.rec){display:none}
 body.compact .r-right{flex-direction:row;align-items:center;gap:8px}
 body.compact .mbar{display:none}
+body.compact .r-top{flex:0 1 66px;min-width:40px} body.compact .tk{display:block;overflow:hidden;text-overflow:ellipsis}
+body.compact .r-sub .rec{width:86px;flex:none;justify-content:flex-start;box-sizing:border-box}
+body.compact .row{grid-template-columns:30px auto minmax(0,1fr) auto}
+body.compact .spark{width:100%;max-width:52px;min-width:0;justify-self:center;overflow:hidden}
+body.compact .spark svg{width:100%;height:100%}
+body.compact .r-price{min-width:6.6em;text-align:right}
+@media (max-width:440px){body.compact .row{column-gap:8px} body.compact .spark{max-width:40px} body.compact .r-top{flex-basis:56px} body.compact .r-sub .rec{width:80px;padding-inline:6px}}
+@media (max-width:389px){body.compact .spark{display:none} body.compact .row{grid-template-columns:30px minmax(0,1fr) auto}}
+body.compact .r-sub .rec .num{margin-left:auto}
 /* Sparklines */
 .row{grid-template-columns:30px minmax(0,1fr) auto auto}
 .spark{display:block;width:52px;height:22px}
@@ -1150,7 +1165,7 @@ function freshness(){
   const ts=Math.max(0,...Object.values(state.lastTick)),streaming=EXK.some(k=>feeds[k]&&feeds[k].ready);
   if(streaming&&ts){const s=Math.max(0,Math.round((NOW()-ts)/1000)),stale=s>30;
     l.innerHTML=`<i class="dot ${stale?'load':'stream'}"></i>${stale?'Delayed':'Live'} · <span class="num">${s<2?'now':s<60?s+'s ago':Math.round(s/60)+'m ago'}</span>`}
-  else l.innerHTML=`<i class="dot ok"></i>Updated <span class="num">${new Date(state.updated).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>`;
+  else l.innerHTML=`<i class="dot ok"></i><span class="lw">Updated </span><span class="num">${new Date(state.updated).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>`;
   if(!$('#settings').hidden)renderFeedTable();
 }
 function renderFeedTable(){
@@ -1433,8 +1448,9 @@ const ARROW={up:'<svg viewBox="0 0 12 12" fill="currentColor"><path d="M6 1.5 11
 const PAUSE='<svg viewBox="0 0 12 12" fill="currentColor"><rect x="2.5" y="2" width="2.5" height="8" rx=".6"/><rect x="7" y="2" width="2.5" height="8" rx=".6"/></svg>';
 const BLOCK='<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="6" cy="6" r="4.5"/><path d="M3 9 9 3"/></svg>';
 const REC_TXT={long:'Long',short:'Short',hold:'Wait',avoid:'No setup'};
-function recPill(s){if(!s)return '';const ic=s.rec==='long'?ARROW.up:s.rec==='short'?ARROW.down:s.rec==='hold'?(s.dir>0?ARROW.up:s.dir<0?ARROW.down:PAUSE):BLOCK;
-  return `<span class="rec ${s.rec}" title="Chart reading on ${TF_LABEL[state.tf]} candles">${ic}${REC_TXT[s.rec]}${s.rec==='long'||s.rec==='short'?` <span class="num" style="font-weight:500;opacity:.85">${s.conf}</span>`:''}</span>`}
+function recPill(s){if(!s)return '';const ic=s.rec==='long'?ARROW.up:s.rec==='short'?ARROW.down:s.rec==='hold'?PAUSE:BLOCK;
+  const tip=`Chart reading on ${TF_LABEL[state.tf]} candles${s.rec==='hold'&&s.dir?` · ${s.dir>0?'uptrend':'downtrend'}, waiting for a cleaner entry`:''}`;
+  return `<span class="rec ${s.rec}" title="${tip}">${ic}${REC_TXT[s.rec]}${s.rec==='long'||s.rec==='short'?` <span class="num" style="font-weight:500;opacity:.85">${s.conf}</span>`:''}</span>`}
 
 function renderStatus(){
   const l=$('#live');
@@ -1505,14 +1521,14 @@ function rowHTML(g,opt){
   const sel=state.selected===g.key?' sel-on':'';
   return `<div class="row${sel}" data-key="${esc(g.key)}" ${opt.max?`data-max="${opt.max}"`:''} role="button" tabindex="0">
     <button class="star" data-star="${esc(g.key)}" aria-pressed="${state.watch.has(g.key)}" aria-label="Star ${esc(g.root)}">${STAR}</button>
-    <div class="r-main"><div class="r-top"><span class="tk">${esc(g.root)}</span><span class="fn">${esc(groupSub(g))}</span></div><div class="r-sub">${sub.join('')}</div></div>
+    <div class="r-main"><div class="r-top"><span class="tk" title="${esc(g.root)}">${esc(g.root)}</span><span class="fn">${esc(groupSub(g))}</span></div><div class="r-sub">${sub.join('')}</div></div>
     <span class="spark" data-sid="${esc(g.primary.id)}">${sparkSVG(sparkFor(g.primary))}</span>
     <div class="r-right"><span class="r-price">${fmtUsd(g.price)}</span><span class="pill ${c}">${fmtPct(g.chg)}</span></div>${bar}</div>`;
 }
 function renderMood(list){
   const w=list.filter(g=>isFinite(g.chg));if(!w.length){$('#mood').innerHTML='';return}
   const ups=w.filter(g=>g.chg>0).length,pct=ups/w.length*100;
-  $('#mood').innerHTML=`<span class="breadth" title="${ups} up, ${w.length-ups} down"><i style="width:${pct.toFixed(1)}%"></i></span><span><b class="num" style="color:var(--fg)">${pct.toFixed(0)}%</b> of ${w.length} markets are up today</span>`;
+  $('#mood').innerHTML=`<span class="breadth" title="${ups} up, ${w.length-ups} down"><i style="width:${pct.toFixed(1)}%"></i></span><span><b class="num" style="color:var(--fg)">${pct.toFixed(0)}%</b> of ${w.length} <span class="mw">markets </span>up today</span>`;
 }
 const section=(title,sw,note,body)=>`<div class="section"><div class="sec-h"><h2><span class="sw" style="background:${sw}"></span>${title}</h2><span>${note}</span></div><div class="list">${body}</div></div>`;
 function renderList(force){

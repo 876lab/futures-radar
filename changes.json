@@ -1,4 +1,10 @@
 [
+  {"date": "2026-10-25", "title": "New app icon and tidier rows", "items": [
+    "The app has its own icon: the amber radar on deep navy. Remove the old 'F' from your Home Screen and add the app again (Share, then Add to Home Screen) to get it.",
+    "In compact rows the tags now sit in one straight column, so tags, prices and changes line up.",
+    "'Wait' tags show a pause sign instead of an arrow, so they no longer look like 'Long'.",
+    "The 'markets up today' bar and the Compact button now share one line."
+  ]},
   {"date": "2026-10-25", "title": "Fibonacci levels on every chart", "items": [
     "The chart now draws Fibonacci levels from the last big move: 23.6% to 78.6% pullback levels in grey and 127.2% / 161.8% extensions in blue. Tap the Fibonacci chip to hide them.",
     "A new card under the chart says how much of the last move price has given back, whether it has broken out, and the next level above and below.",

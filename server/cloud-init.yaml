@@ -1,0 +1,72 @@
+#cloud-config
+# Futures Radar cloud server setup. Paste this whole file into the "Cloud config / User data" box when creating
+# an Ubuntu 24.04 server. It:
+#   - installs security updates now and every day after (restarting at 4am Jamaica time when an update needs it)
+#   - blocks every incoming connection (the server only makes outgoing requests; nothing to break into from outside)
+#   - creates a deploy key for GitHub and shows it on the server's console screen for you to copy
+#   - runs the jobs in the repo's server/jobs/ folder every 5 minutes as a user with no admin rights
+# Owner steps and costs: server/README.md
+
+package_update: true
+package_upgrade: true
+packages: [git, python3, nodejs, ufw, unattended-upgrades, ca-certificates]
+
+users:
+  - name: radar
+    gecos: Futures Radar jobs
+    shell: /bin/bash
+    lock_passwd: true
+
+write_files:
+  - path: /etc/apt/apt.conf.d/52radar-upgrades
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+      Unattended-Upgrade::Automatic-Reboot "true";
+      Unattended-Upgrade::Automatic-Reboot-Time "09:00";
+  - path: /usr/local/bin/radar-tick
+    permissions: "0755"
+    content: |
+      #!/bin/bash
+      # first run: clone the repo with the deploy key (fails quietly until the key is added on GitHub)
+      export GIT_SSH_COMMAND="ssh -i $HOME/.ssh/radar_deploy -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+      if [ ! -d "$HOME/app/.git" ]; then
+        git clone -q --depth 1 git@github.com:876lab/futures-radar.git "$HOME/app" 2>/dev/null || exit 0
+        git -C "$HOME/app" config core.sshCommand "$GIT_SSH_COMMAND"
+      fi
+      exec bash "$HOME/app/server/tick.sh"
+  - path: /etc/systemd/system/radar.service
+    content: |
+      [Unit]
+      Description=Futures Radar jobs
+      After=network-online.target
+      [Service]
+      Type=oneshot
+      User=radar
+      WorkingDirectory=/home/radar
+      ExecStart=/usr/local/bin/radar-tick
+      NoNewPrivileges=true
+      ProtectSystem=strict
+      ReadWritePaths=/home/radar /tmp
+      PrivateTmp=true
+  - path: /etc/systemd/system/radar.timer
+    content: |
+      [Unit]
+      Description=Run Futures Radar jobs every 5 minutes
+      [Timer]
+      OnBootSec=2min
+      OnUnitActiveSec=5min
+      [Install]
+      WantedBy=timers.target
+
+runcmd:
+  - ufw default deny incoming
+  - ufw default allow outgoing
+  - ufw --force enable
+  - systemctl disable --now ssh.socket ssh.service || true
+  - sudo -u radar mkdir -p -m 700 /home/radar/.ssh
+  - sudo -u radar ssh-keygen -q -t ed25519 -N "" -C "futures-radar server" -f /home/radar/.ssh/radar_deploy
+  - sudo -u radar sh -c 'ssh-keyscan -t ed25519 github.com >> /home/radar/.ssh/known_hosts 2>/dev/null'
+  - printf '\nFutures Radar: copy this deploy key into GitHub (repo Settings > Deploy keys > Add, tick "Allow write access"):\n\n%s\n\n' "$(cat /home/radar/.ssh/radar_deploy.pub)" | tee -a /etc/issue /etc/motd
+  - systemctl daemon-reload
+  - systemctl enable --now radar.timer

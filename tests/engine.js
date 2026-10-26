@@ -56,6 +56,17 @@ ok(delistTickers('New listing: EPICUSDT').length===0,'delistTickers: needs the w
 ok(wilson(0,0)[0]===0&&wilson(0,0)[1]===0,'wilson with no trades');
 const s=btStat([{reach:true,r:1.2},{reach:false,r:-1},{reach:true,r:0.5},{reach:false,r:0.1}]);ok(s.n===4&&s.reach===0.5&&s.win===0.75&&Math.abs(s.avgR-0.2)<1e-9&&s.lo<0.5&&s.hi>0.5,'btStat');
 ok(btStat([]).n===0,'btStat empty');
+// public track record: cleaning and stats (losses and unscored records kept, junk dropped)
+{const rec=(o)=>Object.assign({m:'BTC',tf:'1h',dir:1,conf:72,confirmed:true,t0:Date.UTC(2026,9,27)/1000,entry:100,stop:98,how:'stop',r:-1.02,reach:false,t1:Date.UTC(2026,9,27,5)/1000},o);
+const raw={start:1,updated:2,source:'Gate',markets:['BTC'],open:[rec({how:undefined}),{m:'X'}],closed:[rec(),rec({how:'target',r:2.1,reach:true,dir:-1,stop:102,confirmed:false}),
+  rec({how:'breakeven',r:0.68,reach:true,tf:'4h',t0:Date.UTC(2026,10,2)/1000}),rec({how:'nodata',r:null,t1:Date.UTC(2026,10,9)/1000}),rec({how:'win!'}),rec({r:'1'}),rec({tf:'15m'}),null,'x',rec({r:99})]};
+const d=cleanTrack(raw);ok(d&&d.open.length===1&&d.closed.length===5,'track: junk records dropped ('+(d&&d.closed.length)+')');
+ok(d.closed[4].r===5&&d.closed[3].how==='nodata'&&d.closed[3].r===null,'track: wild R capped, unscored record kept');
+ok(cleanTrack({open:[]})===null&&cleanTrack('x')===null&&cleanTrack(null)===null,'track: not a track record');
+const s=trackStats(d.closed.slice(0,4));ok(s.overall.n===3&&s.nodata===1&&Math.abs(s.overall.reach-2/3)<1e-9&&Math.abs(s.overall.avgR-(-1.02+2.1+0.68)/3)<1e-9,'track: stats leave out unscored records only');
+ok(s.month.map(r=>r.k+':'+r.n).join()==='Nov 2026:1,Oct 2026:2','track: by month, newest first');
+ok(s.side.map(r=>r.k+r.n).join()==='Long2,Short1'&&s.tf.map(r=>r.k+r.n).join()==='1H2,4H1'&&s.confirmed[1].n===1,'track: by side, candle size, confirmed');
+ok(s.latest.length===4&&s.latest[0].how==='nodata'&&s.latest.some(r=>r.r<0),'track: latest list keeps losses and unscored records');}
 // crypto cycle gauge (information only)
 {const D=86400,mk=(n,f)=>Array.from({length:n},(_,i)=>{const c=f(i);return{time:1.5e9+i*D,open:c,high:c*1.01,low:c*0.99,close:c,volume:1}});
 let c=cycleAt(mk(1500,()=>100),1499);

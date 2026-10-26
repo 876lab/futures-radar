@@ -1,0 +1,59 @@
+name: Hourly track record
+
+# Records every Long setup / Short setup the app shows on 1H and 4H for the 25 busiest Gate USDT perpetuals,
+# scores them later with the Simulator's rules and publishes track.json to the track-data branch.
+# The branch is only ever added to (new commit on top, pushed without force), so the full history stays auditable.
+# The Simulator page shows it under "Track record".
+on:
+  schedule:
+    - cron: "12 * * * *"   # every hour at minute 12
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - scripts/track.js
+      - .github/workflows/track.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: track
+  cancel-in-progress: false
+
+jobs:
+  track:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Get the existing track record
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          set +e; git ls-remote --exit-code --heads origin track-data > /dev/null; rc=$?; set -e
+          if [ "$rc" = 0 ]; then
+            git fetch -q origin track-data:refs/remotes/origin/track-data
+            git worktree add -q -B track-data out origin/track-data
+            echo "TRACK_EXISTING=1" >> "$GITHUB_ENV"
+          elif [ "$rc" = 2 ]; then
+            echo "No track-data branch yet: starting the record now"
+            git worktree add -q --detach out
+            git -C out checkout -q --orphan track-data
+            git -C out rm -rfq .
+          else
+            echo "Could not check the track-data branch (exit $rc); stopping so the record is never restarted by mistake"
+            exit 1
+          fi
+      - name: Record and score setups
+        run: node scripts/track.js index.html out/track.json
+      - name: Publish (add a commit, never overwrite history)
+        run: |
+          cd out
+          git add track.json
+          if git diff --cached --quiet; then echo "nothing changed"; exit 0; fi
+          git commit -q -m "Track record $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push -q origin track-data

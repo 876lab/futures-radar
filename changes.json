@@ -1,4 +1,10 @@
 [
+  {"date": "2026-10-26", "title": "A public track record has started", "items": [
+    "From now on, every Long setup and Short setup the app shows on 1H and 4H for the 25 busiest Gate markets is saved each hour, before anyone knows how it turns out.",
+    "Each one is then followed on later prices with the Simulator's rules until it hits its stop, target 2 or runs out of time. Losses stay in, and finished results are never changed.",
+    "See it at the top of the Simulator page: how many reached target 1, the average result, month by month, and the latest ten. It needs a few weeks before the numbers mean much.",
+    "These are simulated results from recorded setups, not real trades."
+  ]},
   {"date": "2026-10-26", "title": "Crypto cycle gauge", "items": [
     "A new gauge at the top of the News page shows where Bitcoin sits in its four-year cycle, from 0 (like past cycle lows) to 100 (like past cycle tops). Setups shows it in one line too.",
     "It combines four price measures and the time since the 2024 halving. Tap 'The four measures' to see each one and how the gauge read at past tops and lows.",

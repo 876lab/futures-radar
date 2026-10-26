@@ -16,6 +16,7 @@ assert open('server/cloud-init.yaml').readline().strip()=='#cloud-config'
 if yaml: yaml.safe_load(open('server/cloud-init.yaml'))" && echo "server scripts ok"
 node scripts/backtest.js index.html "$TMP/backtest.json" --demo
 node scripts/cycle.js index.html "$TMP/cycle.json" --demo
+node scripts/track.js index.html "$TMP/track.json" --demo
 python3 tests/browser.py index.html
 python3 tests/stress.py index.html
 echo "ALL CHECKS PASSED"

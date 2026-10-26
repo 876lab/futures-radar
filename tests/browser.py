@@ -24,9 +24,13 @@ for tf in ("15m", "1h", "4h"):
 _cyf = os.path.join(tempfile.mkdtemp(), "cycle.json")
 subprocess.run(["node", os.path.join(ROOT, "..", "scripts", "cycle.js"), PAGE, _cyf, "--demo"], check=True, capture_output=True)
 CY = json.load(open(_cyf)); CY["updated"] = int(time.time()) - 3600
+_trf = os.path.join(tempfile.mkdtemp(), "track.json")   # track record replayed hour by hour on sample data by the real script
+subprocess.run(["node", os.path.join(ROOT, "..", "scripts", "track.js"), PAGE, _trf, "--demo"], check=True, capture_output=True)
+TR = json.load(open(_trf)); TR["updated"] = int(time.time()) - 1800
 async def route_bt(pg):
     await pg.route("**/backtest-data/backtest.json*", lambda r: r.fulfill(body=json.dumps(BT), headers={"access-control-allow-origin": "*", "content-type": "application/json"}))
     await pg.route("**/cycle-data/cycle.json*", lambda r: r.fulfill(body=json.dumps(CY), headers={"access-control-allow-origin": "*", "content-type": "application/json"}))
+    await pg.route("**/track-data/track.json*", lambda r: r.fulfill(body=json.dumps(TR), headers={"access-control-allow-origin": "*", "content-type": "application/json"}))
 ACCEPT = "try{localStorage.setItem('fradar:terms','1')}catch(e){}"   # 'Before you start' already accepted (legal_check tests the sheet itself)
 
 async def block_exchanges(pg):
@@ -188,6 +192,12 @@ async def main():
                 for bad in ("undefined", "NaN"):
                     if bad in txt: problems.append(f"[{scheme}] {nav}: shows '{bad}'")
                 if nav == "sim" and ("Last night's backtest" not in txt or "Confirmed setups" not in txt or "reached target 1" not in txt): problems.append(f"[{scheme}] simulator: last night's backtest card missing")
+                if nav == "sim":
+                    await pg.click("#trCard summary"); await pg.wait_for_timeout(150)
+                    trt = await pg.inner_text("#trCard")
+                    for want in ("Track record", "finished setups", "Open now", "By month started", "Latest finished", "never edited or removed", "every hourly update"):
+                        if want not in trt: problems.append(f"[{scheme}] simulator: track record card is missing '{want}'")
+                    await pg.locator("#trCard").screenshot(path=os.path.join(OUT, f"track-{scheme}.png"))
                 if nav == "news":
                     cyt = await pg.inner_text("#cyCard") if await pg.locator("#cyCard").count() else ""
                     if "Crypto cycle" not in cyt or "/100" not in cyt or "halving" not in cyt: problems.append(f"[{scheme}] news: crypto cycle gauge missing")

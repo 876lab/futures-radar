@@ -1930,6 +1930,16 @@ async function loadBT(){
   catch(e){bt.err=String(e&&e.message||e)}
   bt.at=NOW();bt.loading=false;const c=document.getElementById('btCard');if(c)c.innerHTML=btCardHTML();renderConfirm();
 }
+// public track record (scripts/track.js, published hourly to the track-data branch, which is only ever added to)
+const TR_URL=NEWS_URL.replace('/news-data/news.json','/track-data/track.json');
+const TR_LOG=TR_URL.replace(/^https:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/.*$/,'https://github.com/$1/$2/commits/track-data');
+const tr={data:null,at:0,err:null,loading:false};
+async function loadTrack(){
+  if(tr.loading||(tr.data&&NOW()-tr.at<10*60000)||(tr.err&&NOW()-tr.at<5*60000))return;tr.loading=true;
+  try{const r=await fetch(TR_URL+'?t='+Math.floor(NOW()/600000));if(!r.ok)throw new Error('HTTP '+r.status);const j=cleanTrack(await r.json());if(!j)throw new Error('bad data');tr.data=j;tr.err=null}
+  catch(e){tr.err=String(e&&e.message||e)}
+  tr.at=NOW();tr.loading=false;const c=document.getElementById('trCard');if(c)c.innerHTML=trCardHTML();
+}
 // crypto cycle gauge (scripts/cycle.js, published daily to the cycle-data branch); information only
 const CY_URL=NEWS_URL.replace('/news-data/news.json','/cycle-data/cycle.json');
 const cy={data:null,at:0,loading:false};
@@ -2158,6 +2168,30 @@ function btStat(tr){const n=tr.length;if(!n)return{n:0};let k=0,w=0,sum=0;for(co
 const confBand=c=>c>=70?'70+':c>=50?'50-69':'<50';
 function oddsKey(tf,dir,conf,confirmed){return `${tf}|${dir>0?'long':'short'}|${confBand(conf)}|${confirmed?1:0}`}
 const BT_MIN_N=100;   // hide win rates built on fewer trades than this
+// ---- public track record (scripts/track.js, hourly, track-data branch): setups recorded live, scored later ----
+const TR_HOW=['stop','target','breakeven','time','nodata'];
+function cleanTrack(j){
+  if(!j||typeof j!=='object'||!Array.isArray(j.open)||!Array.isArray(j.closed))return null;
+  const fin=v=>typeof v==='number'&&isFinite(v);
+  const base=r=>r&&typeof r==='object'&&typeof r.m==='string'&&(r.tf==='1h'||r.tf==='4h')&&(r.dir===1||r.dir===-1)&&fin(r.t0)&&fin(r.entry)&&r.entry>0&&fin(r.stop)?
+    {m:r.m.slice(0,20),tf:r.tf,dir:r.dir,conf:fin(r.conf)?Math.round(clamp(r.conf,0,100)):0,confirmed:r.confirmed===true,t0:r.t0,entry:r.entry,stop:r.stop}:null;
+  const closed=j.closed.slice(-5000).map(r=>{const b=base(r);if(!b||!TR_HOW.includes(r.how)||!fin(r.t1))return null;
+    if(r.how==='nodata')return Object.assign(b,{how:'nodata',r:null,reach:false,t1:r.t1});
+    return fin(r.r)?Object.assign(b,{how:r.how,r:clamp(r.r,-5,5),reach:r.reach===true,t1:r.t1}):null}).filter(Boolean);
+  return{start:fin(j.start)?j.start:null,updated:fin(j.updated)?j.updated:0,source:typeof j.source==='string'?j.source.slice(0,60):'',
+    markets:Array.isArray(j.markets)?j.markets.filter(x=>typeof x==='string').length:0,open:j.open.slice(0,300).map(base).filter(Boolean),closed};
+}
+function trackStats(closed){
+  const sc=closed.filter(r=>r.how!=='nodata');
+  const grp=(f,order)=>{const m={};for(const t of sc){const k=f(t);(m[k]=m[k]||[]).push(t)}return(order||Object.keys(m)).filter(k=>m[k]).map(k=>Object.assign({k},btStat(m[k])))};
+  const mon=t=>{const d=new Date(t.t0*1000);return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')};
+  const months=[...new Set(sc.map(mon))].sort().reverse();
+  return{overall:btStat(sc),nodata:closed.length-sc.length,
+    month:grp(mon,months).map(r=>Object.assign(r,{k:new Date(r.k+'-01T00:00:00Z').toLocaleDateString('en-US',{month:'short',year:'numeric',timeZone:'UTC'})})),
+    tf:grp(t=>TF_LABEL[t.tf],['1H','4H']),side:grp(t=>t.dir>0?'Long':'Short',['Long','Short']),
+    confirmed:grp(t=>t.confirmed?'Confirmed':'Not confirmed',['Confirmed','Not confirmed']),
+    latest:[...closed].sort((a,b)=>b.t1-a.t1).slice(0,10)};
+}
 function simStats(tr,risk){
   const n=tr.length;if(!n)return{n:0,curve:[1]};
   let sw=0,sl=0,sum=0,sum2=0,reach=0,bars=0,wins=0;
@@ -2338,6 +2372,28 @@ function btTable(title,rows,minN){
     rows.map(r=>r.n<minN?`<tr><td><b>${esc(r.k)}</b></td><td>${r.n}</td><td class="few" colspan="2">too few trades to judge</td></tr>`:
       `<tr><td><b>${esc(r.k)}</b></td><td>${r.n.toLocaleString()}</td><td><span class="wbar"><i style="width:${(r.reach*100).toFixed(0)}%"></i></span>${fmtP(r.reach)} <small class="muted">(${fmtP(r.lo)}–${fmtP(r.hi)})</small></td><td class="${r.avgR>0?'up':r.avgR<0?'down':''}">${fmtR(r.avgR)}</td></tr>`).join('')}</tbody></table></div></div>`;
 }
+const OPTS_TR={maxHold:96};   // same as scripts/track.js
+const TR_HOW_LABEL={stop:'stop hit',target:'target 2 hit',breakeven:'target 1, rest at entry',time:'closed on time',nodata:'no price data after'};
+function trCardHTML(){
+  const d=tr.data,h='<h3>Track record</h3>';
+  if(!d)return h+`<p class="note">${tr.loading||!tr.at?'Loading the track record…':'The track record appears here after its first hourly run on GitHub.'}</p>`;
+  const s=trackStats(d.closed),o=s.overall,m=BT_MIN_N;
+  const line=(r,w)=>r&&r.n?`<b>${w}</b> reached target 1 in <b>${fmtP(r.reach)}</b> of ${r.n.toLocaleString()} (range ${fmtP(r.lo)}–${fmtP(r.hi)}), average <b class="${r.avgR>0?'up':'down'}">${fmtR(r.avgR)}</b>.`:'';
+  const Y=s.confirmed.find(r=>r.k==='Confirmed'),N=s.confirmed.find(r=>r.k==='Not confirmed');
+  const head=o.n?`<p class="big">${line(o,plural(o.n,'finished setup'))} ${fmtP(o.win)} finished in profit.</p>${o.n<m?`<p class="verdict">Still early: under ${m} finished setups, so luck can explain a lot of this.</p>`:''}`:
+    `<p class="big">No setup has finished yet. Each one is followed until its stop, target 2 or ${OPTS_TR.maxHold} candles.</p>`;
+  const latest=s.latest.length?`<div class="sim-sec"><h4>Latest finished (losses included)</h4><ul class="sim-notes tr-list">${s.latest.map(r=>
+    `<li><b>${esc(r.m)}</b> ${TF_LABEL[r.tf]} ${r.dir>0?'long':'short'} · ${TR_HOW_LABEL[r.how]} ${esc(dateStr(r.t1*1000))}${r.r==null?'':` <b class="${r.r>0?'up':r.r<0?'down':''}">${fmtR(r.r)}</b>`}</li>`).join('')}</ul></div>`:'';
+  return h+`<p class="sub">${esc(d.source)} · 1H and 4H · busiest ${d.markets||25} markets · recorded every hour since ${d.start?esc(dateStr(d.start*1000)):'—'} · updated ${esc(agoShort(d.updated))}</p>
+    ${head}${Y&&N&&Y.n&&N.n?`<p class="big">${line(Y,'Confirmed')}</p><p class="big">${line(N,'Not confirmed')}</p>`:''}
+    <p class="big">Open now: <b>${plural(d.open.length,'setup')}</b> still being followed.</p>
+    <details><summary>By month, candle size and the latest results</summary>
+      ${btTable('By month started',s.month,1)}${btTable('By candle size',s.tf,1)}${btTable('Long vs short',s.side,1)}${latest}
+      <ul class="sim-notes"><li>Every setup is saved within the hour its candle closes, before its result is known. Finished results are never edited or removed, losses included${s.nodata?`; ${plural(s.nodata,'setup')} couldn't be scored because the market's prices stopped coming`:''}.</li>
+      <li>Results are simulated with the Simulator's rules on Gate prices: entry at the next candle's open, half closed at target 1 and the stop moved to entry, 0.05% fee and 0.02% slippage each side, closed after ${OPTS_TR.maxHold} candles. They are not real trades; real fills, funding fees and liquidation can make results worse.</li>
+      <li>The full history is public: <a href="${esc(TR_LOG)}" target="_blank" rel="noopener">every hourly update on GitHub</a>. Past results don't guarantee future ones.</li></ul>
+    </details>`;
+}
 function btCardHTML(){
   const d=bt.data;
   if(!d)return `<h3>Last night's backtest</h3><p class="note">${bt.loading||!bt.at?'Loading last night\'s results…':'Results appear here after the nightly test has run (it runs on GitHub each night around 2am).'}</p>`;
@@ -2462,7 +2518,7 @@ function renderSim(force){
     <div class="simprog" id="simProg" ${sim.running?'':'hidden'}></div>
     ${sim.err?`<p class="simerr">${esc(sim.err)}</p>`:''}
   </div>`;
-  area.innerHTML=`<div class="sim" id="simRoot"><div class="card bt" id="btCard">${btCardHTML()}</div><div class="card bt mine" id="mineCard">${mineCardHTML()}</div>${form}${simResultsHTML()}</div>`;loadBT();
+  area.innerHTML=`<div class="sim" id="simRoot"><div class="card bt" id="trCard">${trCardHTML()}</div><div class="card bt" id="btCard">${btCardHTML()}</div><div class="card bt mine" id="mineCard">${mineCardHTML()}</div>${form}${simResultsHTML()}</div>`;loadBT();loadTrack();
   bindMine();
   if(sim.running)simProgress();
   const run=$('#simRun');if(run)run.onclick=()=>runSim();

@@ -1815,7 +1815,39 @@ function fibLevels(cs,atr){
   const retr=(b.p-price)/span;
   return{dir,a,b,span,price,retr,brk,breakout:brk!=null&&retr<0.236,levels:ok,above,below,bars:n-1-b.i,legBars:b.i-a.i};
 }
+/* crypto cycle gauge: information only, built from Bitcoin's daily prices (scripts/cycle.js runs it daily) */
+// Halving dates (blocks 210,000 / 420,000 / 630,000 / 840,000). The next one is expected around April 2028 (block 1,050,000).
+const HALVINGS=[Date.UTC(2012,10,28),Date.UTC(2016,6,9),Date.UTC(2020,4,11),Date.UTC(2024,3,20)],NEXT_HALVING=Date.UTC(2028,3,15);
+// Where in the four-year rhythm we are. Past tops came 371, 526 and 548 days after a halving; past lows 777, 889 and 924 days after.
+function cyclePhase(ms){
+  const h=[...HALVINGS].reverse().find(t=>t<=ms);if(!h)return null;const d=Math.floor((ms-h)/864e5);
+  const [k,name,text]=d<180?['early','Early','The months right after a halving. In past cycles prices were still building up here.']:
+    d<560?['peak','Peak window','Past cycle tops came 12–18 months after the halving (371, 526 and 548 days).']:
+    d<770?['post','After the peak','Past bear markets ran through this stretch.']:
+    d<1000?['bottom','Bottoming window','Past cycle lows came 26–31 months after the halving (777, 889 and 924 days).']:
+    ['recovery','Recovery','The run-up toward the next halving, expected around April 2028.'];
+  return{days:d,since:h,k,name,text,toNext:Math.max(0,Math.round((NEXT_HALVING-ms)/864e5))};
+}
+// Each measure is scored 0 (like past cycle lows) to 100 (like past cycle tops). cs: daily candles, oldest first.
+function cycleAt(cs,i){
+  if(!cs||i<0||i>=cs.length)return null;
+  const avg=n=>{if(i+1<n)return null;let s=0;for(let k=i-n+1;k<=i;k++)s+=cs[k].close;return s/n};
+  const sc=v=>v==null||!isFinite(v)?null:Math.round(clamp(v,0,100));
+  const price=cs[i].close;let ath=0,athT=0;for(let k=0;k<=i;k++)if(cs[k].high>ath){ath=cs[k].high;athT=cs[k].time}
+  const a200=avg(200),a1400=avg(1400),a111=avg(111),a350=avg(350);
+  const m={};
+  m.w200=a1400?{v:price/a1400,s:sc(Math.log(Math.max(price/a1400,1e-9))/Math.log(3)*100)}:null;        // 1× = 0, 3× = 100
+  m.mayer=a200?{v:price/a200,s:sc((price/a200-0.75)/(2.4-0.75)*100)}:null;                               // 0.75 = 0, 2.4 = 100
+  m.pi=a111&&a350?{v:a111/(2*a350),s:sc((a111/(2*a350)-0.45)/(1-0.45)*100)}:null;                         // the two lines touch at 1
+  const dd=ath>0?1-price/ath:null;m.dd=dd==null?null:{v:dd,s:sc((1-dd/0.8)*100)};                           // at the high = 100, −80% = 0
+  const ss=Object.values(m).filter(Boolean).map(x=>x.s);
+  const score=ss.length>=2?Math.round(ss.reduce((a,b)=>a+b,0)/ss.length):null;
+  return{t:cs[i].time,price,ath,athT,m,score,n:ss.length};
+}
+function cycleZone(s){if(s==null)return null;
+  return s<20?['cold','Cold','Like past cycle lows']:s<40?['cool','Cool','Lower half of past cycles']:s<60?['mid','Middle','Neither stretched nor washed out']:s<80?['warm','Warm','Heating up']:['hot','Hot','Like past cycle tops']}
 // which part of the last move price is in (used for wording and for the backtest's buckets)
+
 function fibZone(retr){
   if(!isFinite(retr))return null;if(retr<0)return 'Past the swing end';if(retr>1)return 'Past 100%';
   return retr<0.236?'Under 23.6%':retr<0.382?'23.6–38.2%':retr<0.5?'38.2–50%':retr<0.618?'50–61.8%':retr<0.786?'61.8–78.6%':'78.6–100%';

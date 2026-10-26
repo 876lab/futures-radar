@@ -1,0 +1,45 @@
+name: Daily crypto cycle gauge
+
+# Scores where Bitcoin sits in its four-year cycle from Gate's BTC/USDT daily history (price-only measures) and
+# publishes cycle.json to the cycle-data branch. The News page shows it as the "Crypto cycle" gauge (information only).
+on:
+  schedule:
+    - cron: "23 0 * * *"   # just after the daily candle closes (7:23pm Jamaica time)
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - scripts/cycle.js
+      - .github/workflows/cycle.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: cycle
+  cancel-in-progress: true
+
+jobs:
+  cycle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Score the cycle from Gate's daily BTC history
+        run: |
+          mkdir -p out
+          node scripts/cycle.js index.html out/cycle.json
+      - name: Publish to the cycle-data branch
+        run: |
+          cd out
+          git init -q -b cycle-data
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add cycle.json
+          git commit -q -m "Cycle $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push -q -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" cycle-data
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

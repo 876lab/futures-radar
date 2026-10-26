@@ -56,6 +56,21 @@ ok(delistTickers('New listing: EPICUSDT').length===0,'delistTickers: needs the w
 ok(wilson(0,0)[0]===0&&wilson(0,0)[1]===0,'wilson with no trades');
 const s=btStat([{reach:true,r:1.2},{reach:false,r:-1},{reach:true,r:0.5},{reach:false,r:0.1}]);ok(s.n===4&&s.reach===0.5&&s.win===0.75&&Math.abs(s.avgR-0.2)<1e-9&&s.lo<0.5&&s.hi>0.5,'btStat');
 ok(btStat([]).n===0,'btStat empty');
+// crypto cycle gauge (information only)
+{const D=86400,mk=(n,f)=>Array.from({length:n},(_,i)=>{const c=f(i);return{time:1.5e9+i*D,open:c,high:c*1.01,low:c*0.99,close:c,volume:1}});
+let c=cycleAt(mk(1500,()=>100),1499);
+ok(c.m.w200.s===0&&Math.abs(c.m.mayer.v-1)<1e-9&&c.m.pi.s===Math.round((0.5-0.45)/0.55*100),'cycle: flat price = 1x averages');
+ok(Math.abs(c.m.dd.v-(1-100/101))<1e-9,'cycle: drawdown measured from the highest high');
+c=cycleAt(mk(1500,i=>i<1300?100:100*Math.pow(1.01,i-1299)),1499);   // a steep run-up at the end
+ok(c.m.mayer.s>=90&&c.m.dd.s>=95&&c.score>=70,'cycle: steep run-up reads hot ('+c.score+')');
+c=cycleAt(mk(1500,i=>i<1200?100*Math.pow(1.003,i):100*Math.pow(1.003,1199)*Math.pow(0.996,i-1199)),1499);   // long rise then a deep fall
+ok(c.m.dd.v>0.6&&c.score<45,'cycle: deep fall reads cool ('+c.score+')');
+ok(cycleAt(mk(150,()=>1),149).m.w200===null&&cycleAt(mk(150,()=>1),149).score===null,'cycle: short history gives no score');
+ok(cycleZone(10)[0]==='cold'&&cycleZone(50)[0]==='mid'&&cycleZone(85)[0]==='hot'&&cycleZone(null)===null,'cycle zones');
+const ph=t=>cyclePhase(Date.UTC(2024,3,20)+t*864e5);
+ok(ph(100).k==='early'&&ph(500).k==='peak'&&ph(700).k==='post'&&ph(919).k==='bottom'&&ph(1200).k==='recovery'&&ph(919).days===919,'cycle phases by days since halving');
+ok(cyclePhase(Date.UTC(2017,11,17)).k==='peak'&&cyclePhase(Date.UTC(2021,10,10)).k==='peak'&&cyclePhase(Date.UTC(2018,11,15)).k==='bottom'&&cyclePhase(Date.UTC(2022,10,21)).k==='bottom','cycle phases match past tops and lows');
+ok(cyclePhase(Date.UTC(2010,0,1))===null,'cycle: before the first halving');}
 // Fibonacci levels (information only): swings, the measured move, retracement maths and look-ahead
 {const mkc=ps=>ps.map((p,i)=>({time:i*3600,open:p,high:p+0.5,low:p-0.5,close:p,volume:1}));
 const path=[];for(let i=0;i<20;i++)path.push(100);for(let i=0;i<=20;i++)path.push(100+i*5);for(let i=1;i<=8;i++)path.push(200-i*5);   // flat, up 100 -> 200, back to 160

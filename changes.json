@@ -1,4 +1,9 @@
 [
+  {"date": "2026-10-26", "title": "Crypto cycle gauge", "items": [
+    "A new gauge at the top of the News page shows where Bitcoin sits in its four-year cycle, from 0 (like past cycle lows) to 100 (like past cycle tops). Setups shows it in one line too.",
+    "It combines four price measures and the time since the 2024 halving. Tap 'The four measures' to see each one and how the gauge read at past tops and lows.",
+    "It updates once a day. It's information only and doesn't change any setup."
+  ]},
   {"date": "2026-10-25", "title": "A proper guide, and a Back button in Help", "items": [
     "The ? button now opens Help with three tabs: Start here, What's new and Glossary.",
     "Start here explains what the app is, how the pages fit together, what Long setup, Short setup, Wait and No setup mean, and the numbers worth knowing.",

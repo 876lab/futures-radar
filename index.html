@@ -477,6 +477,20 @@ details.more[open]>summary::after{content:"−"}
 .ntop{display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
 @media (min-width:560px){.ntop{grid-template-columns:minmax(0,1fr) minmax(0,1.5fr)}}
 .fng{padding:12px 14px;display:grid;gap:8px;align-content:start}
+/* crypto cycle gauge */
+.cy{padding:14px 16px;display:grid;gap:10px;margin-bottom:12px} .cy h3{margin:0;font-size:16px} .cy .note{margin:0;font-size:12px;color:var(--muted)}
+.cy-top{display:grid;grid-template-columns:minmax(150px,200px) 1fr;gap:14px;align-items:center}
+.cy-dial{width:100%;height:auto;display:block} .cy-t{font-size:10px;fill:var(--muted)}
+.cy-score{display:flex;align-items:baseline;gap:4px} .cy-score b{font-size:34px;line-height:1;font-weight:700} .cy-score span{color:var(--muted);font-size:14px}
+.cy-zone{font-weight:700;font-size:16px;margin:2px 0}
+.cy-ph{margin:0;font-size:13px;color:var(--muted);line-height:1.45} .cy-ph b{color:var(--fg)}
+.cy details summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--accent)}
+.cy-list{list-style:none;margin:10px 0;padding:0;display:grid;gap:10px;font-size:12.5px;color:var(--muted)}
+.cy-r{display:grid;grid-template-columns:minmax(0,1fr) 90px 28px;gap:8px;align-items:center;color:var(--fg);font-size:13px} .cy-r .num{text-align:right}
+.cy-bar{height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden} .cy-bar i{display:block;height:100%}
+.cy-spark{width:100%;height:46px;display:block;margin:4px 0} .cy-spark polyline{fill:none;stroke:var(--accent);stroke-width:1.6;vector-effect:non-scaling-stroke} .cy-g{stroke:var(--line);stroke-dasharray:4 4;vector-effect:non-scaling-stroke}
+.cy-line{display:flex;align-items:center;gap:8px;width:100%;text-align:left;border:1px solid var(--line);background:none;border-radius:9px;padding:8px 11px;font-size:13px;color:var(--muted);margin:0 0 10px;font-family:inherit;cursor:pointer}
+.cy-line b{color:var(--fg);font-weight:600} .cy-chip{width:10px;height:10px;border-radius:50%;flex:none}
 .fng .lab,.cal .lab{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
 .fng .v{display:flex;align-items:baseline;gap:8px;font-size:30px;font-weight:700;line-height:1}
 .fng .v span{font-size:15px;font-weight:600}
@@ -763,6 +777,7 @@ html,body{overscroll-behavior-y:none}
       <dt>Confirmed</dt><dd>A long or short setup is confirmed when at least one of the 4H and 1D trends points the same way and no delisting is scheduled or announced. In the first nightly backtest, setups that went against both bigger trends did worst. Liquidity and the 24-hour range are shown for context. Setups shows only confirmed setups unless you switch that off in Settings. Confirmed setups can still fail.</dd>
       <dt>Your trades</dt><dd>On the Simulator page, load your position history exported from Gate (CSV). You see your win rate, average win vs average loss, biggest loss, and breakdowns by side, coin, time of day, weekday and holding time. <b>Check what the chart said</b> shows what the 1H and 4H chart reading was when you opened each of your latest 40 trades. The file is read on this device and never uploaded; Remove my trades deletes it.</dd>
       <dt>Last night's backtest</dt><dd>Each night the app's own rules are replayed on the top 30 Gate markets (15m, 1H, 4H). The Simulator page shows how often confirmed and not-confirmed setups reached target 1, with a range for luck, and the chart reading shows the past win rate for setups like the one on screen. It needs at least 100 past trades before it shows a number. Past results don't guarantee future ones.</dd>
+      <dt>Crypto cycle gauge</dt><dd>On the News page (and a line on Setups): where Bitcoin sits in its roughly four-year cycle, from 0 (like past cycle lows) to 100 (like past cycle tops). It averages four price measures: price vs the 200-week average, the Mayer Multiple (price vs the 200-day average), the Pi Cycle lines and the distance from the all-time high, and shows the time since the last halving. Updated daily. It describes how today compares with past cycles; it doesn't predict the next move and doesn't change any setup.</dd>
       <dt>Fibonacci levels</dt><dd>Lines on the chart and a card under it, from the last main move (a swing of at least 3× the average candle range). Retracements (23.6%, 38.2%, 50%, 61.8%, 78.6%) show how much of the move price has given back; pullbacks in a trend often pause around 38.2–61.8%. Extensions (127.2%, 161.8%) are levels traders watch past the swing end after a breakout. They are zones, not exact prices, and don't change the chart reading. Switch them off with the Fibonacci chip above the chart.</dd>
       <dt>Order book</dt><dd>On each chart: how much money is waiting to buy and to sell within 1% and 2% of the price, the spread, and unusually large orders. A thin book means bigger spikes and worse stop fills. Large orders often come from automated market makers and can move or vanish in a second, so they are not reliable support or resistance.</dd>
       <dt>Candle-size strip</dt><dd>Above the chart reading, the reading on 15m, 1H, 4H and 1D side by side, so you can see at a glance whether the bigger picture agrees. Tap one to open it.</dd>
@@ -1618,7 +1633,7 @@ function renderListInner(force){
     if(!s.pool){area.innerHTML=`<div class="list"><div class="empty">${state.q?'No busy markets match your search.':'No markets have enough trading right now to check.'} Setups only looks at markets with at least ${fmtVol(HOT_MIN_VOL)} traded in 24 hours.</div></div>`;$('#footnote').textContent='';renderMood(liquid());return}
     if(!s.checked){area.innerHTML=`<div class="list"><div class="empty">Reading charts for the ${s.pool} most traded markets…</div></div>`;$('#footnote').textContent='';renderMood(liquid());return}
     const rows=(arr,word)=>arr.length?arr.map(g=>rowHTML(g)).join(''):`<div class="empty">No ${state.confOnly?'confirmed '+word:word} setups right now on ${TF_LABEL[state.tf]} candles.</div>`;
-    area.innerHTML='<div id="setEv" hidden></div>'+section('Long setups','var(--up)','Highest agreement first',rows(s.longs,'long'))+section('Short setups','var(--down)','Highest agreement first',rows(s.shorts,'short'));
+    loadCycle();area.innerHTML=`<div id="setCycle"${cy.data?'':' hidden'}>${cycleLineHTML()}</div>`+'<div id="setEv" hidden></div>'+section('Long setups','var(--up)','Highest agreement first',rows(s.longs,'long'))+section('Short setups','var(--down)','Highest agreement first',rows(s.shorts,'short'));
     renderEvGuard();if(!news.data&&!news.loading&&!news.err)loadNews();
     renderMood(liquid());
     $('#footnote').innerHTML=state.scanning?`Reading charts… <span class="num">${state.scanning.done}/${state.scanning.total}</span>`:
@@ -1915,6 +1930,66 @@ async function loadBT(){
   catch(e){bt.err=String(e&&e.message||e)}
   bt.at=NOW();bt.loading=false;const c=document.getElementById('btCard');if(c)c.innerHTML=btCardHTML();renderConfirm();
 }
+// crypto cycle gauge (scripts/cycle.js, published daily to the cycle-data branch); information only
+const CY_URL=NEWS_URL.replace('/news-data/news.json','/cycle-data/cycle.json');
+const cy={data:null,at:0,loading:false};
+function cleanCycle(j){
+  if(!j||typeof j!=='object')return null;const fin=v=>typeof v==='number'&&isFinite(v),sc=v=>fin(v)?Math.round(clamp(v,0,100)):null;
+  if(sc(j.score)==null||!fin(j.price)||!(j.price>0))return null;
+  const m={};for(const k of ['w200','mayer','pi','dd']){const x=j.m&&j.m[k];m[k]=x&&fin(x.v)&&sc(x.s)!=null?{v:x.v,s:sc(x.s)}:null}
+  const ph=j.phase&&typeof j.phase==='object'&&fin(j.phase.days)?cyclePhase(fin(j.t)?j.t*1000:NOW()):null;
+  const marks=(Array.isArray(j.marks)?j.marks:[]).slice(0,8).filter(x=>x&&(x.k==='Top'||x.k==='Low')&&/^\d{4}-\d{2}-\d{2}$/.test(x.d)&&sc(x.s)!=null).map(x=>({k:x.k,d:x.d,s:sc(x.s)}));
+  const hist=(Array.isArray(j.hist)?j.hist:[]).slice(-800).filter(h=>Array.isArray(h)&&fin(h[0])&&sc(h[1])!=null).map(h=>[h[0],sc(h[1])]);
+  return{updated:fin(j.updated)?j.updated:0,t:fin(j.t)?j.t:0,price:j.price,ath:fin(j.ath)?j.ath:null,athT:fin(j.athT)?j.athT:null,score:sc(j.score),m,phase:ph,marks,hist,
+    source:typeof j.source==='string'?j.source.slice(0,40):'',days:fin(j.days)?j.days:0}
+}
+async function loadCycle(){
+  if(cy.loading||(cy.data&&NOW()-cy.at<60*60000)||(!cy.data&&cy.at&&NOW()-cy.at<5*60000))return;cy.loading=true;
+  try{const r=await fetch(CY_URL+'?t='+Math.floor(NOW()/3600000));if(r.ok){const j=cleanCycle(await r.json());if(j)cy.data=j}}catch(e){}
+  cy.at=NOW();cy.loading=false;renderCycleBits();
+}
+function renderCycleBits(){const c=document.getElementById('cyCard');if(c)c.innerHTML=cycleCardHTML();const l=document.getElementById('setCycle');if(l){const h=cycleLineHTML();l.innerHTML=h;l.hidden=!h}}
+const CY_COL={cold:'var(--c2)',cool:'var(--c2)',mid:'var(--c4)',warm:'var(--accent)',hot:'var(--down)'};
+function cycleGauge(s){
+  // half-circle dial, 0 on the left (like past lows) to 100 on the right (like past tops)
+  const R=80,cx=100,cy0=96,pt=v=>{const a=Math.PI*(1-v/100);return[cx+R*Math.cos(a),cy0-R*Math.sin(a)]};
+  const arc=(a,b,col,op)=>{const [x1,y1]=pt(a),[x2,y2]=pt(b);return `<path d="M${x1.toFixed(1)} ${y1.toFixed(1)} A${R} ${R} 0 0 1 ${x2.toFixed(1)} ${y2.toFixed(1)}" stroke="${col}" stroke-opacity="${op}" stroke-width="14" fill="none"/>`};
+  const [nx,ny]=pt(s);
+  return `<svg class="cy-dial" viewBox="0 0 200 110" role="img" aria-label="Cycle gauge ${s} of 100">
+    ${arc(0.5,19.5,'var(--c2)',1)}${arc(20.5,39.5,'var(--c2)',.55)}${arc(40.5,59.5,'var(--c4)',.7)}${arc(60.5,79.5,'var(--accent)',.85)}${arc(80.5,99.5,'var(--down)',1)}
+    <line x1="${cx}" y1="${cy0}" x2="${nx.toFixed(1)}" y2="${ny.toFixed(1)}" stroke="var(--fg)" stroke-width="3.5" stroke-linecap="round"/><circle cx="${cx}" cy="${cy0}" r="6" fill="var(--fg)"/>
+    <text x="14" y="108" class="cy-t">Lows</text><text x="186" y="108" class="cy-t" text-anchor="end">Tops</text></svg>`;
+}
+function cycleSpark(h){
+  if(!h||h.length<10)return '';const W=300,H=46,n=h.length,x=i=>(i/(n-1)*W).toFixed(1),y=v=>(H-2-v/100*(H-4)).toFixed(1);
+  return `<svg class="cy-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><line x1="0" x2="${W}" y1="${y(80)}" y2="${y(80)}" class="cy-g"/><line x1="0" x2="${W}" y1="${y(20)}" y2="${y(20)}" class="cy-g"/><polyline points="${h.map((p,i)=>x(i)+','+y(p[1])).join(' ')}"/></svg>`;
+}
+function cycleLineHTML(){
+  const d=cy.data;if(!d)return '';const z=cycleZone(d.score),ph=d.phase;
+  return `<button type="button" class="cy-line" data-go="news" aria-label="Open the crypto cycle gauge on the News page"><span class="cy-chip" style="background:${CY_COL[z[0]]}"></span><span><b>Crypto cycle: ${esc(z[1])} (${d.score}/100)</b>${ph?` · ${esc(ph.name)}, day ${ph.days} after the halving`:''}</span></button>`;
+}
+function cycleCardHTML(){
+  const d=cy.data;
+  if(!d)return `<h3>Crypto cycle</h3><p class="note">${cy.loading||!cy.at?'Loading the cycle gauge…':'The cycle gauge appears here after its daily update on GitHub (shortly after 7pm Jamaica time).'}</p>`;
+  const z=cycleZone(d.score),m=d.m,ph=d.phase,x=v=>v.toFixed(2)+'×';
+  const row=(name,o,txt)=>o?`<li><div class="cy-r"><b>${name}</b><span class="cy-bar"><i style="width:${o.s}%;background:${CY_COL[cycleZone(o.s)[0]]}"></i></span><span class="num">${o.s}</span></div><span>${txt}</span></li>`:'';
+  const ath=d.ath?` of ${fmtUsd(d.ath)}${d.athT?` (${esc(dateStr(d.athT*1000))})`:''}`:'';
+  const marks=d.marks.length?`<p class="note">How it read at past turning points: ${d.marks.map(k=>`${k.k==='Top'?'top':'low'} ${esc(new Date(k.d+'T12:00:00Z').toLocaleDateString('en-US',{month:'short',year:'numeric',timeZone:'UTC'}))} <b>${k.s}</b>`).join(' · ')}.</p>`:'';
+  return `<h3>Crypto cycle <span class="muted" style="font-weight:500;font-size:13px">· Bitcoin</span></h3>
+    <div class="cy-top">${cycleGauge(d.score)}<div><div class="cy-score"><b style="color:${CY_COL[z[0]]}">${d.score}</b><span>/100</span></div><div class="cy-zone">${esc(z[1])}</div><div class="note">${esc(z[2])}</div></div></div>
+    ${ph?`<p class="cy-ph"><b>${esc(ph.name)}</b> · day ${ph.days} since the April 2024 halving. ${esc(ph.text)}</p>`:''}
+    <details><summary>The four measures and past readings</summary>
+      <ul class="cy-list">
+        ${row('Vs 200-week average',m.w200,m.w200?`Bitcoin is ${x(m.w200.v)} its 200-week average. Past cycle lows sat near 1×; past tops were 3× or more.`:'')}
+        ${row('Mayer Multiple',m.mayer,m.mayer?`Price is ${x(m.mayer.v)} its 200-day average. Readings above about 2.4 marked overheated markets.`:'')}
+        ${row('Pi Cycle',m.pi,m.pi?`The 111-day average is at ${Math.round(m.pi.v*100)}% of twice the 350-day average. They met (100%) near the last three tops.`:'')}
+        ${row('From the high',m.dd,m.dd?`${Math.round(m.dd.v*100)}% below the all-time high${ath}.`:'')}
+      </ul>
+      ${cycleSpark(d.hist)}${d.hist.length>10?`<p class="note">The gauge every week since ${esc(dateStr(d.hist[0][0]*1000))} (dashed lines at 20 and 80).</p>`:''}
+      ${marks}
+    </details>
+    <p class="note">Information only: it doesn't change any setup. Bitcoin has had only four cycles, and ETFs and big institutions may change the old rhythm, so this shows how today compares with past cycles, not what comes next. Price measures only, from ${esc(d.source||'Gate')}; updated ${esc(agoShort(d.updated))}.</p>`;
+}
 const NTOPICS=[['all','All'],['crypto','Crypto'],['macro','Markets & macro'],['reg','Regulation'],['ex','Exchanges & listings'],['risk','Hacks & liquidations']];
 const X_ACCTS=[['CoinDesk','CoinDesk'],['Cointelegraph','Cointelegraph'],['TheBlock__','The Block'],['WuBlockchain','Wu Blockchain'],['federalreserve','Federal Reserve'],['SECGov','SEC'],['binance','Binance'],['Bybit_Official','Bybit']];
 async function loadNews(force){
@@ -1981,7 +2056,7 @@ function renderEvGuard(){
   for(const id of ['evGuard','setEv']){const el=document.getElementById(id);if(!el)continue;const h=evGuardHTML(id==='setEv');if(el._h!==h){el.innerHTML=h;el.hidden=!h;el._h=h}}
 }
 function renderNews(force){
-  const area=$('#listArea');if(!force&&$('#newsRoot'))return;
+  const area=$('#listArea');if(!force&&$('#newsRoot'))return;loadCycle();
   const d=news.data;
   if(!d){
     area.innerHTML=`<div class="news" id="newsRoot"><div class="list"><div class="empty">${news.loading||(!news.err&&!news.at)?'Loading headlines…':
@@ -1992,6 +2067,7 @@ function renderNews(force){
   const items=d.items.filter(it=>newsMatch(it,tp)&&(!q||(it.t+' '+it.x+' '+(it.c||[]).join(' ')).toUpperCase().includes(q))).slice(0,80);
   const failed=(d.sources||[]).filter(s=>!s.ok).map(s=>s.name);
   area.innerHTML=`<div class="news" id="newsRoot">
+    <div class="card cy" id="cyCard">${cycleCardHTML()}</div>
     <div class="ntop">${fngHTML(d.fng)}${calHTML(d.calendar)}</div>
     <div class="opts">${NTOPICS.map(([k,l])=>`<button type="button" class="opt sm" data-ntopic="${k}" aria-pressed="${tp===k}">${l}</button>`).join('')}</div>
     <div class="nlist">${items.length?items.map(newsItemHTML).join(''):`<div class="empty">No headlines match${q?' your search':''}.</div>`}</div>
@@ -2827,6 +2903,7 @@ window.addEventListener('unhandledrejection',e=>{const r=e&&e.reason;if(r&&r.nam
 function toggleStar(key){if(state.watch.has(key))state.watch.delete(key);else state.watch.add(key);LS.set('watch2',[...state.watch]);renderTabs();
   if(state.cat==='watch')renderList();else updateRow(key);if(state.selected===key)$('#dStar').setAttribute('aria-pressed',state.watch.has(key))}
 const listArea=$('#listArea');
+listArea.addEventListener('click',e=>{if(e.target.closest('[data-go]')){goPage(e.target.closest('[data-go]').dataset.go);window.scrollTo(0,0)}});
 listArea.addEventListener('click',e=>{const b=e.target.closest('[data-sim]');if(!b||sim.running)return;
   const g=b.dataset.sim,v=b.dataset.v;
   if(g==='tfs'){const on=sim.opts.tfs.includes(v);sim.opts.tfs=on?sim.opts.tfs.filter(x=>x!==v):[...sim.opts.tfs,v];b.setAttribute('aria-pressed',!on)}

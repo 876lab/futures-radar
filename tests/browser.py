@@ -21,8 +21,12 @@ for tf in ("15m", "1h", "4h"):
         for band in ("70+", "50-69", "<50"):
             for c in ("0", "1"):
                 BT["odds"][f"{tf}|{side}|{band}|{c}"] = {"n": 150, "reach": 0.55, "lo": 0.47, "hi": 0.63, "win": 0.5, "avgR": 0.12}
+_cyf = os.path.join(tempfile.mkdtemp(), "cycle.json")
+subprocess.run(["node", os.path.join(ROOT, "..", "scripts", "cycle.js"), PAGE, _cyf, "--demo"], check=True, capture_output=True)
+CY = json.load(open(_cyf)); CY["updated"] = int(time.time()) - 3600
 async def route_bt(pg):
     await pg.route("**/backtest-data/backtest.json*", lambda r: r.fulfill(body=json.dumps(BT), headers={"access-control-allow-origin": "*", "content-type": "application/json"}))
+    await pg.route("**/cycle-data/cycle.json*", lambda r: r.fulfill(body=json.dumps(CY), headers={"access-control-allow-origin": "*", "content-type": "application/json"}))
 ACCEPT = "try{localStorage.setItem('fradar:terms','1')}catch(e){}"   # 'Before you start' already accepted (legal_check tests the sheet itself)
 
 async def block_exchanges(pg):
@@ -184,6 +188,15 @@ async def main():
                 for bad in ("undefined", "NaN"):
                     if bad in txt: problems.append(f"[{scheme}] {nav}: shows '{bad}'")
                 if nav == "sim" and ("Last night's backtest" not in txt or "Confirmed setups" not in txt or "reached target 1" not in txt): problems.append(f"[{scheme}] simulator: last night's backtest card missing")
+                if nav == "news":
+                    cyt = await pg.inner_text("#cyCard") if await pg.locator("#cyCard").count() else ""
+                    if "Crypto cycle" not in cyt or "/100" not in cyt or "halving" not in cyt: problems.append(f"[{scheme}] news: crypto cycle gauge missing")
+                    await pg.click("#cyCard summary"); await pg.wait_for_timeout(150)
+                    cyt = await pg.inner_text("#cyCard")
+                    for want in ("200-week", "Mayer", "Pi Cycle", "all-time high"):
+                        if want not in cyt: problems.append(f"[{scheme}] cycle gauge: '{want}' missing")
+                    if scheme == "dark": await pg.locator("#cyCard").screenshot(path=os.path.join(OUT, "cycle.png"))
+                if nav == "setups" and "Crypto cycle:" not in txt: problems.append(f"[{scheme}] setups: crypto cycle line missing")
                 if nav == "setups" and "Big US news" not in txt: problems.append(f"[{scheme}] setups: big-news warning missing")
                 if nav == "setups" and ("Long setups" not in txt or "Short setups" not in txt): problems.append(f"[{scheme}] setups: 'Long setups'/'Short setups' headings missing")
                 for old in ("Enter long", "Enter short", "Avoid for now", "Long entries", "Confidence", "confidence"):

@@ -56,6 +56,10 @@ ok(delistTickers('New listing: EPICUSDT').length===0,'delistTickers: needs the w
 ok(wilson(0,0)[0]===0&&wilson(0,0)[1]===0,'wilson with no trades');
 const s=btStat([{reach:true,r:1.2},{reach:false,r:-1},{reach:true,r:0.5},{reach:false,r:0.1}]);ok(s.n===4&&s.reach===0.5&&s.win===0.75&&Math.abs(s.avgR-0.2)<1e-9&&s.lo<0.5&&s.hi>0.5,'btStat');
 ok(btStat([]).n===0,'btStat empty');
+// company filings: tickers cleaned, links go to sec.gov EDGAR
+ok(cleanTicker(' $sofi ')==='SOFI'&&cleanTicker('BRK.B')==='BRK.B'&&cleanTicker('<x>')===null&&cleanTicker('TOOLONGX')===null&&cleanTicker('')===null,'filings: ticker cleaning');
+ok(cleanFilList(['googl','GOOGL','<b>',7,'sofi']).join()==='GOOGL,SOFI'&&cleanFilList('x').length===0,'filings: saved list cleaned');
+ok(edgarURL('SOFI','10-Q')==='https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=SOFI&type=10-Q&dateb=&owner=include&count=40'&&!edgarURL('GOOGL','').includes('type='),'filings: EDGAR links');
 // public track record: cleaning and stats (losses and unscored records kept, junk dropped)
 {const rec=(o)=>Object.assign({m:'BTC',tf:'1h',dir:1,conf:72,confirmed:true,t0:Date.UTC(2026,9,27)/1000,entry:100,stop:98,how:'stop',r:-1.02,reach:false,t1:Date.UTC(2026,9,27,5)/1000},o);
 const raw={start:1,updated:2,source:'Gate',markets:['BTC'],open:[rec({how:undefined}),{m:'X'}],closed:[rec(),rec({how:'target',r:2.1,reach:true,dir:-1,stop:102,confirmed:false}),

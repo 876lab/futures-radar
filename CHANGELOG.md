@@ -2,6 +2,12 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-10-28 (owner request: company earnings filings)
+- **News page → "Company earnings filings" card:** a list of US tickers (starts with SOFI and GOOGL; add by ticker, remove per row; kept on the device as `fradar:filings`, cleaned on load, max 30). Each row links to SEC EDGAR's company page filtered to 8-K (earnings press releases, exhibit 99.1), 10-Q, 10-K, and all filings. Links only: sec.gov refuses the app's GitHub jobs (see 2026-10-21) and data.sec.gov doesn't allow browser apps to read it (no CORS), so the numbers aren't copied into the app.
+- New pure `cleanTicker`, `cleanFilList`, `edgarURL` (3 engine tests); browser test checks the card, adding and removing a ticker and the sec.gov link in both themes.
+- No signal, score or trade-maths change.
+- Sources: SEC EDGAR company search, which accepts a ticker in the CIK field and filters by form type (https://www.sec.gov/edgar/searchedgar/companysearch); SEC "Accessing EDGAR Data" / developer resources (https://www.sec.gov/search-filings/edgar-application-programming-interfaces) on data.sec.gov.
+
 ## 2026-10-26 (nightly run: public track record, monetization step 1)
 - **Hourly job** `scripts/track.js` + `.github/workflows/track.yml` (minute 12 every hour, and on changes to either file): for the 25 busiest Gate USDT perpetuals (delisting contracts left out) plus any market with an open record, downloads 1H, 4H and 1D candles (`GET /futures/usdt/candlesticks?contract&interval&limit=400`, prices divided by the app's `baseInfo` multiplier) and runs the app's own `analyzeAt` + `recommend` on fully closed candles only (bigger timeframe = last fully closed candle, as in `backtestSeries`). Each Long/Short setup whose candle closed in the last 3 hours is recorded with time, entry (next candle's open plus slippage), stop, targets, R, agreement and the `confirmSetup` result; one open record per market and candle size, as in the Simulator.
 - **Scoring:** open records are scored with the Simulator's own `simTrade` (split plan, 0.05% fee, 0.02% slippage, closed after 96 candles) once their candles have closed. Finished records are copied forward unchanged; a record whose market stops returning prices is closed as "no price data" after the longest hold plus a day and shown as such, not dropped.

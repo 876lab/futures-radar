@@ -199,6 +199,13 @@ async def main():
                         if want not in trt: problems.append(f"[{scheme}] simulator: track record card is missing '{want}'")
                     await pg.locator("#trCard").screenshot(path=os.path.join(OUT, f"track-{scheme}.png"))
                 if nav == "news":
+                    ft = await pg.inner_text("#filCard") if await pg.locator("#filCard").count() else ""
+                    if "Company earnings filings" not in ft or "SOFI" not in ft or "GOOGL" not in ft or "Quarterly report (10-Q)" not in ft: problems.append(f"[{scheme}] news: company filings card missing")
+                    await pg.fill("#filIn", "nvda"); await pg.click("#filAdd button"); await pg.wait_for_timeout(150)
+                    if "NVDA" not in await pg.inner_text("#filCard"): problems.append(f"[{scheme}] news: adding a ticker to filings failed")
+                    if not await pg.locator('#filCard a[href*="sec.gov/cgi-bin/browse-edgar"][href*="CIK=NVDA"]').count(): problems.append(f"[{scheme}] news: NVDA filing link missing")
+                    await pg.click('[data-filrm="NVDA"]'); await pg.wait_for_timeout(150)
+                    await pg.locator("#filCard").screenshot(path=os.path.join(OUT, f"filings-{scheme}.png"))
                     cyt = await pg.inner_text("#cyCard") if await pg.locator("#cyCard").count() else ""
                     if "Crypto cycle" not in cyt or "/100" not in cyt or "halving" not in cyt: problems.append(f"[{scheme}] news: crypto cycle gauge missing")
                     await pg.click("#cyCard summary"); await pg.wait_for_timeout(150)

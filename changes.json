@@ -1,4 +1,9 @@
 [
+  {"date": "2026-10-28", "title": "Company earnings filings on the News page", "items": [
+    "A new card on the News page links to the official earnings reports companies file with the US SEC. SoFi (SOFI) and Alphabet/Google (GOOGL) are there to start.",
+    "Each company has four buttons: earnings releases (8-K, filed on results day), the quarterly report (10-Q), the annual report (10-K) and all filings. They open on sec.gov.",
+    "Add any US-listed company by typing its ticker, and remove ones you don't need. Your list stays on this device."
+  ]},
   {"date": "2026-10-26", "title": "A public track record has started", "items": [
     "From now on, every Long setup and Short setup the app shows on 1H and 4H for the 25 busiest Gate markets is saved each hour, before anyone knows how it turns out.",
     "Each one is then followed on later prices with the Simulator's rules until it hits its stop, target 2 or runs out of time. Losses stay in, and finished results are never changed.",

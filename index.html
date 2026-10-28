@@ -519,6 +519,9 @@ button.ncoin:hover{border-color:var(--accent)}
 .ntag.hot{background:var(--down-bg);color:var(--down)}
 .xcard{padding:12px 14px;display:grid;gap:10px}
 .xlinks{display:flex;gap:6px;flex-wrap:wrap}
+.fil h3,.fil>.note{padding:0} .fil-row{border-top:1px solid var(--line);padding-top:10px;display:grid;gap:8px} .fil-top{display:flex;justify-content:space-between;align-items:center;font-size:15px}
+.fil-x{border:0;background:none;color:var(--muted);font:inherit;font-size:12.5px;cursor:pointer;padding:4px 0} .fil-links{display:flex;flex-wrap:wrap;gap:6px}
+.fil-add{display:flex;gap:8px} .fil-add input{flex:1;min-width:0;padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--fg);font:inherit;font-size:16px}
 .xlink{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--line);border-radius:9px;font-weight:600;font-size:13px;color:var(--fg);text-decoration:none;background:var(--surface)}
 .xlink:hover{background:var(--surface-2)}
 .mnews .nitem:first-of-type{border-top:1px solid var(--line);margin-top:8px}
@@ -2065,11 +2068,30 @@ function evGuardHTML(day){
 function renderEvGuard(){
   for(const id of ['evGuard','setEv']){const el=document.getElementById(id);if(!el)continue;const h=evGuardHTML(id==='setEv');if(el._h!==h){el.innerHTML=h;el.hidden=!h;el._h=h}}
 }
+/* company earnings filings: links to the official SEC EDGAR pages (sec.gov blocks the app's GitHub jobs and doesn't allow
+   browser apps to read its data, so the app opens the filings on sec.gov instead of copying the numbers) */
+const FIL_DEFAULT=['SOFI','GOOGL'];
+function cleanTicker(t){t=String(t||'').toUpperCase().trim().replace(/^\$/,'');return /^[A-Z][A-Z.\-]{0,5}$/.test(t)?t:null}
+function cleanFilList(a){const out=[];for(const x of Array.isArray(a)?a:[]){const t=cleanTicker(x);if(t&&!out.includes(t))out.push(t)}return out.slice(0,30)}
+// EDGAR's company search accepts a ticker in the CIK field; type filters to one form (8-K = press releases incl. earnings, 10-Q quarterly, 10-K annual)
+function edgarURL(t,type){return 'https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK='+encodeURIComponent(t)+(type?'&type='+encodeURIComponent(type):'')+'&dateb=&owner=include&count=40'}
+const fil={list:(()=>{const v=LS.get('filings',null);return v==null?FIL_DEFAULT.slice():cleanFilList(v)})(),msg:''};
+function filCardHTML(){
+  const a=(t,type,label)=>`<a class="xlink" href="${esc(edgarURL(t,type))}" target="_blank" rel="noopener noreferrer">${label}</a>`;
+  const rows=fil.list.map(t=>`<div class="fil-row"><div class="fil-top"><b>${esc(t)}</b><button type="button" class="fil-x" data-filrm="${esc(t)}" aria-label="Remove ${esc(t)}">Remove</button></div>
+    <div class="fil-links">${a(t,'8-K','Earnings releases (8-K)')}${a(t,'10-Q','Quarterly report (10-Q)')}${a(t,'10-K','Annual report (10-K)')}${a(t,'','All filings')}</div></div>`).join('');
+  return `<h3>Company earnings filings</h3>
+    <p class="note">Official reports filed with the US SEC, opened on sec.gov. The earnings press release is usually filed as an 8-K on results day (look for exhibit 99.1); the full quarterly report (10-Q) follows within days.</p>
+    ${rows||'<p class="note">No companies yet. Add a ticker below.</p>'}
+    <form class="fil-add" id="filAdd"><input id="filIn" type="text" inputmode="text" autocapitalize="characters" autocomplete="off" maxlength="7" placeholder="Ticker, e.g. NVDA" aria-label="Company ticker"><button type="submit" class="btn">Add</button></form>
+    ${fil.msg?`<p class="note">${esc(fil.msg)}</p>`:''}`;
+}
+function renderFil(){const c=document.getElementById('filCard');if(c)c.innerHTML=filCardHTML()}
 function renderNews(force){
   const area=$('#listArea');if(!force&&$('#newsRoot'))return;loadCycle();
   const d=news.data;
   if(!d){
-    area.innerHTML=`<div class="news" id="newsRoot"><div class="list"><div class="empty">${news.loading||(!news.err&&!news.at)?'Loading headlines…':
+    area.innerHTML=`<div class="news" id="newsRoot"><div class="card cy fil" id="filCard">${filCardHTML()}</div><div class="list"><div class="empty">${news.loading||(!news.err&&!news.at)?'Loading headlines…':
       `Headlines load when the app runs from its web address. They come from crypto and financial news sites, the Federal Reserve and the SEC, refreshed every 15 minutes.`}</div></div>${xCard()}</div>`;
     if(!news.loading&&!news.err)loadNews();return;
   }
@@ -2078,6 +2100,7 @@ function renderNews(force){
   const failed=(d.sources||[]).filter(s=>!s.ok).map(s=>s.name);
   area.innerHTML=`<div class="news" id="newsRoot">
     <div class="card cy" id="cyCard">${cycleCardHTML()}</div>
+    <div class="card cy fil" id="filCard">${filCardHTML()}</div>
     <div class="ntop">${fngHTML(d.fng)}${calHTML(d.calendar)}</div>
     <div class="opts">${NTOPICS.map(([k,l])=>`<button type="button" class="opt sm" data-ntopic="${k}" aria-pressed="${tp===k}">${l}</button>`).join('')}</div>
     <div class="nlist">${items.length?items.map(newsItemHTML).join(''):`<div class="empty">No headlines match${q?' your search':''}.</div>`}</div>
@@ -2959,6 +2982,9 @@ window.addEventListener('unhandledrejection',e=>{const r=e&&e.reason;if(r&&r.nam
 function toggleStar(key){if(state.watch.has(key))state.watch.delete(key);else state.watch.add(key);LS.set('watch2',[...state.watch]);renderTabs();
   if(state.cat==='watch')renderList();else updateRow(key);if(state.selected===key)$('#dStar').setAttribute('aria-pressed',state.watch.has(key))}
 const listArea=$('#listArea');
+listArea.addEventListener('submit',e=>{if(e.target.id!=='filAdd')return;e.preventDefault();const inp=$('#filIn'),t=cleanTicker(inp&&inp.value);
+  if(!t)fil.msg='Type a US stock ticker (letters only, up to 6), e.g. AAPL.';else if(fil.list.includes(t))fil.msg=t+' is already in the list.';
+  else{fil.list.unshift(t);fil.list=fil.list.slice(0,30);LS.set('filings',fil.list);fil.msg=''}renderFil()});
 listArea.addEventListener('click',e=>{if(e.target.closest('[data-go]')){goPage(e.target.closest('[data-go]').dataset.go);window.scrollTo(0,0)}});
 listArea.addEventListener('click',e=>{const b=e.target.closest('[data-sim]');if(!b||sim.running)return;
   const g=b.dataset.sim,v=b.dataset.v;
@@ -2967,7 +2993,7 @@ listArea.addEventListener('click',e=>{const b=e.target.closest('[data-sim]');if(
   LS.set('sim',sim.opts)});
 listArea.addEventListener('input',e=>{const k=e.target.dataset&&e.target.dataset.simin;if(!k)return;sim.opts[k]=e.target.value;LS.set('sim',sim.opts)});
 listArea.addEventListener('keydown',e=>{const sr=e.target.closest&&e.target.closest('tr.simrow');if(sr&&(e.key==='Enter'||e.key===' ')){e.preventDefault();openSimMarket(sr.dataset.key,sr.dataset.id,sr.dataset.tf)}});
-listArea.addEventListener('click',e=>{if(e.target.closest('[data-snag]')){renderList(true);if(state.cat==='news')loadNews(true);return}const nt=e.target.closest('[data-ntopic]');if(nt){news.topic=nt.dataset.ntopic;LS.set('ntopic',news.topic);renderNews(true)}});
+listArea.addEventListener('click',e=>{if(e.target.closest('[data-snag]')){renderList(true);if(state.cat==='news')loadNews(true);return}const rm=e.target.closest('[data-filrm]');if(rm){fil.list=fil.list.filter(t=>t!==rm.dataset.filrm);LS.set('filings',fil.list);fil.msg='';renderFil();return}const nt=e.target.closest('[data-ntopic]');if(nt){news.topic=nt.dataset.ntopic;LS.set('ntopic',news.topic);renderNews(true)}});
 function openCoin(e){const c=e.target.closest('[data-coin]');if(!c)return false;state.simShow=null;openGroup(c.dataset.coin);return true}
 $('#mktNews').addEventListener('click',e=>{openCoin(e)});
 listArea.addEventListener('click',e=>{if(e.target.closest('a[href]'))return;if(openCoin(e))return;const sr=e.target.closest('tr.simrow');if(sr){openSimMarket(sr.dataset.key,sr.dataset.id,sr.dataset.tf);return}

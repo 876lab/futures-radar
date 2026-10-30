@@ -2,6 +2,13 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-10-30 (nightly run: track record CSV download)
+- **Simulator → Track record → "By month, candle size and the latest results":** new **Download all N finished setups (CSV)** button. The file (`futures-radar-track-record-YYYY-MM-DD.csv`) has one row per finished record, oldest first: market, candle, side, agreement, confirmed, setup candle time and finish time (UTC, ISO 8601), entry, stop, target 1, target 2, how it ended, result in R, reached target 1, exit price. Records that couldn't be scored ("no price data") are included with an empty result. Made on the device from the `track.json` the card already loads; nothing is uploaded.
+- `cleanTrack` now also keeps each record's `tp1`/`tp2` and, for finished ones, `exit` (optional; missing or junk values become empty cells).
+- New pure `csvCell`, `trackCSV` (RFC 4180: commas, quotes and line breaks quoted, quotes doubled, CRLF line ends; a UTF-8 byte-order mark is added to the file so Excel reads it as UTF-8). Text cells starting with `=`, `+`, `-`, `@`, tab or carriage return get a leading `'` so a spreadsheet can't run them as a formula; numbers (including negative R) are left as numbers. 5 engine tests; the browser test clicks the button and checks the file name, header and that the row count matches the finished records.
+- Roadmap: track record follow-up (c). Information only; no signal, score or trade-maths change.
+- Sources: RFC 4180 and its update draft (https://www.rfc-editor.org/rfc/inline-errata/rfc4180.html, https://datatracker.ietf.org/doc/draft-shafranovich-rfc4180-bis/03/); OWASP CSV Injection (https://owasp.org/www-community/attacks/CSV_Injection).
+
 ## 2026-10-28 (owner request: company earnings filings)
 - **News page → "Company earnings filings" card:** a list of US tickers (starts with SOFI and GOOGL; add by ticker, remove per row; kept on the device as `fradar:filings`, cleaned on load, max 30). Each row links to SEC EDGAR's company page filtered to 8-K (earnings press releases, exhibit 99.1), 10-Q, 10-K, and all filings. Links only: sec.gov refuses the app's GitHub jobs (see 2026-10-21) and data.sec.gov doesn't allow browser apps to read it (no CORS), so the numbers aren't copied into the app.
 - New pure `cleanTicker`, `cleanFilList`, `edgarURL` (3 engine tests); browser test checks the card, adding and removing a ticker and the sec.gov link in both themes.

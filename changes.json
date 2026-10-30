@@ -1,4 +1,9 @@
 [
+  {"date": "2026-10-30", "title": "Download the track record as a spreadsheet", "items": [
+    "On the Simulator page, open the Track record's details and tap 'Download all … finished setups (CSV)'.",
+    "You get a file with every finished setup: market, long or short, entry, stop, targets, the times, how it ended and the result in R. Losses are in it too.",
+    "It opens in Excel, Numbers or Google Sheets, so anyone can check the numbers themselves."
+  ]},
   {"date": "2026-10-28", "title": "Company earnings filings on the News page", "items": [
     "A new card on the News page links to the official earnings reports companies file with the US SEC. SoFi (SOFI) and Alphabet/Google (GOOGL) are there to start.",
     "Each company has four buttons: earnings releases (8-K, filed on results day), the quarterly report (10-Q), the annual report (10-K) and all filings. They open on sec.gov.",

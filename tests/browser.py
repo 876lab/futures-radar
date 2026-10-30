@@ -197,6 +197,14 @@ async def main():
                     trt = await pg.inner_text("#trCard")
                     for want in ("Track record", "finished setups", "Open now", "By month started", "Latest finished", "never edited or removed", "every hourly update"):
                         if want not in trt: problems.append(f"[{scheme}] simulator: track record card is missing '{want}'")
+                    if scheme == "light":   # CSV download of every finished record
+                        try:
+                            async with pg.expect_download(timeout=5000) as dl: await pg.click("#trCsv")
+                            d = await dl.value; raw = open(await d.path(), encoding="utf-8-sig", newline="").read()
+                            lines = raw.split("\r\n")
+                            if not d.suggested_filename.startswith("futures-radar-track-record-") or not d.suggested_filename.endswith(".csv"): problems.append(f"simulator: track CSV file name '{d.suggested_filename}'")
+                            if not lines[0].startswith("market,candle,side,agreement") or len(lines) - 2 != len(TR["closed"]) or lines[-1] != "": problems.append(f"simulator: track CSV has {len(lines)-2} rows for {len(TR['closed'])} finished records")
+                        except Exception as e: problems.append(f"simulator: track CSV download failed: {e}")
                     await pg.locator("#trCard").screenshot(path=os.path.join(OUT, f"track-{scheme}.png"))
                 if nav == "news":
                     ft = await pg.inner_text("#filCard") if await pg.locator("#filCard").count() else ""

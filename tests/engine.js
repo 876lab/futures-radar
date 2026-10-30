@@ -69,6 +69,14 @@ ok(d.closed[4].r===5&&d.closed[3].how==='nodata'&&d.closed[3].r===null,'track: w
 ok(cleanTrack({open:[]})===null&&cleanTrack('x')===null&&cleanTrack(null)===null,'track: not a track record');
 const s=trackStats(d.closed.slice(0,4));ok(s.overall.n===3&&s.nodata===1&&Math.abs(s.overall.reach-2/3)<1e-9&&Math.abs(s.overall.avgR-(-1.02+2.1+0.68)/3)<1e-9,'track: stats leave out unscored records only');
 ok(s.month.map(r=>r.k+':'+r.n).join()==='Nov 2026:1,Oct 2026:2','track: by month, newest first');
+// CSV download of finished records (RFC 4180 quoting; formula-looking text neutralised; numbers and unscored rows kept)
+{const csv=trackCSV(d.closed.slice(0,4)),L=csv.split('\\r\\n');
+ok(L.length===6&&L[5]===''&&L[0]===TR_CSV_HEAD.join(','),'track csv: header, one line per record, CRLF ('+L.length+')');
+ok(L[1]==='BTC,1H,long,72,yes,2026-10-27T00:00:00Z,100,98,,,2026-10-27T05:00:00Z,stop,-1.02,no,','track csv: first row, oldest first ('+L[1]+')');
+ok(L[3].startsWith('BTC,1H,long')&&L[3].endsWith(',no price data,,,')&&L[4].includes(',4H,'),'track csv: unscored record kept with empty result');
+const c2=cleanTrack({open:[],closed:[rec({m:'=HYPERLINK("x")',tp1:103,tp2:106,exit:103.5,how:'target',r:2.4,reach:true})]}),L2=trackCSV(c2.closed).split('\\r\\n');
+ok(L2[1].startsWith('"'+"'"+'=HYPERLINK(""x"")",')&&L2[1].endsWith(',103,106,2026-10-27T05:00:00Z,target 2,2.4,yes,103.5'),'track csv: formula guard, quotes doubled, targets and exit ('+L2[1]+')');
+ok(csvCell(-1.5)==='-1.5'&&csvCell('-x')==="'"+'-x'&&csvCell('a,b')==='"a,b"'&&csvCell(null)===''&&csvCell(NaN)==='','track csv: cells');}
 ok(s.side.map(r=>r.k+r.n).join()==='Long2,Short1'&&s.tf.map(r=>r.k+r.n).join()==='1H2,4H1'&&s.confirmed[1].n===1,'track: by side, candle size, confirmed');
 ok(s.latest.length===4&&s.latest[0].how==='nodata'&&s.latest.some(r=>r.r<0),'track: latest list keeps losses and unscored records');}
 // crypto cycle gauge (information only)

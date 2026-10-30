@@ -2197,10 +2197,10 @@ function cleanTrack(j){
   if(!j||typeof j!=='object'||!Array.isArray(j.open)||!Array.isArray(j.closed))return null;
   const fin=v=>typeof v==='number'&&isFinite(v);
   const base=r=>r&&typeof r==='object'&&typeof r.m==='string'&&(r.tf==='1h'||r.tf==='4h')&&(r.dir===1||r.dir===-1)&&fin(r.t0)&&fin(r.entry)&&r.entry>0&&fin(r.stop)?
-    {m:r.m.slice(0,20),tf:r.tf,dir:r.dir,conf:fin(r.conf)?Math.round(clamp(r.conf,0,100)):0,confirmed:r.confirmed===true,t0:r.t0,entry:r.entry,stop:r.stop}:null;
+    {m:r.m.slice(0,20),tf:r.tf,dir:r.dir,conf:fin(r.conf)?Math.round(clamp(r.conf,0,100)):0,confirmed:r.confirmed===true,t0:r.t0,entry:r.entry,stop:r.stop,tp1:fin(r.tp1)?r.tp1:null,tp2:fin(r.tp2)?r.tp2:null}:null;
   const closed=j.closed.slice(-5000).map(r=>{const b=base(r);if(!b||!TR_HOW.includes(r.how)||!fin(r.t1))return null;
     if(r.how==='nodata')return Object.assign(b,{how:'nodata',r:null,reach:false,t1:r.t1});
-    return fin(r.r)?Object.assign(b,{how:r.how,r:clamp(r.r,-5,5),reach:r.reach===true,t1:r.t1}):null}).filter(Boolean);
+    return fin(r.r)?Object.assign(b,{how:r.how,r:clamp(r.r,-5,5),reach:r.reach===true,t1:r.t1,exit:fin(r.exit)&&r.exit>0?r.exit:null}):null}).filter(Boolean);
   return{start:fin(j.start)?j.start:null,updated:fin(j.updated)?j.updated:0,source:typeof j.source==='string'?j.source.slice(0,60):'',
     markets:Array.isArray(j.markets)?j.markets.filter(x=>typeof x==='string').length:0,open:j.open.slice(0,300).map(base).filter(Boolean),closed};
 }
@@ -2214,6 +2214,26 @@ function trackStats(closed){
     tf:grp(t=>TF_LABEL[t.tf],['1H','4H']),side:grp(t=>t.dir>0?'Long':'Short',['Long','Short']),
     confirmed:grp(t=>t.confirmed?'Confirmed':'Not confirmed',['Confirmed','Not confirmed']),
     latest:[...closed].sort((a,b)=>b.t1-a.t1).slice(0,10)};
+}
+// CSV of every finished record (RFC 4180: commas, doubled quotes, CRLF), oldest first; text cells that a
+// spreadsheet would read as a formula (= + - @ tab CR at the start) get a leading ' (OWASP CSV injection advice)
+function csvCell(v){
+  if(v==null)return '';if(typeof v==='number')return isFinite(v)?String(v):'';if(typeof v==='boolean')return v?'yes':'no';
+  let t=String(v);if(/^[=+\-@\t\r]/.test(t))t="'"+t;return /[",\r\n]/.test(t)?'"'+t.replace(/"/g,'""')+'"':t;
+}
+const TR_CSV_HOW={stop:'stop',target:'target 2',breakeven:'target 1 then entry',time:'time limit',nodata:'no price data'};
+const TR_CSV_HEAD=['market','candle','side','agreement','confirmed','setup_candle_utc','entry','stop','target1','target2','finished_utc','how_it_ended','result_R','reached_target1','exit_price'];
+function trackCSV(closed){
+  const iso=t=>new Date(t*1000).toISOString().replace('.000Z','Z');
+  const rows=[...closed].sort((a,b)=>a.t0-b.t0||a.t1-b.t1||(a.m<b.m?-1:a.m>b.m?1:0)).map(r=>[r.m,TF_LABEL[r.tf],r.dir>0?'long':'short',r.conf,r.confirmed,iso(r.t0),r.entry,r.stop,r.tp1,r.tp2,iso(r.t1),TR_CSV_HOW[r.how],r.r,r.how==='nodata'?null:r.reach,r.exit]);
+  return [TR_CSV_HEAD,...rows].map(r=>r.map(csvCell).join(',')).join('\r\n')+'\r\n';
+}
+function downloadTrackCSV(){
+  const d=tr.data;if(!d||!d.closed.length)return;
+  try{const u=URL.createObjectURL(new Blob(['﻿'+trackCSV(d.closed)],{type:'text/csv;charset=utf-8'}));
+    const a=document.createElement('a');a.href=u;a.download='futures-radar-track-record-'+new Date(NOW()).toISOString().slice(0,10)+'.csv';
+    document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),30000)}
+  catch(e){const b=document.getElementById('trCsv');if(b)b.textContent='Couldn\'t create the file on this device'}
 }
 function simStats(tr,risk){
   const n=tr.length;if(!n)return{n:0,curve:[1]};
@@ -2415,6 +2435,7 @@ function trCardHTML(){
       <ul class="sim-notes"><li>Every setup is saved within the hour its candle closes, before its result is known. Finished results are never edited or removed, losses included${s.nodata?`; ${plural(s.nodata,'setup')} couldn't be scored because the market's prices stopped coming`:''}.</li>
       <li>Results are simulated with the Simulator's rules on Gate prices: entry at the next candle's open, half closed at target 1 and the stop moved to entry, 0.05% fee and 0.02% slippage each side, closed after ${OPTS_TR.maxHold} candles. They are not real trades; real fills, funding fees and liquidation can make results worse.</li>
       <li>The full history is public: <a href="${esc(TR_LOG)}" target="_blank" rel="noopener">every hourly update on GitHub</a>. Past results don't guarantee future ones.</li></ul>
+      ${d.closed.length?`<div class="simbtns"><button type="button" class="btn" id="trCsv">Download all ${plural(d.closed.length,'finished setup')} (CSV)</button></div><p class="note">A spreadsheet file with every finished setup: market, side, entry, stop, targets, times in UTC and the result in R. It opens in Excel, Numbers or Google Sheets.</p>`:''}
     </details>`;
 }
 function btCardHTML(){
@@ -2541,7 +2562,7 @@ function renderSim(force){
     <div class="simprog" id="simProg" ${sim.running?'':'hidden'}></div>
     ${sim.err?`<p class="simerr">${esc(sim.err)}</p>`:''}
   </div>`;
-  area.innerHTML=`<div class="sim" id="simRoot"><div class="card bt" id="trCard">${trCardHTML()}</div><div class="card bt" id="btCard">${btCardHTML()}</div><div class="card bt mine" id="mineCard">${mineCardHTML()}</div>${form}${simResultsHTML()}</div>`;loadBT();loadTrack();
+  area.innerHTML=`<div class="sim" id="simRoot"><div class="card bt" id="trCard">${trCardHTML()}</div><div class="card bt" id="btCard">${btCardHTML()}</div><div class="card bt mine" id="mineCard">${mineCardHTML()}</div>${form}${simResultsHTML()}</div>`;$('#trCard').onclick=e=>{if(e.target.closest('#trCsv'))downloadTrackCSV()};loadBT();loadTrack();
   bindMine();
   if(sim.running)simProgress();
   const run=$('#simRun');if(run)run.onclick=()=>runSim();

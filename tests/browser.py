@@ -185,6 +185,18 @@ async def main():
             await route_bt(pg)
             await pg.add_init_script(ACCEPT)
             await pg.goto("file://" + PAGE); await pg.wait_for_timeout(2500)
+            # market light at the top: a colour, a label, and the reasons when tapped
+            mlc = await pg.get_attribute("#mlight", "class") or ""
+            mls = await pg.inner_text("#mlight summary")
+            if not any(k in mlc.split() for k in ("red", "green", "amber", "purple")) or "Market light:" not in mls: problems.append(f"[{scheme}] market light not showing a colour: {mlc!r} {mls!r}")
+            await pg.click("#mlight summary"); await pg.wait_for_timeout(200)
+            mlb = await pg.inner_text("#mlight .ml-body")
+            for want in ("What the light sees now", "RSI 14", "Fear & Greed: 55", "Crypto cycle gauge:", "30 days later", "not financial advice"):
+                if want not in mlb: problems.append(f"[{scheme}] market light: '{want}' missing")
+            for bad in ("undefined", "NaN", "Infinity", "null"):
+                if bad in mlb: problems.append(f"[{scheme}] market light shows '{bad}'")
+            await pg.locator("#mlight").screenshot(path=os.path.join(OUT, f"market-light-{scheme}.png"))
+            await pg.click("#mlight summary"); await pg.wait_for_timeout(100)
             for nav in ("markets", "setups", "news", "watch", "sim", "markets"):
                 await pg.click(f'[data-nav="{nav}"]'); await pg.wait_for_timeout(700)
                 txt = await pg.inner_text("#listArea")
@@ -291,6 +303,18 @@ async def main():
             if ("Long setup" in sig or "Short setup" in sig) and "In last night's backtest" not in sig: problems.append(f"[{scheme}] chart screen: past win rate missing under a setup")
             for old in ("signal ·", "enter long", "enter short", "avoid for now", "confidence", "size this trade"):
                 if old in sig.lower(): problems.append(f"[{scheme}] chart screen: old wording '{old}' still shown")
+            # weekly and monthly candles: chart and trend only, no entry/stop/targets; back to a normal size afterwards
+            was = await pg.get_attribute('#tfSeg [aria-pressed="true"]', "data-tf")
+            for big in ("1w", "1M"):
+                await pg.click(f'#tfSeg [data-tf="{big}"]'); await pg.wait_for_timeout(1200)
+                bs = await pg.inner_text("#sigCard"); lbl = "1W" if big == "1w" else "1M"
+                if f"{lbl} candles · trend only".lower() not in bs.lower() or "Entry zone" in bs or "Stop loss" in bs or "Position size" in bs: problems.append(f"[{scheme}] chart {lbl}: trend-only card wrong: {bs[:120]!r}")
+                if await pg.get_attribute(f'#tfSeg [data-tf="{big}"]', "aria-pressed") != "true": problems.append(f"[{scheme}] chart {lbl}: button not pressed")
+                for bad in ("undefined", "NaN"):
+                    if bad in bs: problems.append(f"[{scheme}] chart {lbl}: shows '{bad}'")
+                if scheme == "light" and big == "1w": await pg.screenshot(path=os.path.join(OUT, "chart-1w.png"))
+            await pg.click(f'#tfSeg [data-tf="{was}"]'); await pg.wait_for_timeout(1200)
+            if "chart reading ·" not in (await pg.inner_text("#sigCard")).lower(): problems.append(f"[{scheme}] chart: going back from 1M to {was} did not bring the chart reading back")
             if scheme == "dark":
                 await pg.screenshot(path=os.path.join(OUT, "chart.png"))
                 await pg.go_back(); await pg.wait_for_timeout(600)   # phone back gesture closes the chart screen

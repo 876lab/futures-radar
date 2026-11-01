@@ -489,6 +489,16 @@ details.more[open]>summary::after{content:"−"}
 .cy-r{display:grid;grid-template-columns:minmax(0,1fr) 90px 28px;gap:8px;align-items:center;color:var(--fg);font-size:13px} .cy-r .num{text-align:right}
 .cy-bar{height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden} .cy-bar i{display:block;height:100%}
 .cy-spark{width:100%;height:46px;display:block;margin:4px 0} .cy-spark polyline{fill:none;stroke:var(--accent);stroke-width:1.6;vector-effect:non-scaling-stroke} .cy-g{stroke:var(--line);stroke-dasharray:4 4;vector-effect:non-scaling-stroke}
+.mlight{margin:0 0 12px;border:1px solid var(--line);border-left:5px solid var(--ml);border-radius:12px;background:var(--surface)}
+.mlight.red{--ml:var(--down)} .mlight.green{--ml:var(--up)} .mlight.amber{--ml:var(--accent)} .mlight.purple{--ml:var(--c3)} .mlight.wait{--ml:var(--c4)}
+.mlight summary{display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;list-style:none;font-size:13px;color:var(--muted)}
+.mlight summary::-webkit-details-marker{display:none}
+.ml-dot{width:16px;height:16px;border-radius:50%;flex:none;background:var(--ml);box-shadow:0 0 0 4px color-mix(in srgb,var(--ml) 22%,transparent)}
+.ml-t{display:grid;gap:1px;flex:1;min-width:0} .ml-t b{color:var(--fg);font-weight:700;font-size:14px}
+.ml-more{font-size:12px;font-weight:600;color:var(--ml);white-space:nowrap} .mlight[open] .ml-more::after{content:" ▲"} .mlight:not([open]) .ml-more::after{content:" ▼"}
+.ml-body{padding:0 14px 12px;font-size:13.5px;display:grid;gap:8px} .ml-body p{margin:0} .ml-body ul{margin:0;padding-left:18px;display:grid;gap:4px}
+.ml-body li.on{color:var(--fg);font-weight:600} .ml-body li.off{color:var(--muted)} .ml-body .note{font-size:12.5px;color:var(--muted)}
+.ml-key{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:12px;color:var(--muted)} .ml-key i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px;vertical-align:0}
 .cy-line{display:flex;align-items:center;gap:8px;width:100%;text-align:left;border:1px solid var(--line);background:none;border-radius:9px;padding:8px 11px;font-size:13px;color:var(--muted);margin:0 0 10px;font-family:inherit;cursor:pointer}
 .cy-line b{color:var(--fg);font-weight:600} .cy-chip{width:10px;height:10px;border-radius:50%;flex:none}
 .fng .lab,.cal .lab{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
@@ -570,6 +580,7 @@ html,body{overscroll-behavior-y:none}
 </header>
 
 <div class="wrap">
+  <details class="mlight wait" id="mlight"><summary><span class="ml-dot"></span><span class="ml-t"><b>Market light</b><span>Reading Bitcoin's daily chart…</span></span><span class="ml-more">Why</span></summary><div class="ml-body"></div></details>
   <div class="banner" id="banner" hidden></div>
   <div class="layout">
     <section class="lcol" aria-label="Futures pairs">
@@ -798,6 +809,7 @@ html,body{overscroll-behavior-y:none}
       <dt>EMA 20 / 50 / 200</dt><dd>Moving averages. Price above them, with the short line on top, is a classic uptrend.</dd>
       <dt>Funding</dt><dd>A small fee swapped between longs and shorts every few hours on perpetuals. Positive means longs pay shorts.</dd>
       <dt>Volume</dt><dd>Dollar value traded. A move on rising volume is more trustworthy.</dd>
+      <dt>Market light</dt><dd>The coloured bar at the top. It reads Bitcoin's daily chart, Fear &amp; Greed and the cycle gauge. Red (Hot): several signs of a fast run-up at once. Green (Oversold): several signs of a hard fall at once. Purple (Stormy): much bigger swings than usual, without a clear extreme. Amber (Calm): no extreme and normal swings. Information only; it never changes a setup.</dd>
       <dt>News</dt><dd>Headlines from crypto and financial news sites, the Federal Reserve and the SEC, refreshed every 15 minutes. Fear &amp; Greed sums up market mood from 0 (extreme fear) to 100 (extreme greed).</dd>
       <dt>Live</dt><dd>The dot at the top shows how fresh prices are. "Live · now" means ticks are streaming in. "Delayed" means no tick for 30 seconds; the app reconnects on its own.</dd>
     </dl>
@@ -851,6 +863,9 @@ const CAT_DESC={settings:'Your preferences. Changes save on this device straight
 const TFS={'5m':300,'15m':900,'1h':3600,'4h':14400,'1d':86400};
 const TF_LABEL={'5m':'5m','15m':'15m','1h':'1H','4h':'4H','1d':'1D'};
 const HTF={'5m':'15m','15m':'1h','1h':'4h','4h':'1d','1d':null};
+// weekly and monthly candles: chart and trend only (no setups; the setup rules were built and tested on 5m–1D)
+const BIG_TF={'1w':604800,'1M':2592000};Object.assign(TF_LABEL,{'1w':'1W','1M':'1M'});
+const tfSec=tf=>TFS[tf]||BIG_TF[tf]||86400;
 const HOT_MIN_VOL=2e6, SETUP_POOL=60;
 
 const STOCKS=new Set('AAPL MSFT NVDA TSLA AMZN GOOGL GOOG META NFLX AMD INTC COIN MSTR HOOD PLTR BABA ORCL AVGO CRCL GME AMC UBER SHOP PYPL DIS NKE JPM BAC WMT KO PEP MCD IBM CSCO QCOM MU SMCI RIVN LCID SNOW CRM ADBE TSM ASML SPOT ABNB RBLX NIO BIDU PDD SBUX XOM CVX PFE MRNA LLY UNH CRWV CRWD PANW SOFI DJT GLXY BMNR SBET'.split(' '));
@@ -878,6 +893,8 @@ const state={
   acct:LS.get('acct',100),evOn:LS.get('evOn',true),evAll:LS.get('evAll',false),confOnly:LS.get('confOnly',true),conf:new Map(),ann:{bybit:[],at:0,loading:false},navHide:LS.get('navHide',true),risk:LS.get('risk',2),maxLoss:LS.get('maxLoss',0),stream:{},lastTick:{},lastSeen:{}
 };
 if(!TFS[state.tf])state.tf='15m';
+state.big=null;   // '1w' or '1M' while the chart shows weekly/monthly candles; state.tf stays the candle size for Setups and lists
+function ctf(){return state.big||state.tf}
 if(!state.ind||typeof state.ind!=='object')state.ind={ema:false,bb:true,st:true,vol:true,marks:true};
 if(typeof state.ind.fib!=='boolean')state.ind.fib=true;   // Fibonacci levels (added 25 Oct 2026) start switched on
 if(state.view!=='all'&&!EX[state.view])state.view='all';
@@ -1176,7 +1193,7 @@ function startChartFeed(p,tf){
     current.feedKind='kline';
     chartFeed=openWS('chart',`wss://fstream.binance.com/market/ws/${p.sym.toLowerCase()}@kline_${tf}`,{onmsg:d=>{const k=d&&d.k;if(!k)return;
       liveCandle(p,tf,{time:Math.floor(k.t/1000),open:+k.o/m,high:+k.h/m,low:+k.l/m,close:+k.c/m,volume:+k.q||+k.v})}});
-  }else if(p.ex==='gate'){
+  }else if(p.ex==='gate'&&!BIG_TF[tf]){
     current.feedKind='kline';
     chartFeed=openWS('chart','wss://fx-ws.gateio.ws/v4/ws/usdt',{
       onopen:ws=>ws.send(JSON.stringify({time:sec(),channel:'futures.candlesticks',event:'subscribe',payload:[tf,p.sym]})),
@@ -1194,7 +1211,7 @@ function startChartFeed(p,tf){
   }else current.feedKind='tick';
 }
 function liveCandle(p,tf,k){
-  if(!current||current.p!==p||state.tf!==tf||!charts||!(k.close>0))return;
+  if(!current||current.p!==p||ctf()!==tf||!charts||!(k.close>0))return;
   const cs=current.cs,last=cs[cs.length-1];if(!last||k.time<last.time)return;
   let closed=false;
   if(k.time===last.time){last.open=k.open;last.high=k.high;last.low=k.low;last.close=k.close;if(k.volume!=null)last.volume=k.volume}
@@ -1209,13 +1226,13 @@ function liveCandle(p,tf,k){
 }
 function liveTickChart(price){
   if(!current||!charts)return;const p=current.p;
-  const s=TFS[state.tf];
-  const b=Math.floor(NOW()/1000/s)*s,last=current.cs[current.cs.length-1];if(!last)return;
-  if(b>last.time)liveCandle(p,state.tf,{time:b,open:last.close,high:Math.max(last.close,price),low:Math.min(last.close,price),close:price,volume:0});
-  else if(b===last.time)liveCandle(p,state.tf,{time:last.time,open:last.open,high:Math.max(last.high,price),low:Math.min(last.low,price),close:price,volume:last.volume});
+  const tf=ctf(),b=barStart(tf,Math.floor(NOW()/1000)),last=current.cs[current.cs.length-1];if(!last)return;
+  if(b>last.time)liveCandle(p,tf,{time:b,open:last.close,high:Math.max(last.close,price),low:Math.min(last.close,price),close:price,volume:0});
+  else if(b===last.time)liveCandle(p,tf,{time:last.time,open:last.open,high:Math.max(last.high,price),low:Math.min(last.low,price),close:price,volume:last.volume});
 }
 function recomputeLive(){
   const {p,cs}=current;const an=analyze(cs);if(!an)return;
+  if(current.big){current.an=an;draw(true);renderBigSignal(an,current.big);renderTrendDetails(an);return}
   const rc=recommend(an,cs,current.han,state.tf);current.an=an;current.rc=rc;
   const g=state.gByKey.get(state.selected);
   if(g&&p.id===g.primary.id)state.trend.set(p.id+'|'+state.tf,{score:an.score,rec:rc.rec,conf:rc.conf,dir:rc.dir});
@@ -1254,7 +1271,7 @@ function renderFeedTable(){
 
 /* ---------- candles (scaled to one unit of the asset) ---------- */
 const candleCache=new Map();
-const BY_INT={'5m':'5','15m':'15','1h':'60','4h':'240','1d':'D'};
+const BY_INT={'5m':'5','15m':'15','1h':'60','4h':'240','1d':'D','1w':'W','1M':'M'};
 async function fetchCandles(p,tf,n){
   let data;
   if(p.demo)data=demoCandles(p,tf,n);
@@ -1262,7 +1279,8 @@ async function fetchCandles(p,tf,n){
     const r=await getJSON(`https://fapi.binance.com/fapi/v1/klines?symbol=${encodeURIComponent(p.sym)}&interval=${tf}&limit=${Math.min(n,1500)}`,20000);
     data=r.map(k=>({time:Math.floor(k[0]/1000),open:+k[1],high:+k[2],low:+k[3],close:+k[4],volume:+k[7]||+k[5]}));
   }else if(p.ex==='gate'){
-    const r=await getJSON(`https://api.gateio.ws/api/v4/futures/usdt/candlesticks?contract=${encodeURIComponent(p.sym)}&interval=${tf}&limit=${Math.min(n,2000)}`,20000);
+    // Gate futures has no monthly candles, so weeks and months are built from up to 2,000 daily candles (about 5.5 years)
+    const r=await getJSON(`https://api.gateio.ws/api/v4/futures/usdt/candlesticks?contract=${encodeURIComponent(p.sym)}&interval=${BIG_TF[tf]?'1d':tf}&limit=${BIG_TF[tf]?2000:Math.min(n,2000)}`,20000);
     data=r.map(k=>({time:+k.t,open:+k.o,high:+k.h,low:+k.l,close:+k.c,volume:+k.sum||+k.v||0}));
   }else{
     const r=await getJSON(`${BY}/kline?category=linear&symbol=${encodeURIComponent(p.sym)}&interval=${BY_INT[tf]}&limit=${Math.min(n,1000)}`,20000);
@@ -1272,11 +1290,11 @@ async function fetchCandles(p,tf,n){
   const m=p.mult||1;
   data=data.filter(k=>isFinite(k.close)&&k.close>0).map(k=>m===1?k:{time:k.time,open:k.open/m,high:k.high/m,low:k.low/m,close:k.close/m,volume:k.volume}).sort((a,b)=>a.time-b.time);
   const out=[];for(const k of data){if(out.length&&out[out.length-1].time===k.time)out[out.length-1]=k;else out.push(k)}
-  return out;
+  return p.ex==='gate'&&!p.demo&&BIG_TF[tf]?aggCandles(out,tf):out;
 }
 async function getCandles(p,tf){
   const key=p.id+'|'+tf,hit=candleCache.get(key);
-  if(hit&&(state.mode==='demo'||NOW()-hit.at<Math.min(60000,TFS[tf]*500)))return hit.data;
+  if(hit&&(state.mode==='demo'||NOW()-hit.at<Math.min(60000,tfSec(tf)*500)))return hit.data;
   const out=await fetchCandles(p,tf,400);
   candleCache.set(key,{at:NOW(),data:out});
   return out;
@@ -1294,6 +1312,7 @@ async function getHistory(p,tf,n){
 function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 function hash(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return h>>>0}
 function demoCandles(p,tf,n){
+  if(BIG_TF[tf])return aggCandles(demoCandles(p,'1d',Math.min((n||400)*(tf==='1w'?7:31),2000)),tf);
   n=n||400;const sec=TFS[tf],r=rng(hash(p.key+tf)),scale=sec/3600,vol=p.dvol*Math.sqrt(scale),drift=p.drift*scale*(tf==='1d'||tf==='4h'?0.5:1);
   const closes=new Array(n);closes[n-1]=p.price;let regime=drift;
   for(let i=n-2;i>=0;i--){if(r()<0.025){const ch=[-1.4,-0.6,0.3,1.2,1.6][Math.floor(r()*5)];regime=drift*ch+(r()-0.5)*vol*0.15}
@@ -1408,7 +1427,7 @@ async function loadAll(manual,quiet){
   state.byId=new Map(state.pairs.map(p=>[p.id,p]));
   buildGroups();
   state.loading=false;$('#refresh').classList.remove('spin');
-  startFeeds();
+  startFeeds();try{loadLight()}catch(e){recordErr('market light',e)}
   if(quiet&&!changed){patchRows();renderVenues();freshness();return}
   renderAll();
   if(state.selected&&state.gByKey.has(state.selected))refreshDetailHead();
@@ -1697,6 +1716,19 @@ function adx(cs,n){const o=new Array(cs.length).fill(null);let trS=0,pS=0,mS=0,d
       if(av==null){dxs.push(dx);if(dxs.length===n)av=dxs.reduce((a,b)=>a+b,0)/n}else av=(av*(n-1)+dx)/n;o[i]={adx:av,pdi,mdi}}}return o}
 function boll(c,n,k){const up=[],lo=[],mid=[];for(let i=0;i<c.length;i++){if(i<n-1){up.push(null);lo.push(null);mid.push(null);continue}let s=0;for(let j=i-n+1;j<=i;j++)s+=c[j];const m=s/n;let v=0;for(let j=i-n+1;j<=i;j++)v+=(c[j]-m)*(c[j]-m);const sd=Math.sqrt(v/n);mid.push(m);up.push(m+k*sd);lo.push(m-k*sd)}return{up,lo,mid}}
 
+// start of the candle holding time t (seconds, UTC): weeks start Monday 00:00 like Binance and Bybit, months on the 1st
+function barStart(tf,t){
+  if(tf==='1w'){const d=Math.floor(t/86400);return(d-(d+3)%7)*86400}
+  if(tf==='1M'){const x=new Date(t*1000);return Date.UTC(x.getUTCFullYear(),x.getUTCMonth(),1)/1000}
+  const s=tfSec(tf);return Math.floor(t/s)*s;
+}
+// daily candles (oldest first) → weekly or monthly ones
+function aggCandles(cs,tf){
+  const out=[];for(const k of cs){const t=barStart(tf,k.time),o=out[out.length-1];
+    if(o&&o.time===t){o.high=Math.max(o.high,k.high);o.low=Math.min(o.low,k.low);o.close=k.close;o.volume+=k.volume||0}
+    else out.push({time:t,open:k.open,high:k.high,low:k.low,close:k.close,volume:k.volume||0})}
+  return out;
+}
 function computeSeries(cs){
   const c=cs.map(k=>k.close);
   return{e20:ema(c,20),e50:ema(c,50),e200:ema(c,200),r6:rsi(c,6),r12:rsi(c,12),r24:rsi(c,24),M:macd(c),st:supertrend(cs,10,3),ad:adx(cs,14),at:atr(cs,14),bb:boll(c,20,2)};
@@ -1864,6 +1896,43 @@ function cycleAt(cs,i){
 }
 function cycleZone(s){if(s==null)return null;
   return s<20?['cold','Cold','Like past cycle lows']:s<40?['cool','Cool','Lower half of past cycles']:s<60?['mid','Middle','Neither stretched nor washed out']:s<80?['warm','Warm','Heating up']:['hot','Hot','Like past cycle tops']}
+/* Market light (owner request, 1 Nov 2026; information only, never changes a setup). Bitcoin's daily candles, oldest
+   first, plus the cycle score and Fear & Greed when known. Hot points and oversold points are counted; 3 or more on one
+   side (and more than the other side) gives red or green. Otherwise, unusually big swings give purple, and calm gives amber. */
+function lightSeries(cs){
+  const c=cs.map(k=>k.close),n=cs.length,r14=rsi(c,14),bb=boll(c,20,2),vol=new Array(n).fill(null),pct=new Array(n).fill(null);
+  for(let i=14;i<n;i++){let s=0,s2=0;for(let k=i-13;k<=i;k++){const x=Math.log(c[k]/c[k-1]);s+=x;s2+=x*x}vol[i]=Math.sqrt(Math.max(0,s2/14-(s/14)**2))*Math.sqrt(365)}
+  for(let i=14+180;i<n;i++){let below=0,cnt=0;for(let k=Math.max(14,i-365);k<i;k++){cnt++;if(vol[k]<vol[i])below++}pct[i]=Math.round(below/cnt*100)}
+  return{r14,bb,vol,pct};
+}
+const LIGHT={red:['red','Hot','Bitcoin looks overheated'],green:['green','Oversold','Bitcoin looks oversold'],purple:['purple','Stormy','Big swings, high uncertainty'],amber:['amber','Calm','Calmer, mostly sideways']};
+function lightAt(cs,S,i,ext){
+  if(!cs||i<120||i>=cs.length||S.r14[i]==null||S.bb.up[i]==null)return null;
+  ext=ext||{};const c=cs[i].close,hot=[],cold=[];
+  const r=S.r14[i],pb=(c-S.bb.lo[i])/((S.bb.up[i]-S.bb.lo[i])||1);
+  let hi90=0;for(let k=Math.max(0,i-89);k<=i;k++)hi90=Math.max(hi90,cs[k].high);
+  const dd=1-c/hi90,ch30=c/cs[i-30].close-1,ch3=c/cs[i-3].close-1;
+  if(r>=70)hot.push(['rsi',r>=80?2:1]);if(r<=30)cold.push(['rsi',r<=22?2:1]);
+  if(pb>1)hot.push(['bb',1]);if(pb<0)cold.push(['bb',1]);
+  if(ch30>=0.3)hot.push(['up30',1]);if(dd>=0.2)cold.push(['dd',1]);
+  const f=ext.fng,cy=ext.cycle;
+  if(f!=null){if(f>=75)hot.push(['fng',1]);if(f<=25)cold.push(['fng',1])}
+  if(cy!=null){if(cy>=70)hot.push(['cycle',1]);if(cy<=30)cold.push(['cycle',1])}
+  const H=hot.reduce((a,x)=>a+x[1],0),C=cold.reduce((a,x)=>a+x[1],0),vp=S.pct[i],storm=(vp!=null&&vp>=85)||Math.abs(ch3)>=0.1;
+  const k=H>=3&&H>C?'red':C>=3&&C>H?'green':storm?'purple':'amber';
+  return{k,hot:H,cold:C,storm,t:cs[i].time,price:c,rsi:r,pb,dd,ch30,ch3,vol:S.vol[i],volPct:vp,fng:f==null?null:f,cycle:cy==null?null:cy,why:[...hot,...cold].map(x=>x[0])};
+}
+// forward Bitcoin returns after each colour, for the "what happened after past readings" lines (no look-ahead in the colour)
+function lightHistory(cs,cyScores){
+  const S=lightSeries(cs),out={};let lastK=null;
+  for(let i=120;i<cs.length;i++){const l=lightAt(cs,S,i,{cycle:cyScores?cyScores[i]:null});if(!l){lastK=null;continue}const o=out[l.k]=out[l.k]||{days:0,eps:0,f7:[],f30:[]};
+    o.days++;if(lastK!==l.k)o.eps++;lastK=l.k;
+    if(i+7<cs.length)o.f7.push(cs[i+7].close/cs[i].close-1);if(i+30<cs.length)o.f30.push(cs[i+30].close/cs[i].close-1)}
+  const med=a=>{if(!a.length)return null;const b=[...a].sort((x,y)=>x-y),m=b.length>>1;return b.length%2?b[m]:(b[m-1]+b[m])/2};
+  const st=a=>a.length?{n:a.length,up:a.filter(x=>x>0).length/a.length,med:med(a),worst:Math.min(...a)}:null;
+  const res={};for(const k of ['red','green','purple','amber'])if(out[k])res[k]={days:out[k].days,eps:out[k].eps,f7:st(out[k].f7),f30:st(out[k].f30)};
+  return res;
+}
 // which part of the last move price is in (used for wording and for the backtest's buckets)
 
 function fibZone(retr){
@@ -1953,7 +2022,11 @@ function cleanCycle(j){
   const ph=j.phase&&typeof j.phase==='object'&&fin(j.phase.days)?cyclePhase(fin(j.t)?j.t*1000:NOW()):null;
   const marks=(Array.isArray(j.marks)?j.marks:[]).slice(0,8).filter(x=>x&&(x.k==='Top'||x.k==='Low')&&/^\d{4}-\d{2}-\d{2}$/.test(x.d)&&sc(x.s)!=null).map(x=>({k:x.k,d:x.d,s:sc(x.s)}));
   const hist=(Array.isArray(j.hist)?j.hist:[]).slice(-800).filter(h=>Array.isArray(h)&&fin(h[0])&&sc(h[1])!=null).map(h=>[h[0],sc(h[1])]);
-  return{updated:fin(j.updated)?j.updated:0,t:fin(j.t)?j.t:0,price:j.price,ath:fin(j.ath)?j.ath:null,athT:fin(j.athT)?j.athT:null,score:sc(j.score),m,phase:ph,marks,hist,
+  const lk={};const L=j.light&&typeof j.light==='object'&&j.light.k&&typeof j.light.k==='object'?j.light.k:{};
+  const fs=o=>o&&fin(o.n)&&o.n>0&&fin(o.up)&&fin(o.med)?{n:Math.round(o.n),up:clamp(o.up,0,1),med:clamp(o.med,-1,10),worst:fin(o.worst)?clamp(o.worst,-1,10):null}:null;
+  for(const k of ['red','green','purple','amber']){const x=L[k];if(x&&fin(x.days)&&x.days>0)lk[k]={days:Math.round(x.days),eps:fin(x.eps)?Math.round(x.eps):0,f7:fs(x.f7),f30:fs(x.f30)}}
+  const light={from:j.light&&fin(j.light.from)?j.light.from:null,k:lk};
+  return{light,updated:fin(j.updated)?j.updated:0,t:fin(j.t)?j.t:0,price:j.price,ath:fin(j.ath)?j.ath:null,athT:fin(j.athT)?j.athT:null,score:sc(j.score),m,phase:ph,marks,hist,
     source:typeof j.source==='string'?j.source.slice(0,40):'',days:fin(j.days)?j.days:0}
 }
 async function loadCycle(){
@@ -1961,7 +2034,54 @@ async function loadCycle(){
   try{const r=await fetch(CY_URL+'?t='+Math.floor(NOW()/3600000));if(r.ok){const j=cleanCycle(await r.json());if(j)cy.data=j}}catch(e){}
   cy.at=NOW();cy.loading=false;renderCycleBits();
 }
-function renderCycleBits(){const c=document.getElementById('cyCard');if(c)c.innerHTML=cycleCardHTML();const l=document.getElementById('setCycle');if(l){const h=cycleLineHTML();l.innerHTML=h;l.hidden=!h}}
+// market light at the top of the app: Bitcoin's daily candles from the busiest exchange, re-read every 10 minutes
+const ml={cs:null,src:'',at:0,loading:false,err:null};
+function btcPair(){const g=state.groups&&state.groups.find(x=>x.root==='BTC');if(!g)return null;return g.members.find(m=>m.kind!=='dated'&&m.id===g.primary.id)||g.members.find(m=>m.kind!=='dated')||g.primary}
+async function loadLight(force){
+  if(ml.loading||(!force&&ml.at&&NOW()-ml.at<(ml.cs?10:2)*60000))return;const p=btcPair();if(!p)return;ml.loading=true;
+  try{const cs=await getCandles(p,'1d');if(!cs||cs.length<200)throw new Error('not enough Bitcoin history');ml.cs=cs;ml.src=EX[p.ex].name;ml.err=null}
+  catch(e){ml.err=String(e&&e.message||e)}
+  ml.at=NOW();ml.loading=false;loadCycle();if(!news.data&&!news.loading)loadNews();renderLight();
+}
+const ML_TXT={
+  red:'Several signs that Bitcoin has run up fast are showing at the same time. Readings like this have often come before pullbacks or sideways weeks, but strong rallies can stay hot for a while.',
+  green:'Several signs that Bitcoin has fallen hard and is stretched to the downside are showing at the same time. Readings like this have sometimes come before bounces, but in a falling market prices can stay oversold and drop further.',
+  purple:'Bitcoin is swinging much more than usual, without a clear extreme either way. Stops sized for normal days get hit more often, and wicks and gaps are bigger. Common ways traders handle stretches like this: smaller positions, fewer trades, keeping the same max loss per trade, or waiting for calmer days.',
+  amber:'No extreme in either direction, and daily swings are normal or smaller than usual. Trends and ranges both happen in this state, so each market\'s own chart reading matters more.'};
+const ML_RES={red:'Research on 2018–2026 data found extreme greed was a fairly reliable warning, mostly over the following months rather than days.',
+  green:'Research on 2018–2026 data found extreme fear was not reliably followed by short-term bounces; results over a year were mixed.',
+  purple:'Big swings cut both ways: the largest up days and down days tend to come in the same stormy stretches.',amber:''};
+function lightNow(){
+  if(!ml.cs)return null;const f=news.data&&news.data.fng?news.data.fng.v:null,c=cy.data?cy.data.score:null;
+  try{return lightAt(ml.cs,lightSeries(ml.cs),ml.cs.length-1,{fng:f,cycle:c})}catch(e){recordErr('market light',e);return null}
+}
+function lightHTML(l){
+  const L=LIGHT[l.k],pc=v=>(v>=0?'+':'')+(v*100).toFixed(1)+'%',on=k=>l.why.includes(k)?'on':'off';
+  const row=(k,txt)=>`<li class="${on(k)}">${txt}</li>`;
+  const sees=`<ul>${row('rsi',`RSI 14 on the daily chart: <b>${Math.round(l.rsi)}</b> (70+ counts as hot, 30 or less as oversold).`)}
+    ${row('bb',`Price is ${l.pb>1?'above the upper':l.pb<0?'below the lower':'inside the'} Bollinger band (20, 2) on the daily chart.`)}
+    ${l.ch30>=0?row('up30',`Up <b>${pc(l.ch30)}</b> in 30 days (30% or more counts as hot).`):row('dd',`<b>${(l.dd*100).toFixed(0)}%</b> below its 90-day high (20% or more counts as oversold).`)}
+    ${l.ch30>=0?row('dd',`${(l.dd*100).toFixed(0)}% below its 90-day high (20% or more counts as oversold).`):row('up30',`${pc(l.ch30)} over 30 days.`)}
+    ${l.fng!=null?row('fng',`Fear &amp; Greed: <b>${l.fng}</b> (75+ counts as hot, 25 or less as oversold).`):'<li class="off">Fear &amp; Greed: not loaded yet.</li>'}
+    ${l.cycle!=null?row('cycle',`Crypto cycle gauge: <b>${l.cycle}/100</b> (70+ counts as hot, 30 or less as oversold).`):'<li class="off">Crypto cycle gauge: not loaded yet.</li>'}
+    <li class="${l.storm?'on':'off'}">Daily swings: bigger than on <b>${l.volPct==null?'—':l.volPct+'%'}</b> of days in the past year; ${pc(l.ch3)} over 3 days (85%+ or a 10% move in 3 days counts as stormy).</li></ul>`;
+  const H=cy.data&&cy.data.light,h=H&&H.k[l.k];
+  const past=h&&h.f30?`<p>Since ${esc(new Date(H.from*1000).getUTCFullYear()+'')}, the light would have been ${L[1].toLowerCase()} on <b>${h.days.toLocaleString()}</b> days (${h.eps} separate stretch${h.eps===1?'':'es'}). <b>30 days later</b> Bitcoin was higher <b>${fmtP(h.f30.up)}</b> of the time (typical change ${pc(h.f30.med)}${h.f30.worst!=null?`, worst ${pc(h.f30.worst)}`:''})${h.f7?`; <b>7 days later</b> higher ${fmtP(h.f7.up)} of the time (typical ${pc(h.f7.med)})`:''}.</p>
+    <p class="note">Worked out each day by the app's daily job on Gate's Bitcoin history, using only data up to that day (the cycle gauge, but not Fear &amp; Greed, which has no long history here). Days next to each other overlap, so there are fewer independent cases than days.</p>`:
+    '<p class="note">How past readings of this colour turned out appears here after the daily job on GitHub has run.</p>';
+  return `<p>${ML_TXT[l.k]}</p><p><b>What the light sees now</b> (bold lines count; ${l.hot} hot and ${l.cold} oversold points, 3 needed for red or green):</p>${sees}${past}
+    ${ML_RES[l.k]?`<p class="note">${ML_RES[l.k]}</p>`:''}
+    <div class="ml-key"><span><i style="background:var(--down)"></i>Hot</span><span><i style="background:var(--accent)"></i>Calm</span><span><i style="background:var(--c3)"></i>Stormy</span><span><i style="background:var(--up)"></i>Oversold</span></div>
+    <p class="note">Bitcoin daily candles from ${esc(ml.src)}; today's candle is still forming, so the light can change during the day. Nobody can predict the market: this is information only, not financial advice, and it never changes a setup. <a href="risk.html">Risk</a></p>`;
+}
+function renderLight(){
+  const el=document.getElementById('mlight');if(!el)return;const l=lightNow(),b=el.querySelector('.ml-body'),t=el.querySelector('.ml-t');
+  if(!l){el.className='mlight wait';t.innerHTML=`<b>Market light</b><span>${ml.err?'Couldn\'t read Bitcoin\'s daily chart right now.':'Reading Bitcoin\'s daily chart…'}</span>`;b.innerHTML='<p class="note">The light needs about 200 days of Bitcoin prices from the exchanges.</p>';return}
+  const L=LIGHT[l.k];el.className='mlight '+L[0];
+  t.innerHTML=`<b>Market light: ${L[1]}</b><span>${L[2]}</span>`;el.querySelector('summary').setAttribute('aria-label',`Market light ${L[1]}: ${L[2]}. Tap for why.`);
+  const h=lightHTML(l);if(b._h!==h){b.innerHTML=h;b._h=h}
+}
+function renderCycleBits(){renderLight();const c=document.getElementById('cyCard');if(c)c.innerHTML=cycleCardHTML();const l=document.getElementById('setCycle');if(l){const h=cycleLineHTML();l.innerHTML=h;l.hidden=!h}}
 const CY_COL={cold:'var(--c2)',cool:'var(--c2)',mid:'var(--c4)',warm:'var(--accent)',hot:'var(--down)'};
 function cycleGauge(s){
   // half-circle dial, 0 on the left (like past lows) to 100 on the right (like past tops)
@@ -2011,7 +2131,7 @@ async function loadNews(force){
   try{const r=await fetch(NEWS_URL+'?t='+Math.floor(NOW()/60000));if(!r.ok)throw new Error('HTTP '+r.status);
     const j=cleanNews(await r.json());if(!j)throw new Error('bad data');news.data=j;news.at=NOW();news.err=null}
   catch(e){news.err=String(e&&e.message||e)}
-  news.loading=false;if(state.cat==='news')renderNews(true);renderMktNews();renderEvGuard();if(state.cat==='delist'||state.cat==='setups'){renderTabs();renderList()}if(current)refreshDetailHead();
+  news.loading=false;renderLight();if(state.cat==='news')renderNews(true);renderMktNews();renderEvGuard();if(state.cat==='delist'||state.cat==='setups'){renderTabs();renderList()}if(current)refreshDetailHead();
 }
 function agoShort(ts){const s=Math.max(0,Math.round(NOW()/1000-ts));return s<60?'just now':s<3600?Math.round(s/60)+'m ago':s<86400?Math.round(s/3600)+'h ago':Math.round(s/86400)+'d ago'}
 function newsMatch(it,tp){
@@ -2765,7 +2885,17 @@ function refreshDetailHead(){
   document.querySelectorAll('.row').forEach(r=>r.classList.toggle('sel-on',r.dataset.key===state.selected));
   renderMktNews();
 }
-function renderTf(){$('#tfSeg').innerHTML=Object.keys(TFS).map(k=>`<button data-tf="${k}" aria-pressed="${state.tf===k}">${TF_LABEL[k]}</button>`).join('')}
+function renderTf(){$('#tfSeg').innerHTML=[...Object.keys(TFS),...Object.keys(BIG_TF)].map(k=>`<button data-tf="${k}" aria-pressed="${ctf()===k}"${BIG_TF[k]?' class="big" title="Big picture: chart and trend only"':''}>${TF_LABEL[k]}</button>`).join('')}
+function setBig(tf){state.big=tf;renderTf();if(state.selected)openGroup(state.selected,true)}
+// weekly / monthly: the trend only, no entry, stop or targets
+function renderBigSignal(an,tf){
+  const dir=an.score>=20?1:an.score<=-20?-1:0,head=dir?an.label:'No clear trend (sideways)',icon=dir>0?ARROW.up:dir<0?ARROW.down:PAUSE;
+  const word=tf==='1w'?'weekly':'monthly',ups=an.sig.filter(x=>x.dir>0).length,dns=an.sig.filter(x=>x.dir<0).length;
+  $('#sigCard').innerHTML=`<div class="sc-band ${dir>0?'long':dir<0?'short':'hold'}"><div><div class="sc-eyebrow">Big picture · ${TF_LABEL[tf]} candles · trend only</div><div class="sc-head">${icon}${head}</div></div></div>
+    <div class="sc-body"><p class="sc-text">On ${word} candles ${ups} of the ${an.sig.length} trend checks point up and ${dns} point down (score ${an.score>0?'+':''}${an.score}). ${word[0].toUpperCase()+word.slice(1)} candles show the big picture over months and years.</p>
+    <p class="sc-text muted">No entry, stop or targets here: setups are only read on 5m to 1D candles, the sizes the rules were built and tested on. Stops on ${word} candles would be very wide.</p>
+    <p class="legalnote">General market analysis, not financial advice. Futures trading is high risk. <a href="terms.html">Terms</a> · <a href="risk.html">Risk</a></p></div>`;
+}
 const CHECK_IC={ok:'<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="m2.5 6.2 2.3 2.3 4.7-5"/></svg>',no:'<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 3 6 6M9 3 3 9"/></svg>',mid:'<svg viewBox="0 0 12 12" fill="currentColor"><rect x="2" y="5" width="8" height="2" rx="1"/></svg>'};
 function pctFrom(a,b){return (b/a-1)*100}
 function renderSignal(rc){
@@ -2825,6 +2955,14 @@ async function openGroup(key,quiet,cid){
   const p=state.byId.get(state.selContract);
   const tok=++loadToken,msg=$('#chartMsg');msg.hidden=false;msg.textContent='Loading chart…';stopChartFeed();
   $('#sigCard').innerHTML='<div class="sc-body"><p class="sc-text muted">Reading the chart…</p></div>';
+  if(state.big){const tf=state.big;
+    try{const cs=await getCandles(p,tf);if(tok!==loadToken)return;const an=analyze(cs);
+      if(!an){current=null;msg.textContent=cs.length<2?'No price history for this market on '+TF_LABEL[tf]+' candles.':`Only ${plural(cs.length,TF_LABEL[tf]+' candle')} of history so far; the chart needs at least 35. A shorter candle size will work.`;$('#sigCard').innerHTML='';$('#signals').innerHTML='';$('#fibBox').hidden=true;return}
+      current={p,cs,an,rc:null,han:null,big:tf};msg.hidden=true;
+      renderBigSignal(an,tf);renderTrendDetails(an);loadMTF(p,g,tok);loadBook(p,tok);
+      requestAnimationFrame(()=>{try{draw();startChartFeed(p,tf)}catch(e){recordErr('chart',e);msg.hidden=false;msg.textContent='The chart hit a snag. Tap a candle size to try again.'}});
+    }catch(e){if(tok!==loadToken)return;msg.hidden=false;msg.textContent=`Couldn't load ${TF_LABEL[tf]} candles from ${EX[p.ex].name}. Tap a candle size to try again.`;$('#sigCard').innerHTML=''}
+    return}
   try{
     const r=await evaluate(p,state.tf);if(tok!==loadToken)return;
     if(!r){const cs=await getCandles(p,state.tf);msg.textContent=cs.length<2?'No price history for this market on '+TF_LABEL[state.tf]+' candles.':'Not enough candles yet for indicators.';renderSignal(null);return}
@@ -2842,7 +2980,7 @@ async function openGroup(key,quiet,cid){
 // timeframe strip: the chart reading on 15m / 1H / 4H / 1D side by side; feeds the extra confirmation too
 const MTF=['15m','1h','4h','1d'];
 function renderMTF(){
-  const res=current&&current.mtf||{},cur=state.tf;
+  const res=current&&current.mtf||{},cur=state.big?null:state.tf;
   $('#mtf').innerHTML=MTF.map(t=>{const r=res[t],rc=r&&r.rc;
     const pill=rc?`<span class="rec ${rc.rec}">${rc.rec==='long'?ARROW.up:rc.rec==='short'?ARROW.down:rc.rec==='hold'?PAUSE:BLOCK}${REC_TXT[rc.rec]}</span>`:`<span class="rec avoid">${r===null?'—':'…'}</span>`;
     return `<button type="button" data-mtf="${t}" aria-pressed="${t===cur}">${TF_LABEL[t]}${pill}</button>`}).join('');
@@ -2904,7 +3042,7 @@ function fibHTML(f,tf){
 }
 function renderFib(){
   const el=$('#fibBox');if(!el)return;const f=current&&current.fib;
-  el.hidden=!f;el.innerHTML=f?fibHTML(f,state.tf):'';
+  el.hidden=!f;el.innerHTML=f?fibHTML(f,ctf()):'';
 }
 async function loadMTF(p,g,tok){
   current.mtf={};current.cf=null;renderMTF();
@@ -2952,7 +3090,7 @@ function closeDetail(){
   document.body.classList.remove('d-open');
 }
 window.addEventListener('popstate',()=>{if(helpPopping||(helpHist&&!$('#help').hidden))return;if(document.body.classList.contains('d-open')){histOpen=false;document.body.classList.remove('d-open')}});
-function setTf(tf){state.tf=tf;LS.set('tf2',tf);renderTf();renderTabs();renderList();if(state.selected)openGroup(state.selected,true);scan(state.cat==='setups'?SETUP_POOL:30)}
+function setTf(tf){state.big=null;state.tf=tf;LS.set('tf2',tf);renderTf();renderTabs();renderList();if(state.selected)openGroup(state.selected,true);scan(state.cat==='setups'?SETUP_POOL:30)}
 (function(){
   const d=$('#detail');let sx=0,sy=0,st=0,tgt=null;
   d.addEventListener('touchstart',e=>{if(!document.body.classList.contains('d-open')||e.touches.length!==1){tgt=null;return}const t=e.touches[0];sx=t.clientX;sy=t.clientY;st=Date.now();tgt=e.target},{passive:true});
@@ -3027,7 +3165,7 @@ $('#nav').addEventListener('click',e=>{const b=e.target.closest('[data-nav]');if
 $('#tabs').addEventListener('click',e=>{const b=e.target.closest('[data-cat]');if(!b)return;state.cat=b.dataset.cat;state.mcat=state.cat;LS.set('mcat',state.mcat);LS.set('cat3',state.cat);state.limit=120;seenBump(state.cat);renderNav();renderTabs();renderList(true);scan(state.cat==='setups'?SETUP_POOL:30)});
 $('#sort').addEventListener('change',e=>{state.sort=e.target.value;LS.set('sort',state.sort);renderList();if(/^trend/.test(state.sort))scan(40)});
 let qT;$('#q').addEventListener('input',e=>{clearTimeout(qT);qT=setTimeout(()=>{state.q=e.target.value.trim().toUpperCase();state.limit=120;renderTabs();renderList(state.cat==='news')},120)});
-$('#tfSeg').addEventListener('click',e=>{const b=e.target.closest('[data-tf]');if(b)setTf(b.dataset.tf)});
+$('#tfSeg').addEventListener('click',e=>{const b=e.target.closest('[data-tf]');if(!b)return;if(BIG_TF[b.dataset.tf])setBig(b.dataset.tf);else setTf(b.dataset.tf)});
 $('#toggles').addEventListener('click',e=>{const b=e.target.closest('[data-ind]');if(!b)return;const k=b.dataset.ind;state.ind[k]=!state.ind[k];LS.set('ind3',state.ind);renderToggles();if(k==='fib'&&current)draw(true);else applyToggles();renderLegend(null)});
 $('#venueBox').addEventListener('click',e=>{const r=e.target.closest('[data-cid]');if(r&&state.selected)openGroup(state.selected,true,r.dataset.cid)});
 $('#venueBox').addEventListener('keydown',e=>{const r=e.target.closest('[data-cid]');if(r&&(e.key==='Enter'||e.key===' ')){e.preventDefault();openGroup(state.selected,true,r.dataset.cid)}});

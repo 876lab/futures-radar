@@ -60,6 +60,30 @@ ok(btStat([]).n===0,'btStat empty');
 ok(cleanTicker(' $sofi ')==='SOFI'&&cleanTicker('BRK.B')==='BRK.B'&&cleanTicker('<x>')===null&&cleanTicker('TOOLONGX')===null&&cleanTicker('')===null,'filings: ticker cleaning');
 ok(cleanFilList(['googl','GOOGL','<b>',7,'sofi']).join()==='GOOGL,SOFI'&&cleanFilList('x').length===0,'filings: saved list cleaned');
 ok(edgarURL('SOFI','10-Q')==='https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=SOFI&type=10-Q&dateb=&owner=include&count=40'&&!edgarURL('GOOGL','').includes('type='),'filings: EDGAR links');
+// weekly / monthly candles (Gate builds them from daily ones) and the market light
+{const D=86400,mon=Date.UTC(2026,9,26)/1000;
+ok(barStart('1w',Date.UTC(2026,9,29,15)/1000)===mon&&barStart('1w',mon)===mon&&barStart('1w',mon-1)===mon-7*D,'barStart: weeks start Monday 00:00 UTC');
+ok(barStart('1M',Date.UTC(2026,9,31,23)/1000)===Date.UTC(2026,9,1)/1000&&barStart('1M',Date.UTC(2026,10,1)/1000)===Date.UTC(2026,10,1)/1000&&barStart('1h',7300)===7200,'barStart: months start on the 1st; others unchanged');
+const day=Array.from({length:10},(_,i)=>({time:Date.UTC(2026,9,23)/1000+i*D,open:100+i,high:105+i,low:95+i,close:101+i,volume:10}));
+const w=aggCandles(day,'1w');ok(w.length===2&&w[0].time===mon-7*D&&w[0].open===100&&w[0].close===103&&w[0].high===107&&w[0].low===95&&w[0].volume===30&&w[1].time===mon&&w[1].open===103&&w[1].close===110&&w[1].volume===70,'aggCandles: Fri-Sun then a full week');
+const m=aggCandles(day,'1M');ok(m.length===2&&m[0].close===109&&m[1].time===Date.UTC(2026,10,1)/1000&&m[1].open===109,'aggCandles: months split on the 1st');
+ok(demoCandles(state.pairs[0],'1M',400).every((k,i,a)=>!i||k.time>a[i-1].time),'demo monthly candles are in order');
+let seed=7;const rnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647};
+const mk=steps=>{let p=100,t=Date.UTC(2025,0,1)/1000;return steps.map(r=>{const o=p;p=p*(1+r);const k={time:t,open:o,high:Math.max(o,p)*1.004,low:Math.min(o,p)*0.996,close:p,volume:1};t+=D;return k})};
+const calm=Array.from({length:300},()=>(rnd()-0.5)*0.02);
+const rally=mk([...calm,...Array.from({length:30},()=>0.016)]),crash=mk([...calm,...Array.from({length:12},()=>-0.03)]),
+  storm=mk([...calm,...Array.from({length:20},(_,i)=>i%2?0.07:-0.065)]),flat=mk([...calm,...Array.from({length:20},()=>(rnd()-0.5)*0.01)]);
+const at=(cs,ext)=>lightAt(cs,lightSeries(cs),cs.length-1,ext);
+const a=at(rally,{fng:80,cycle:50}),b=at(crash,{fng:10,cycle:25}),c=at(storm,{fng:50,cycle:50}),f=at(flat,{fng:50,cycle:50});
+ok(a&&a.k==='red'&&a.hot>=3,'light: fast rally with greed is red ('+(a&&a.k+' '+a.hot+'/'+a.cold)+')');
+ok(b&&b.k==='green'&&b.cold>=3&&b.why.includes('dd'),'light: hard fall with fear is green ('+(b&&b.k+' '+b.hot+'/'+b.cold)+')');
+ok(c&&c.k==='purple'&&c.storm&&c.hot<3&&c.cold<3,'light: big swings without an extreme are purple ('+(c&&c.k+' '+c.volPct)+')');
+ok(f&&f.k==='amber'&&!f.storm,'light: calm sideways is amber ('+(f&&f.k+' '+f.volPct)+')');
+ok(at(crash,{})&&at(crash,{}).fng===null&&lightAt(crash.slice(0,100),lightSeries(crash.slice(0,100)),99)===null,'light: works without Fear & Greed; needs 120+ days');
+const S=lightSeries(storm);let same=true;for(const i of [150,200,250,300,315]){const x=lightAt(storm,S,i,{cycle:40}),y=lightAt(storm.slice(0,i+1),lightSeries(storm.slice(0,i+1)),i,{cycle:40});if(JSON.stringify(x)!==JSON.stringify(y))same=false}
+ok(same,'light: no look-ahead (same reading on data cut at that day)');
+const h=lightHistory(storm,null),tot=Object.values(h).reduce((s,x)=>s+x.days,0);
+ok(tot===storm.length-120&&Object.values(h).every(x=>x.eps>=1&&x.eps<=x.days&&(!x.f30||x.f30.up>=0&&x.f30.up<=1)),'light history: every day counted once, sane stats ('+tot+')');}
 // public track record: cleaning and stats (losses and unscored records kept, junk dropped)
 {const rec=(o)=>Object.assign({m:'BTC',tf:'1h',dir:1,conf:72,confirmed:true,t0:Date.UTC(2026,9,27)/1000,entry:100,stop:98,how:'stop',r:-1.02,reach:false,t1:Date.UTC(2026,9,27,5)/1000},o);
 const raw={start:1,updated:2,source:'Gate',markets:['BTC'],open:[rec({how:undefined}),{m:'X'}],closed:[rec(),rec({how:'target',r:2.1,reach:true,dir:-1,stop:102,confirmed:false}),

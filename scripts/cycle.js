@@ -53,11 +53,16 @@ function report(cs) {
   // the latest all-time high counts as a top once price is 20% or more below it
   if (now.athT && now.price < now.ath * 0.8) { const i = cs.findIndex(x => x.time === now.athT), c = i >= 0 ? cycleAt(cs, i) : null;
     if (c && c.score != null && !marks.some(m => m.d === day(now.athT))) marks.push({ k: 'Top', d: day(now.athT), s: c.score, p: +c.price.toPrecision(6) }); }
+  // market light: what Bitcoin did 7 and 30 days after each past colour (cycle score of that day, no Fear & Greed history)
+  const cyS = cs.map((_, i) => { const c = cycleAt(cs, i); return c ? c.score : null; });
+  const lh = lightHistory(cs, cyS), r4 = v => v == null ? null : +v.toFixed(4), sq = o => o && { n: o.n, up: r4(o.up), med: r4(o.med), worst: r4(o.worst) };
+  const light = { from: cs[Math.min(120, L)].time, k: {} };
+  for (const k in lh) light.k[k] = { days: lh[k].days, eps: lh[k].eps, f7: sq(lh[k].f7), f30: sq(lh[k].f30) };
   const ph = cyclePhase(now.t * 1000);
   const m = {}; for (const k in now.m) m[k] = now.m[k] ? { v: +now.m[k].v.toFixed(4), s: now.m[k].s } : null;
   return { v: 1, updated: Math.floor(Date.now() / 1000), source: DEMO ? 'sample data' : 'Gate BTC/USDT daily', from: cs[0].time, days: cs.length,
     t: now.t, price: now.price, ath: now.ath, athT: now.athT, score: now.score, m,
-    phase: ph && { k: ph.k, name: ph.name, days: ph.days, toNext: ph.toNext }, marks, hist };
+    phase: ph && { k: ph.k, name: ph.name, days: ph.days, toNext: ph.toNext }, marks, hist, light };
 }
 async function main() {
   let cs;
@@ -68,7 +73,8 @@ async function main() {
   fs.writeFileSync(OUT, JSON.stringify(r));
   console.log('cycle: ' + r.days + ' days from ' + day(r.from) + '; score ' + r.score + ' (' + cycleZone(r.score)[1] + '); ' +
     Object.entries(r.m).map(([k, v]) => k + ' ' + (v ? v.v.toFixed(2) + '→' + v.s : '—')).join(', ') + '; phase ' + (r.phase && r.phase.name + ' day ' + r.phase.days) +
-    '; past turning points ' + r.marks.map(x => x.k + ' ' + x.d + ' = ' + x.s).join(', '));
+    '; past turning points ' + r.marks.map(x => x.k + ' ' + x.d + ' = ' + x.s).join(', ') +
+    '; light ' + Object.entries(r.light.k).map(([k, v]) => k + ' ' + v.days + 'd/' + v.eps + ' times, 30d up ' + (v.f30 ? Math.round(v.f30.up * 100) + '%' : '—')).join(', '));
 }
 main().catch(e => { console.error('cycle failed: ' + (e && e.stack || e)); process.exit(1); });
 `);

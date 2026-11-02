@@ -84,6 +84,24 @@ const S=lightSeries(storm);let same=true;for(const i of [150,200,250,300,315]){c
 ok(same,'light: no look-ahead (same reading on data cut at that day)');
 const h=lightHistory(storm,null),tot=Object.values(h).reduce((s,x)=>s+x.days,0);
 ok(tot===storm.length-120&&Object.values(h).every(x=>x.eps>=1&&x.eps<=x.days&&(!x.f30||x.f30.up>=0&&x.f30.up<=1)),'light history: every day counted once, sane stats ('+tot+')');}
+// support and resistance zones from swing points (information only)
+{const bar=(t,h,l)=>({time:t*3600,open:(h+l)/2,high:h,low:l,close:(h+l)/2,volume:1});
+// price bounces between ~90 (floor) and ~110 (ceiling) three times, then sits at 100
+const path=[];for(let r=0;r<3;r++){for(let i=0;i<10;i++)path.push(90+i*2);for(let i=0;i<10;i++)path.push(110-i*2)}for(let i=0;i<10;i++)path.push(100);
+const cs=path.map((m,i)=>bar(i,m+1,m-1));
+const P=pivots(cs,5,0);ok(P.hi.length>=3&&P.lo.length>=2&&P.hi.every(x=>Math.abs(x.p-111)<1e-9),'pivots: swing highs at the ceiling ('+P.hi.length+' highs, '+P.lo.length+' lows)');
+const r=srLevels(cs,2);
+ok(r&&r.res.length===1&&Math.abs(r.res[0].p-111)<1e-9&&r.res[0].tests===3&&r.sup.length===2&&r.sup.some(z=>Math.abs(z.p-89)<0.01&&z.tests>=2)&&Math.abs(r.sup[0].p-91)<0.01,'sr: ceiling is resistance tested 3 times, floor is support ('+JSON.stringify(r&&[r.res.map(z=>[z.p,z.tests]),r.sup.map(z=>[z.p,z.tests])])+')');
+ok(r.res[0].dist>0&&r.sup.every(z=>z.dist<0&&!z.flip)&&!r.at,'sr: distances, nearest first, no flip on a plain floor');
+// break above the ceiling: old resistance (111) becomes support marked as a flip
+const up=[...path,...[104,108,112,116,120,124,126,122,118,116,118,120,122,124,123,122].map(x=>x)],cs2=up.map((m,i)=>bar(i,m+1,m-1)),r2=srLevels(cs2,2);
+const old=r2&&r2.sup.find(z=>Math.abs(z.p-111)<1);ok(old&&old.flip,'sr: broken resistance listed as support that was resistance');
+// price sitting inside a zone is "being tested"
+const cs3=[...cs,bar(60,111.4,110.6)],r3=srLevels(cs3,2);ok(r3&&r3.at&&Math.abs(r3.at.p-111)<1e-9,'sr: price at the ceiling is testing it');
+ok(srLevels(cs.slice(0,12),2)===null&&srLevels(cs,0)===null,'sr: needs enough candles and an ATR');
+// no look-ahead: levels at a past candle equal levels computed on candles cut there
+let conf=true;for(const L of [25,30,40,50,61]){const q=pivots(cs2.slice(0,L+1),5,0);if([...q.hi,...q.lo].some(x=>x.i>L-5))conf=false}
+ok(conf,'sr: a turning point counts only after 5 later candles confirm it');}
 // public track record: cleaning and stats (losses and unscored records kept, junk dropped)
 {const rec=(o)=>Object.assign({m:'BTC',tf:'1h',dir:1,conf:72,confirmed:true,t0:Date.UTC(2026,9,27)/1000,entry:100,stop:98,how:'stop',r:-1.02,reach:false,t1:Date.UTC(2026,9,27,5)/1000},o);
 const raw={start:1,updated:2,source:'Gate',markets:['BTC'],open:[rec({how:undefined}),{m:'X'}],closed:[rec(),rec({how:'target',r:2.1,reach:true,dir:-1,stop:102,confirmed:false}),

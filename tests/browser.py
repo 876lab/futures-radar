@@ -286,6 +286,18 @@ async def main():
             if "Order book" not in bk or "Within 2% of price" not in bk or "Large" not in bk: problems.append(f"[{scheme}] chart screen: order book card missing")
             for bad in ("undefined", "NaN", "Infinity"):
                 if bad in bk: problems.append(f"[{scheme}] order book shows '{bad}'")
+            # support and resistance card (ladder) and chart lines, switchable with their chip
+            srt = await pg.inner_text("#srBox") if await pg.is_visible("#srBox") else ""
+            if "Support and resistance" not in srt or "Now" not in srt or not any(x in srt for x in ("S1", "R1")) or "What do these mean?" not in srt: problems.append(f"[{scheme}] chart screen: support/resistance card missing: {srt[:100]!r}")
+            for bad in ("undefined", "NaN", "Infinity", "null"):
+                if bad in srt: problems.append(f"[{scheme}] support/resistance card shows '{bad}'")
+            if not await pg.locator('#toggles [data-ind="sr"]').count(): problems.append(f"[{scheme}] chart: Support/Resistance chip missing")
+            if scheme == "light" and srt: await pg.locator("#srBox").screenshot(path=os.path.join(OUT, "support-resistance.png"))
+            if await pg.evaluate("!!window.LightweightCharts"):
+                if int(await pg.get_attribute("#cMain", "data-sr") or 0) < 1: problems.append(f"[{scheme}] chart: support/resistance lines missing")
+                await pg.click('[data-ind="sr"]'); await pg.wait_for_timeout(200)
+                if (await pg.get_attribute("#cMain", "data-sr")) != "0": problems.append(f"[{scheme}] chart: Support/Resistance chip did not hide the lines")
+                await pg.click('[data-ind="sr"]'); await pg.wait_for_timeout(200)
             # Fibonacci card and chart lines (information only), switchable with the chip above the chart
             fb = await pg.inner_text("#fibBox") if await pg.is_visible("#fibBox") else ""
             if "Fibonacci levels" not in fb or "Next level above" not in fb or "%" not in fb: problems.append(f"[{scheme}] chart screen: Fibonacci card missing")

@@ -169,6 +169,13 @@ button{cursor:pointer}
 .bk-bar i{display:block;height:100%} .bk-bar .b{background:var(--up)} .bk-bar .a{background:var(--down)}
 .bk-walls{list-style:none;margin:0;padding:0;display:grid;gap:4px;font-size:13px}
 .card.book .note{margin:0;padding:0;font-size:12px;color:var(--muted)}
+.srl .big{font-size:14px;margin:0;line-height:1.45}
+.sr-ladder{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.sr-row{display:grid;grid-template-columns:44px auto 1fr;grid-template-areas:"t p d" "t s s";column-gap:10px;align-items:baseline;padding:7px 10px;border-radius:9px;border-left:4px solid transparent;background:var(--flat-bg)}
+.sr-row.res{border-left-color:var(--down);background:var(--down-bg)} .sr-row.sup{border-left-color:var(--up);background:var(--up-bg)} .sr-row.now{border-left-color:var(--accent);background:var(--accent-bg)}
+.sr-tag{grid-area:t;font-weight:700;font-size:13px;align-self:center} .sr-row.res .sr-tag{color:var(--down)} .sr-row.sup .sr-tag{color:var(--up)} .sr-row.now .sr-tag{color:var(--accent)}
+.sr-p{grid-area:p;font-weight:700;font-variant-numeric:tabular-nums} .sr-d{grid-area:d;text-align:right;font-size:13px;font-variant-numeric:tabular-nums;color:var(--muted)}
+.sr-s{grid-area:s;font-size:12px;color:var(--muted)} .sr-strong{color:var(--fg)} .sr-flip{font-style:italic}
 .book .thin{color:var(--down);font-weight:600;font-size:13px;margin:0}
 /* fibonacci card */
 .fib .big{font-size:14px;margin:0;line-height:1.45} .fib .next{display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -708,6 +715,7 @@ html,body{overscroll-behavior-y:none}
             <button type="button" class="panesbtn" id="panesBtn">Show RSI and MACD</button>
             <div class="chart-msg" id="chartMsg" hidden></div>
           </div>
+          <div class="card book srl" id="srBox" hidden></div>
           <div class="card book fib" id="fibBox" hidden></div>
           <div class="card book" id="bookBox" hidden></div>
           <div class="card mnews" id="mktNews"></div>
@@ -897,6 +905,7 @@ state.big=null;   // '1w' or '1M' while the chart shows weekly/monthly candles; 
 function ctf(){return state.big||state.tf}
 if(!state.ind||typeof state.ind!=='object')state.ind={ema:false,bb:true,st:true,vol:true,marks:true};
 if(typeof state.ind.fib!=='boolean')state.ind.fib=true;   // Fibonacci levels (added 25 Oct 2026) start switched on
+if(typeof state.ind.sr!=='boolean')state.ind.sr=true;     // support and resistance (added 2 Nov 2026) start switched on
 if(state.view!=='all'&&!EX[state.view])state.view='all';
 if(!(MKT_CATS.includes(state.cat)||PAGES.includes(state.cat)))state.cat='setups';
 state.mcat=LS.get('mcat','hot');if(!MKT_CATS.includes(state.mcat))state.mcat='hot';
@@ -1933,6 +1942,36 @@ function lightHistory(cs,cyScores){
   const res={};for(const k of ['red','green','purple','amber'])if(out[k])res[k]={days:out[k].days,eps:out[k].eps,f7:st(out[k].f7),f30:st(out[k].f30)};
   return res;
 }
+/* Support and resistance (owner request, 2 Nov 2026; information only). Swing highs and lows (the highest high or lowest
+   low of k candles on each side) over the last `look` candles are grouped into zones no wider than 0.6 × ATR(14). Each
+   swing in a zone is a "test". Below price = support, above = resistance, around price = being tested now. The two
+   nearest each side are kept, preferring zones tested at least twice. */
+function pivots(cs,k,from){
+  const hi=[],lo=[];
+  for(let i=Math.max(from||0,k);i<cs.length-k;i++){let h=true,l=true;
+    for(let j=i-k;j<=i+k&&(h||l);j++){if(j===i)continue;const c=cs[j];
+      if(c.high>cs[i].high||(j>i&&c.high===cs[i].high))h=false;if(c.low<cs[i].low||(j>i&&c.low===cs[i].low))l=false}
+    if(h)hi.push({i,p:cs[i].high});if(l)lo.push({i,p:cs[i].low})}
+  return{hi,lo};
+}
+function srLevels(cs,atr,opt){
+  opt=opt||{};const k=opt.k||5,look=opt.look||300,n=cs?cs.length:0;
+  if(n<2*k+10||!(atr>0))return null;
+  const P=pivots(cs,k,Math.max(0,n-look)),price=cs[n-1].close,w=0.6*atr;
+  const pts=[...P.hi.map(x=>({...x,s:1})),...P.lo.map(x=>({...x,s:-1}))].sort((a,b)=>a.p-b.p);
+  const zones=[];
+  for(const x of pts){const z=zones[zones.length-1];
+    if(z&&x.p-z.lo<=w){z.pts.push(x);z.hi=x.p}else zones.push({lo:x.p,hi:x.p,pts:[x]})}
+  for(const z of zones){const pad=Math.max(0,(0.25*atr-(z.hi-z.lo))/2);z.lo-=pad;z.hi+=pad;
+    z.p=z.pts.reduce((a,x)=>a+x.p,0)/z.pts.length;z.tests=z.pts.length;z.last=Math.max(...z.pts.map(x=>x.i));
+    z.highs=z.pts.filter(x=>x.s>0).length;z.lows=z.tests-z.highs;z.ago=n-1-z.last;z.dist=z.p/price-1;delete z.pts}
+  const pick=arr=>{const two=arr.filter(z=>z.tests>=2),one=arr.filter(z=>z.tests<2);return [...two.slice(0,2),...one].slice(0,2).sort((a,b)=>Math.abs(a.dist)-Math.abs(b.dist))};
+  const at=zones.filter(z=>z.lo<=price&&z.hi>=price).sort((a,b)=>b.tests-a.tests)[0]||null;
+  const sup=pick(zones.filter(z=>z!==at&&z.hi<price).sort((a,b)=>b.p-a.p)),res=pick(zones.filter(z=>z!==at&&z.lo>price).sort((a,b)=>a.p-b.p));
+  // a zone made of swing highs that is now below price was resistance that broke and may act as support (and the reverse)
+  for(const z of sup)z.flip=z.highs>z.lows;for(const z of res)z.flip=z.lows>z.highs;
+  return{price,atr,sup,res,at,zones:zones.length,look:Math.min(look,n)};
+}
 // which part of the last move price is in (used for wording and for the backtest's buckets)
 
 function fibZone(retr){
@@ -2778,6 +2817,8 @@ function draw(keep){
   // Fibonacci levels of the last main swing (card always; chart lines with the "Fibonacci" chip). Information only.
   let fib=null;try{fib=fibLevels(current.cs,current.an&&current.an.atr)}catch(e){recordErr('fibonacci',e)}
   current.fib=fib;renderFib();
+  let sr=null;try{sr=srLevels(current.cs,current.an&&current.an.atr)}catch(e){recordErr('support and resistance',e)}
+  current.sr=sr;renderSR();
   if(!ch){msg.hidden=false;msg.textContent="The chart library didn't load. Check your connection and refresh.";return}
   const {cs,an,rc}=current;if(keep){try{current.range=ch.main.timeScale().getVisibleLogicalRange()}catch(e){}}
   const T=cs.map(k=>k.time+tzOff);current.tIndex=new Map(T.map((t,i)=>[t,i]));
@@ -2820,6 +2861,10 @@ function draw(keep){
     for(const l of fib.levels){const key=l.r===0||l.r===1;
       ch.flines.push(ch.candle.createPriceLine({price:l.p,color:hexA(l.ext?xc:gc,key||l.r===0.618||l.r===0.5?.9:.6),lineWidth:1,lineStyle:key?0:1,axisLabelVisible:false,title:l.r===0||l.r===1?(l.r===0?'0%':'100%'):l.name}))}}
   $('#cMain').dataset.fib=ch.flines.length;
+  (ch.slines||[]).forEach(pl=>{try{ch.candle.removePriceLine(pl)}catch(e){}});ch.slines=[];
+  if(sr&&state.ind.sr){const L=(z,col,t)=>ch.slines.push(ch.candle.createPriceLine({price:z.p,color:hexA(col,z.tests>=3?.95:.7),lineWidth:z.tests>=3?3:2,lineStyle:0,axisLabelVisible:true,title:t}));
+    sr.res.forEach((z,i)=>L(z,dn,'R'+(i+1)));sr.sup.forEach((z,i)=>L(z,up,'S'+(i+1)));if(sr.at)L(sr.at,css('--accent'),'Testing')}
+  $('#cMain').dataset.sr=ch.slines.length;
   applyToggles();applyPanes();
   const bars=matchMedia('(max-width:600px)').matches?70:120;
   if(keep&&current.range){const r=current.range,atEdge=r.to>=cs.length-4;ch.main.timeScale().setVisibleLogicalRange(atEdge?{from:r.from+1,to:r.to+1}:r)}
@@ -2850,7 +2895,7 @@ function renderLegend(idx){
   }else{$('#rsiLegend').innerHTML='<span>RSI 6 / 12 / 24</span>';$('#macdLegend').innerHTML='<span>MACD(12,26,9)</span>'}
 }
 function renderToggles(){
-  const T=[['bb','Bollinger','--bb'],['st','Supertrend','--up'],['marks','B/S marks','--accent'],['fib','Fibonacci','--c4'],['ema','EMA 20/50/200','--c2'],['vol','Volume','--muted']];
+  const T=[['bb','Bollinger','--bb'],['st','Supertrend','--up'],['marks','B/S marks','--accent'],['sr','Support/Resistance','--up'],['fib','Fibonacci','--c4'],['ema','EMA 20/50/200','--c2'],['vol','Volume','--muted']];
   $('#toggles').innerHTML=T.map(([k,l,c])=>`<button class="chip" data-ind="${k}" aria-pressed="${!!state.ind[k]}"><i style="background:var(${c})"></i>${l}</button>`).join('');
 }
 
@@ -2957,7 +3002,7 @@ async function openGroup(key,quiet,cid){
   $('#sigCard').innerHTML='<div class="sc-body"><p class="sc-text muted">Reading the chart…</p></div>';
   if(state.big){const tf=state.big;
     try{const cs=await getCandles(p,tf);if(tok!==loadToken)return;const an=analyze(cs);
-      if(!an){current=null;msg.textContent=cs.length<2?'No price history for this market on '+TF_LABEL[tf]+' candles.':`Only ${plural(cs.length,TF_LABEL[tf]+' candle')} of history so far; the chart needs at least 35. A shorter candle size will work.`;$('#sigCard').innerHTML='';$('#signals').innerHTML='';$('#fibBox').hidden=true;return}
+      if(!an){current=null;msg.textContent=cs.length<2?'No price history for this market on '+TF_LABEL[tf]+' candles.':`Only ${plural(cs.length,TF_LABEL[tf]+' candle')} of history so far; the chart needs at least 35. A shorter candle size will work.`;$('#sigCard').innerHTML='';$('#signals').innerHTML='';$('#fibBox').hidden=true;$('#srBox').hidden=true;return}
       current={p,cs,an,rc:null,han:null,big:tf};msg.hidden=true;
       renderBigSignal(an,tf);renderTrendDetails(an);loadMTF(p,g,tok);loadBook(p,tok);
       requestAnimationFrame(()=>{try{draw();startChartFeed(p,tf)}catch(e){recordErr('chart',e);msg.hidden=false;msg.textContent='The chart hit a snag. Tap a candle size to try again.'}});
@@ -3039,6 +3084,31 @@ function fibHTML(f,tf){
     <div class="next">${nb(f.above,'Next level above')}${nb(f.below,'Next level below')}</div>
     <details><summary>All levels</summary><table>${rows}</table></details>
     <p class="note">Fibonacci levels are zones, not exact prices. Many traders watch them, which is part of why price sometimes reacts there, but studies disagree on whether they work better than other levels. The nightly backtest now measures how setups did in each zone (Simulator → Last night's backtest).</p>`;
+}
+function srHTML(r,tf){
+  const pc=v=>(v>=0?'+':'−')+Math.abs(v*100).toFixed(1)+'%';
+  const strength=z=>z.tests>=3?`<b class="sr-strong">strong</b> · turned ${z.tests} times`:z.tests===2?'turned twice':'turned once';
+  const row=(z,lab,kind)=>`<li class="sr-row ${kind}"><span class="sr-tag">${lab}</span><span class="sr-p">${fmtUsd(z.p)}</span><span class="sr-d">${pc(z.dist)}</span><span class="sr-s">${strength(z)}${z.flip?` · <span class="sr-flip">${kind==='sup'?'was resistance':'was support'}</span>`:''}</span></li>`;
+  const ladder=`<ul class="sr-ladder">${[...r.res].reverse().map((z,i)=>row(z,'R'+(r.res.length-i),'res')).join('')}
+    <li class="sr-row now"><span class="sr-tag">Now</span><span class="sr-p">${fmtUsd(r.price)}</span><span class="sr-d"></span><span class="sr-s">${r.at?`testing a level (${fmtUsd(r.at.lo)}–${fmtUsd(r.at.hi)}, turned ${plural(r.at.tests,'time')})`:'current price'}</span></li>
+    ${r.sup.map((z,i)=>row(z,'S'+(i+1),'sup')).join('')}</ul>`;
+  const S=r.sup[0],R=r.res[0];
+  const head=r.at?`Price is <b>right at a level</b> where it has turned ${plural(r.at.tests,'time')} before (${fmtUsd(r.at.lo)}–${fmtUsd(r.at.hi)}). Moves often pause or reverse here; a clear break through it often runs to the next level.`:
+    S&&R?`Price is between <b class="up">support at ${fmtUsd(S.p)}</b> (${pc(S.dist)}) and <b class="down">resistance at ${fmtUsd(R.p)}</b> (${pc(R.dist)}).`:
+    R?`No support found below in the last ${r.look} candles: price is near its lowest point in that time. <b class="down">Resistance at ${fmtUsd(R.p)}</b> (${pc(R.dist)}).`:
+    S?`No resistance found above in the last ${r.look} candles: price is near its highest point in that time. <b class="up">Support at ${fmtUsd(S.p)}</b> (${pc(S.dist)}).`:'No clear levels in the last candles.';
+  return `<h3>Support and resistance</h3><p class="sub">${TF_LABEL[tf]} candles · turning points in the last ${r.look} candles · information only</p>
+    <p class="big">${head}</p>${ladder}
+    <details><summary>What do these mean?</summary><ul class="sim-notes">
+      <li><b class="up">Support</b> is a price where falls have stopped before: buyers stepped in there. <b class="down">Resistance</b> is a price where rises have stopped before: sellers stepped in there.</li>
+      <li>They are zones, not exact prices; price often pokes a little past a level before turning.</li>
+      <li>The more times price has turned at a level, the more traders watch it. But each test uses up orders waiting there, so levels tested many times also break.</li>
+      <li>When a level breaks clearly, it often swaps roles: old resistance can become support, and old support can become resistance ("was resistance" in the list).</li>
+      <li>On the chart: green lines S1, S2 are support, red lines R1, R2 are resistance; thicker lines have turned price 3 times or more. Switch them off with the Support/Resistance chip.</li></ul></details>`;
+}
+function renderSR(){
+  const el=$('#srBox');if(!el)return;const r=current&&current.sr,ok=r&&(r.sup.length||r.res.length||r.at);
+  el.hidden=!ok;el.innerHTML=ok?srHTML(r,ctf()):'';
 }
 function renderFib(){
   const el=$('#fibBox');if(!el)return;const f=current&&current.fib;
@@ -3166,7 +3236,7 @@ $('#tabs').addEventListener('click',e=>{const b=e.target.closest('[data-cat]');i
 $('#sort').addEventListener('change',e=>{state.sort=e.target.value;LS.set('sort',state.sort);renderList();if(/^trend/.test(state.sort))scan(40)});
 let qT;$('#q').addEventListener('input',e=>{clearTimeout(qT);qT=setTimeout(()=>{state.q=e.target.value.trim().toUpperCase();state.limit=120;renderTabs();renderList(state.cat==='news')},120)});
 $('#tfSeg').addEventListener('click',e=>{const b=e.target.closest('[data-tf]');if(!b)return;if(BIG_TF[b.dataset.tf])setBig(b.dataset.tf);else setTf(b.dataset.tf)});
-$('#toggles').addEventListener('click',e=>{const b=e.target.closest('[data-ind]');if(!b)return;const k=b.dataset.ind;state.ind[k]=!state.ind[k];LS.set('ind3',state.ind);renderToggles();if(k==='fib'&&current)draw(true);else applyToggles();renderLegend(null)});
+$('#toggles').addEventListener('click',e=>{const b=e.target.closest('[data-ind]');if(!b)return;const k=b.dataset.ind;state.ind[k]=!state.ind[k];LS.set('ind3',state.ind);renderToggles();if((k==='fib'||k==='sr')&&current)draw(true);else applyToggles();renderLegend(null)});
 $('#venueBox').addEventListener('click',e=>{const r=e.target.closest('[data-cid]');if(r&&state.selected)openGroup(state.selected,true,r.dataset.cid)});
 $('#venueBox').addEventListener('keydown',e=>{const r=e.target.closest('[data-cid]');if(r&&(e.key==='Enter'||e.key===' ')){e.preventDefault();openGroup(state.selected,true,r.dataset.cid)}});
 $('#themeOpts').addEventListener('click',e=>{const b=e.target.closest('[data-theme-set]');if(!b)return;state.theme=b.dataset.themeSet;LS.set('theme',state.theme);applyTheme(state.theme)});

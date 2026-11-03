@@ -114,6 +114,10 @@ ok(alertTouched(newAlert('INTC','INTC',30,36.5,t0),cs)===null&&alertTouched(Obje
 const many=Array.from({length:70},(_,i)=>newAlert('M'+i,'M',10+i,5,t0));
 const cl=cleanAlerts([up,up,dn,null,'x',{k:'<b>',p:-1,d:1,t:1},{k:'A',p:5,d:2,t:1},{k:'A',p:5,d:1,t:'1'},{...up,p:41,id:'bad id <x>'}]);
 ok(cl.length===3&&cl[0].id===up.id&&cl[2].id!==up.id&&!cl[2].id.includes('<')&&cleanAlerts(many).length===AL_MAX&&cleanAlerts('x').length===0,'alerts: saved list cleaned, duplicates dropped, capped at '+AL_MAX+' ('+cl.length+')');}
+// price alerts: far-away prices and typo suggestions (owner typed $132.90 for ZEC at $1,133)
+ok(alertFar(132.9,1133.5)&&!alertFar(40,36.5)&&!alertFar(74900,76706)&&!alertFar(0,10),'alerts: far from price (over 25%) is flagged');
+ok(alertTypo(132.9,1133.5)[0]===1132.9&&alertTypo(7490,76706).join()==='77490,74900'&&alertTypo(767060,76806)[0]===76706&&alertTypo(1.85,0.1855)[0]===0.185&&alertTypo(11133.5,1135)[0]===1133.5&&!alertTypo(11335,1133.5).length,'alerts: typo suggestions (missing digit, extra digit, decimal point)');
+ok(!alertTypo(40,36.5).length&&!alertTypo(5,36.5).length&&!alertTypo(0,1).length,'alerts: no suggestion when nothing lands near the price');
 // public track record: cleaning and stats (losses and unscored records kept, junk dropped)
 {const rec=(o)=>Object.assign({m:'BTC',tf:'1h',dir:1,conf:72,confirmed:true,t0:Date.UTC(2026,9,27)/1000,entry:100,stop:98,how:'stop',r:-1.02,reach:false,t1:Date.UTC(2026,9,27,5)/1000},o);
 const raw={start:1,updated:2,source:'Gate',markets:['BTC'],open:[rec({how:undefined}),{m:'X'}],closed:[rec(),rec({how:'target',r:2.1,reach:true,dir:-1,stop:102,confirmed:false}),

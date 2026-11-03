@@ -1,4 +1,8 @@
 [
+  {"date": "2026-11-03", "title": "Price alerts: typo check and better catch-up", "items": [
+    "If an alert price is far from the current price (like $132.90 for ZEC at $1,133), the app now asks first and suggests the price you probably meant, e.g. $1,132.90.",
+    "When you switch back to the app after it was in the background, it now checks straight away whether any alert price was reached while you were away, and again every 10 minutes."
+  ]},
   {"date": "2026-11-03", "title": "Price alerts", "items": [
     "Tap the bell next to the star on any chart, type a price (or tap a quick one like Resistance R1 or +5%) and tap Set alert.",
     "When the price is reached while the app is open, a banner shows at the top with a chime. Tap anywhere in the app once after opening it so your iPhone allows the sound.",

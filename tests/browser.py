@@ -61,7 +61,7 @@ async def isolation_check(b):
     await pg.close()
 
 async def alerts_check(b):
-    """Price alerts: set one from the chart's bell, see it on the Starred page, remove it; an alert reached while the app was closed shows a banner."""
+    """Price alerts: set one from the chart's bell, see it on the Starred page, remove it; an alert reached while you were away shows a banner."""
     pg = await b.new_page(viewport={"width": 390, "height": 800})
     await block_exchanges(pg)
     errs = []; pg.on("pageerror", lambda e: errs.append(str(e)))
@@ -79,6 +79,16 @@ async def alerts_check(b):
     if await pg.get_attribute("#dBell", "aria-pressed") != "true": problems.append("alerts: bell not lit after setting an alert")
     saved = await pg.evaluate("JSON.parse(localStorage.getItem('fradar:alerts')||'[]')")
     if len(saved) != 1 or saved[0].get("k") != key: problems.append(f"alerts: not saved on the device: {saved!r}")
+    # a price far from the current one (a typo like $132.90 for $1,132.90) asks first and suggests the likely price
+    now = float((await pg.inner_text("#dPrice")).replace("$", "").replace(",", ""))
+    await pg.fill("#alIn", str(round(now * 1.012 / 10, 8))); await pg.click('#alForm button[type="submit"]'); await pg.wait_for_timeout(200)
+    pv = await pg.inner_text("#alPrev")
+    if "Did you mean" not in pv or not await pg.locator("#alPrev [data-alset]").count(): problems.append(f"alerts: far-away price did not ask first: {pv!r}")
+    if await pg.locator("#alBox .al-item").count() != 1: problems.append("alerts: far-away price was saved without asking")
+    await pg.locator("#alBox").screenshot(path=os.path.join(OUT, "alert-typo.png"))
+    await pg.click("#alPrev [data-alset]"); await pg.wait_for_timeout(300)
+    if await pg.locator("#alBox .al-item").count() != 2: problems.append("alerts: tapping the suggested price did not set it")
+    await pg.click("#alBox .al-item [data-aldel]"); await pg.wait_for_timeout(200)
     await pg.locator("#alBox").screenshot(path=os.path.join(OUT, "alert-card.png"))
     await pg.click("#back"); await pg.wait_for_timeout(400)
     await pg.click('[data-nav="watch"]'); await pg.wait_for_timeout(500)
@@ -88,7 +98,7 @@ async def alerts_check(b):
         if bad in lt: problems.append(f"alerts: Starred page shows '{bad}'")
     await pg.click('#alList [data-aldel]'); await pg.wait_for_timeout(300)
     if await pg.locator("#alList").count(): problems.append("alerts: removing the alert did not clear the list")
-    # reached while the app was closed: an alert made 2 days ago that the sample prices have already passed
+    # reached while you were away: an alert made 2 days ago that the sample prices have already passed
     past = int(time.time() * 1000) - 2 * 86400000
     if errs: problems.append("alerts: uncaught JS error: " + errs[0])
     await pg.close()
@@ -98,7 +108,7 @@ async def alerts_check(b):
     await pg.add_init_script(ACCEPT + f"try{{localStorage.setItem('fradar:alerts', JSON.stringify([{{id:'t1',k:{json.dumps(key)},root:'TEST',p:0.0000001,d:1,t:{past},hit:null}}]))}}catch(e){{}}")
     await pg.goto("file://" + PAGE); await pg.wait_for_timeout(3500)
     bar = await pg.inner_text("#alBar") if await pg.is_visible("#alBar") else ""
-    if "while the app was closed" not in bar: problems.append(f"alerts: closed-app check did not show the banner: {bar!r}")
+    if "while you were away" not in bar: problems.append(f"alerts: closed-app check did not show the banner: {bar!r}")
     else: await pg.locator("#alBar").screenshot(path=os.path.join(OUT, "alert-banner.png"))
     if bar:
         await pg.click('#alBar [data-albar="ok"]'); await pg.wait_for_timeout(200)

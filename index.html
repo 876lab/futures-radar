@@ -1570,7 +1570,7 @@ function alertsFor(key){return state.alerts.filter(a=>a.k===key)}
 function gPrice(key){const g=state.gByKey.get(key);return g&&g.price>0?g.price:null}
 function renderBell(){const b=document.getElementById('dBell');if(!b||!state.selected)return;b.innerHTML=BELL;
   const n=alertsFor(state.selected).filter(a=>a.hit==null).length;b.setAttribute('aria-pressed',n>0);b.setAttribute('aria-label',n?`Price alerts for this market (${n} set)`:'Set a price alert for this market')}
-function alertLine(a){const w=a.d>0?'rises to':'falls to';return a.hit!=null?`Reached ${fmtUsd(a.p)}${a.away?' while the app was closed':''}`:`When price ${w} <b>${fmtUsd(a.p)}</b>`}
+function alertLine(a){const w=a.d>0?'rises to':'falls to';return a.hit!=null?`Reached ${fmtUsd(a.p)}${a.away?' while you were away':''}`:`When price ${w} <b>${fmtUsd(a.p)}</b>`}
 function alertSub(a){const now=gPrice(a.k),t=new Date(a.hit!=null?a.hit:a.t);
   const when=t.toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
   return a.hit!=null?`${a.away?'Around':'At'} ${when}${a.hp?` · price then ${fmtUsd(a.hp)}`:''}`:`Set ${when}${now?` · now ${fmtUsd(now)}, ${fmtPct((a.p/now-1)*100)} away`:''}`}
@@ -1586,15 +1586,18 @@ function alBoxHTML(g){
     <p class="al-prev" id="alPrev">Type a price, or tap one below.</p>
     ${q.length?`<div class="al-quick">${q.map(([l,v])=>`<button type="button" data-alq="${+v.toFixed(Math.min(dp,10))}">${l} · ${fmtUsd(v)}</button>`).join('')}</div>`:''}
     ${mine.length?`<ul class="al-list">${mine.map(a=>alertItem(a,false)).join('')}</ul>`:''}
-    <p class="note">The app rings, shows a banner and buzzes (on phones that allow it) when the price is reached while it's open. If it was closed, the next time you open it, it checks the last 16 days of 1-hour candles and tells you if the price was reached while you were away. All alerts are listed on the Starred page and stay on this device.</p>`;
+    <p class="note">The app rings, shows a banner and buzzes (on phones that allow it) when the price is reached while it's open. If the app was closed or in the background, it checks the candles since you set the alert when you come back (and every 10 minutes) and tells you if the price was reached while you were away. All alerts are listed on the Starred page and stay on this device.</p>`;
 }
 function renderAlBox(){const el=document.getElementById('alBox'),g=state.gByKey.get(state.selected);if(!el)return;
   const open=!!state.alOpen&&!!g;el.hidden=!open;const b=document.getElementById('dBell');if(b)b.setAttribute('aria-expanded',open);if(open)el.innerHTML=alBoxHTML(g)}
 function previewAlert(){const el=document.getElementById('alPrev'),v=parseFloat(($('#alIn')||{}).value),now=gPrice(state.selected);if(!el)return;
-  el.innerHTML=!(v>0)?'Type a price, or tap one below.':!now?'Waiting for a live price…':`Rings when price ${v>now?'rises':'falls'} to <b>${fmtUsd(v)}</b> (${fmtPct((v/now-1)*100)} from now).`}
+  el.innerHTML=!(v>0)?'Type a price, or tap one below.':!now?'Waiting for a live price…':`Rings when price ${v>now?'rises':'falls'} to <b>${fmtUsd(v)}</b> (${fmtPct((v/now-1)*100)} from now).${alertFar(v,now)?' <b class="down">That\'s far from the price now; check the number.</b>':''}`}
 function addAlert(v){const g=state.gByKey.get(state.selected),now=g&&g.price;
   if(!g||!(v>0)){showToast('Type a price above 0.');return}
   if(state.alerts.filter(a=>a.hit==null).length>=AL_MAX){showToast(`You can have up to ${AL_MAX} alerts. Remove one first.`);return}
+  if(alertFar(v,now)&&state.alConfirm!==v){state.alConfirm=v;const el=document.getElementById('alPrev'),t=alertTypo(v,now);
+    if(el)el.innerHTML=`<b class="down">That's ${fmtPct((v/now-1)*100)} from the price now (${fmtUsd(now)}).</b> ${t.length?'Did you mean one of these?':'Is that the price you meant?'}<span class="al-quick" style="margin-top:6px">${t.map(x=>`<button type="button" data-alset="${x}">Set ${fmtUsd(x)}</button>`).join('')}<button type="button" data-alset="${v}">Set ${fmtUsd(v)} anyway</button></span>`;return}
+  state.alConfirm=null;
   const a=newAlert(g.key,g.root,v,now,NOW());if(!a){showToast(now?'That is the price right now. Pick a price above or below it.':'Waiting for a live price, try again in a moment.');return}
   state.alerts.unshift(a);state.alerts=cleanAlerts(state.alerts);saveAlerts();renderAlBox();unlockSound();
   showToast(`Alert set: ${g.root} ${a.d>0?'rises':'falls'} to ${fmtUsd(v)}.`);try{subscribeBybit()}catch(e){}}
@@ -1611,13 +1614,16 @@ function checkAlerts(){for(const a of state.alerts){if(a.hit!=null)continue;cons
 function renderAlBar(){const el=document.getElementById('alBar');if(!el)return;const L=(state.alNew||[]).map(id=>state.alerts.find(a=>a.id===id)).filter(Boolean);
   if(!L.length){el.hidden=true;el.innerHTML='';return}
   const a=L[L.length-1],more=L.length-1;
-  el.innerHTML=`<p><b>${esc(a.root||a.k)} ${a.d>0?'rose':'fell'} to ${fmtUsd(a.p)}</b>${a.away?' while the app was closed':''}. ${esc(alertSub(a))}.${more?` (${more} more)`:''}</p>
+  el.innerHTML=`<p><b>${esc(a.root||a.k)} ${a.d>0?'rose':'fell'} to ${fmtUsd(a.p)}</b>${a.away?' while you were away':''}. ${esc(alertSub(a))}.${more?` (${more} more)`:''}</p>
     <div class="acts"><button type="button" data-albar="view" data-k="${esc(a.k)}">View chart</button><button type="button" data-albar="ok">OK</button></div>`;el.hidden=false}
 // when the app opens: was any alert's price reached while it was closed? (1-hour candles, last ~16 days)
-let awayChecked=false;
-async function checkAway(){if(awayChecked||!state.groups||!state.groups.length)return;awayChecked=true;
-  for(const a of state.alerts.filter(x=>x.hit==null).slice(0,12)){const g=state.gByKey.get(a.k);if(!g)continue;
-    try{const cs=await getCandles(g.primary,'1h');const hit=alertTouched(a,cs);if(hit)fireAlert(a,null,hit.at,true)}catch(e){}}}
+let awayAt=0,awayBusy=false;
+async function checkAway(force){if(awayBusy||!state.groups||!state.groups.length||(!force&&NOW()-awayAt<60000))return;awayBusy=true;awayAt=NOW();
+  try{for(const a of state.alerts.filter(x=>x.hit==null).slice(0,12)){const g=state.gByKey.get(a.k);if(!g)continue;
+    try{const cs=await getCandles(g.primary,NOW()-a.t<30*3600000?'5m':'1h');const hit=alertTouched(a,cs);if(hit&&a.hit==null)fireAlert(a,null,hit.at,true)}catch(e){}}}
+  finally{awayBusy=false}}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(()=>{try{checkAlerts()}catch(e){}checkAway(true)},1500)});
+setInterval(()=>{if(!document.hidden)checkAway()},10*60000);
 function alertsSectionHTML(){const L=state.alerts;if(!L.length)return '';
   const act=L.filter(a=>a.hit==null),done=L.filter(a=>a.hit!=null).sort((x,y)=>y.hit-x.hit);
   return `<div class="card albox" id="alList"><h3>Price alerts</h3><p class="sub">${plural(act.length,'alert')} waiting${done.length?` · ${done.length} reached`:''} · tap one to open its chart</p>
@@ -2066,8 +2072,19 @@ function newAlert(k,root,target,price,now){
   if(!(target>0&&target<1e12)||!(price>0)||Math.abs(target/price-1)<1e-6)return null;
   return{id:(k+'|'+target+'|'+now).replace(/[^\w.|:-]/g,'').slice(0,80),k,root:String(root||'').slice(0,20),p:target,d:target>price?1:-1,t:now,hit:null,hp:null,away:false};
 }
+// far from price (likely a typo): over 25% away. alertTypo suggests up to two of a few common slips (a missing or extra
+// digit at the front, or the decimal point in the wrong place) when that lands within 3% of the price now.
+function alertFar(target,price){return price>0&&target>0&&Math.abs(target/price-1)>0.25}
+function alertTypo(target,price){
+  if(!(target>0)||!(price>0))return [];const c=[],str=String(target),[ip,fp]=str.split('.');
+  for(let k=-3;k<=3;k++)if(k)c.push(target*Math.pow(10,k));
+  for(let d=1;d<=9;d++)c.push(parseFloat(d+ip+(fp!=null?'.'+fp:'')));
+  if(ip.length>1)c.push(parseFloat(ip.slice(1)+(fp!=null?'.'+fp:'')));
+  const ok=[];for(const x of c){if(!(x>0)||!isFinite(x))continue;const e=Math.abs(x/price-1),v=+x.toPrecision(12);if(e<=0.03&&e>=0.0005&&!ok.some(o=>o.v===v))ok.push({v,e})}
+  return ok.sort((a,b)=>a.e-b.e).slice(0,2).map(o=>o.v);   // up to two, closest first; [] when none
+}
 function alertHit(a,price){return a.hit==null&&price>0&&(a.d>0?price>=a.p:price<=a.p)}
-// while the app was closed: the first candle that started after the alert was made and reached the price
+// while you were away: the first candle that started after the alert was made and reached the price
 function alertTouched(a,cs){
   if(a.hit!=null||!cs)return null;
   for(const k of cs){if(k.time*1000<a.t)continue;if(a.d>0?k.high>=a.p:k.low<=a.p)return{at:k.time*1000,p:a.p}}
@@ -3346,8 +3363,9 @@ $('#panesBtn').addEventListener('click',()=>{state.ind.panes=!state.ind.panes;LS
 $('#dStar').addEventListener('click',()=>{if(state.selected)toggleStar(state.selected)});
 $('#dBell').addEventListener('click',()=>{if(!state.selected)return;unlockSound();state.alOpen=!state.alOpen;renderAlBox()});
 $('#alBox').addEventListener('submit',e=>{e.preventDefault();const i=$('#alIn');addAlert(parseFloat(i&&i.value));if(document.activeElement)document.activeElement.blur()});
-$('#alBox').addEventListener('input',e=>{if(e.target.id==='alIn')previewAlert()});
+$('#alBox').addEventListener('input',e=>{if(e.target.id==='alIn'){state.alConfirm=null;previewAlert()}});
 $('#alBox').addEventListener('click',e=>{const q=e.target.closest('[data-alq]'),d=e.target.closest('[data-aldel]');
+  const st=e.target.closest('[data-alset]');if(st){const v=parseFloat(st.dataset.alset);state.alConfirm=v;addAlert(v);return}
   if(q){const i=$('#alIn');if(i){i.value=q.dataset.alq;previewAlert()}}else if(d)removeAlert(d.dataset.aldel)});
 $('#listArea').addEventListener('click',e=>{const o=e.target.closest('[data-alopen]'),d=e.target.closest('[data-aldel]'),c=e.target.closest('[data-alclear]');
   if(d){e.stopPropagation();removeAlert(d.dataset.aldel)}else if(c){state.alerts=state.alerts.filter(a=>a.hit==null);state.alNew=[];saveAlerts();renderAlBar()}

@@ -2,6 +2,12 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-11-03 (owner report: "I didn't get an alert")
+- Checked: neither alert had been reached. BTC "falls to $74,900": lowest price since it was set was about $76,498 (CoinGecko via cryptoticker.io, 05:47 CET). ZEC "falls to $132.90" with ZEC at about $1,133: almost certainly a typo for $1,132.90.
+- **Typo guard:** an alert price more than 25% from the current price now asks first ("That's −88% from the price now… Did you mean one of these?") with up to two likely corrections (missing or extra front digit, decimal point moved) that land within 3% of the price, plus "Set … anyway". The live preview also flags far-away prices. New pure `alertFar`, `alertTypo` (3 engine tests); browser test types a far price, checks it isn't saved without asking and that a suggestion sets it.
+- **Missed-alert check now also runs when the app comes back from the background** (an iPhone Home Screen app is paused in the background and isn't reloaded when reopened, so the check used to run only on a fresh start) and every 10 minutes, using 5-minute candles for alerts under 30 hours old (1-hour candles otherwise). Banner wording: "while you were away".
+- Sources: Bitcoin 24h range on 3 Nov 2026 (https://cryptoticker.io/en/bitcoin-price-100-day-moving-average-election-day/).
+
 ## 2026-11-03 (owner request: price alerts for any market)
 - **Bell next to the star on every chart screen** opens a "Price alert" card: type a price or tap a quick one (Resistance R1, Support S1, ±5%, ±10%); a preview says "Rings when price rises/falls to … (x% from now)". The direction is set from where price is when the alert is made. The bell turns amber while the market has an alert waiting.
 - **While the app is open:** every second, with the live prices, each waiting alert is checked against the market's main price (the same price as its row). When reached: a banner at the top ("INTC rose to $40.00 …", View chart / OK), a short chime (iPhone allows sound only after a first tap in the app, which unlocks it), and a buzz on phones that support vibration (not iPhone).

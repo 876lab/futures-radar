@@ -1,4 +1,10 @@
 [
+  {"date": "2026-11-03", "title": "Price alerts", "items": [
+    "Tap the bell next to the star on any chart, type a price (or tap a quick one like Resistance R1 or +5%) and tap Set alert.",
+    "When the price is reached while the app is open, a banner shows at the top with a chime. Tap anywhere in the app once after opening it so your iPhone allows the sound.",
+    "If the app was closed, it checks when you open it again and tells you if the price was reached while you were away.",
+    "All your alerts are on the Starred page, where you can open or remove them."
+  ]},
   {"date": "2026-11-02", "title": "Support and resistance on every chart", "items": [
     "A new card under the chart shows where price sits: red resistance levels above (where rises stopped before), green support below (where falls stopped before), and how far away each one is.",
     "Levels where price turned 3 or more times are marked strong. 'Was resistance' means an old ceiling that broke and may now act as a floor.",

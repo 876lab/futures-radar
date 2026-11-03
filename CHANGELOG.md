@@ -2,6 +2,15 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-11-03 (owner request: price alerts for any market)
+- **Bell next to the star on every chart screen** opens a "Price alert" card: type a price or tap a quick one (Resistance R1, Support S1, ±5%, ±10%); a preview says "Rings when price rises/falls to … (x% from now)". The direction is set from where price is when the alert is made. The bell turns amber while the market has an alert waiting.
+- **While the app is open:** every second, with the live prices, each waiting alert is checked against the market's main price (the same price as its row). When reached: a banner at the top ("INTC rose to $40.00 …", View chart / OK), a short chime (iPhone allows sound only after a first tap in the app, which unlocks it), and a buzz on phones that support vibration (not iPhone).
+- **While the app was closed:** on opening, up to 12 waiting alerts are checked against 1-hour candles that started after the alert was made (about 16 days back); a reached one shows the banner with "while the app was closed" and the approximate time. True background push notifications stay parked (they need a signing key as a GitHub secret, the Home Screen app and a server job; owner's call).
+- **Starred page → "Price alerts"** lists all alerts (reached first), with distance from price, tap to open the chart, × to remove and "Clear reached alerts". Bybit markets with an alert are always streamed live (like starred ones). Kept on the device as `fradar:alerts`, cleaned on load, up to 50.
+- Works for any market the app lists, including stock futures such as Intel (INTC) when an exchange lists one; no stock prices from outside the exchanges.
+- New pure `cleanAlerts`, `newAlert`, `alertHit`, `alertTouched` (6 engine tests); browser test sets an alert from the bell, checks it is saved, listed and removable on Starred, and that an alert reached while closed shows the banner. Fixed during the build: the banner element sat after the script, and saved alerts were read before their limit constant existed.
+- Information only; no setup, score or trade-maths change. Sources: MDN Web Audio API (autoplay needs a user gesture) and Vibration API support (not available in iOS Safari).
+
 ## 2026-11-02 (owner request: support and resistance, simplified)
 - **Chart screen → "Support and resistance" card** (above Fibonacci): one plain sentence ("Price is between support at … and resistance at …", or "right at a level" when price is inside one) and a colour ladder: up to two red resistance levels above, an amber "Now" row, and up to two green support levels below, each with the distance from price, how many times price turned there ("strong" at 3+), and "was resistance" / "was support" when a broken level swapped roles. "What do these mean?" explains support, resistance, zones, tests and role reversal in five lines.
 - **On the chart:** solid green S1/S2 and red R1/R2 lines (thicker at 3+ tests), an amber "Testing" line when price sits in a zone, and a new **Support/Resistance** chip to switch them off (on by default; saved settings get it switched on).

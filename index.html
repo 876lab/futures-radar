@@ -130,6 +130,19 @@ button{cursor:pointer}
 .list > .row:last-of-type{border-bottom:0}
 .row:hover{background:var(--surface-2)}
 .row.sel-on{background:var(--surface-2);box-shadow:inset 3px 0 0 var(--accent)}
+.star.bell[aria-pressed="true"]{color:var(--accent)} .star.bell[aria-pressed="true"] svg{fill:currentColor}
+.albox{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;padding:14px 16px}
+.albox .note{margin:0;padding:0;font-size:12px;color:var(--muted)} .albox h3{margin:0;padding:0} .albox .sub{font-size:12px;color:var(--muted);margin:0}
+.al-form{display:flex;gap:8px} .al-form input{flex:1;min-width:0;font:inherit;font-size:16px;padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--fg)}
+.al-quick{display:flex;flex-wrap:wrap;gap:6px} .al-quick button{font:inherit;font-size:12.5px;border:1px solid var(--line);background:var(--surface-2);color:var(--fg);border-radius:999px;padding:5px 10px;cursor:pointer}
+.al-prev{font-size:13px;margin:0;color:var(--muted)} .al-prev b{color:var(--fg)}
+.al-list{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.al-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;background:var(--surface-2);font-size:13px}
+.al-item .al-txt{flex:1;min-width:0} .al-item .al-txt small{display:block;color:var(--muted);font-size:12px} .al-item.hit{background:var(--accent-bg)}
+.al-item button.x{border:0;background:none;color:var(--muted);font-size:18px;line-height:1;padding:4px 6px;cursor:pointer}
+.al-item button.open{border:0;background:none;padding:0;font:inherit;color:inherit;text-align:left;cursor:pointer;flex:1;min-width:0}
+.albar{position:fixed;left:12px;right:12px;top:calc(env(safe-area-inset-top,0px) + 8px);z-index:60;max-width:480px;margin:0 auto;background:var(--accent);color:var(--accent-ink);border-radius:14px;padding:12px 14px;box-shadow:0 8px 28px rgb(0 0 0 / .3);display:grid;gap:8px;font-size:14px}
+.albar p{margin:0} .albar .acts{display:flex;gap:8px;justify-content:flex-end} .albar button{font:inherit;font-size:13px;font-weight:600;border:1px solid currentColor;background:none;color:inherit;border-radius:9px;padding:6px 12px;cursor:pointer}
 .star{width:30px;height:30px;display:grid;place-items:center;border:0;background:none;border-radius:8px;color:var(--c4)}
 .star svg{width:19px;height:19px}
 .star[aria-pressed="true"]{color:var(--accent)}
@@ -692,10 +705,12 @@ html,body{overscroll-behavior-y:none}
           <div class="d-head">
             <button class="back" id="back" aria-label="Back to list"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M15 18 9 12l6-6"/></svg>Back</button>
             <div class="d-title"><h2 id="dSym"></h2><div class="meta" id="dMeta"></div></div>
+            <button class="star bell" id="dBell" aria-pressed="false" aria-expanded="false" aria-label="Price alerts for this market"></button>
             <button class="star" id="dStar" aria-pressed="false" aria-label="Star this market"></button>
           </div>
           <div class="d-price"><span class="p" id="dPrice"></span><span class="pill" id="dChg"></span><span class="src" id="dSrc"></span></div>
           <div id="dlBox" hidden></div>
+          <div class="card albox" id="alBox" hidden></div>
           <div class="toolrow">
             <div class="seg" id="tfSeg" role="group" aria-label="Candle size"></div>
             <span class="chartsrc" id="chartSrc"></span>
@@ -817,6 +832,7 @@ html,body{overscroll-behavior-y:none}
       <dt>EMA 20 / 50 / 200</dt><dd>Moving averages. Price above them, with the short line on top, is a classic uptrend.</dd>
       <dt>Funding</dt><dd>A small fee swapped between longs and shorts every few hours on perpetuals. Positive means longs pay shorts.</dd>
       <dt>Volume</dt><dd>Dollar value traded. A move on rising volume is more trustworthy.</dd>
+      <dt>Price alerts</dt><dd>Tap the bell next to the star on any chart and set a price. While the app is open it rings, shows a banner and buzzes on phones that allow it when the price is reached; when you open the app again it also tells you if the price was reached while it was closed. All alerts are on the Starred page.</dd>
       <dt>Market light</dt><dd>The coloured bar at the top. It reads Bitcoin's daily chart, Fear &amp; Greed and the cycle gauge. Red (Hot): several signs of a fast run-up at once. Green (Oversold): several signs of a hard fall at once. Purple (Stormy): much bigger swings than usual, without a clear extreme. Amber (Calm): no extreme and normal swings. Information only; it never changes a setup.</dd>
       <dt>News</dt><dd>Headlines from crypto and financial news sites, the Federal Reserve and the SEC, refreshed every 15 minutes. Fear &amp; Greed sums up market mood from 0 (extreme fear) to 100 (extreme greed).</dd>
       <dt>Live</dt><dd>The dot at the top shows how fresh prices are. "Live · now" means ticks are streaming in. "Delayed" means no tick for 30 seconds; the app reconnects on its own.</dd>
@@ -829,6 +845,7 @@ html,body{overscroll-behavior-y:none}
   </div>
 </div>
 
+<div class="albar" id="alBar" role="alert" hidden></div>
 <div class="sheet-bg" id="legal" hidden>
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="legalTitle">
     <h2 id="legalTitle">Before you start</h2>
@@ -901,6 +918,7 @@ const state={
   acct:LS.get('acct',100),evOn:LS.get('evOn',true),evAll:LS.get('evAll',false),confOnly:LS.get('confOnly',true),conf:new Map(),ann:{bybit:[],at:0,loading:false},navHide:LS.get('navHide',true),risk:LS.get('risk',2),maxLoss:LS.get('maxLoss',0),stream:{},lastTick:{},lastSeen:{}
 };
 if(!TFS[state.tf])state.tf='15m';
+state.alerts=[];   // price alerts, loaded from the device further down (after cleanAlerts' constants exist)
 state.big=null;   // '1w' or '1M' while the chart shows weekly/monthly candles; state.tf stays the candle size for Setups and lists
 function ctf(){return state.big||state.tf}
 if(!state.ind||typeof state.ind!=='object')state.ind={ema:false,bb:true,st:true,vol:true,marks:true};
@@ -1163,7 +1181,8 @@ function subscribeBybit(){
   const f=feeds.bybit;if(!f||!f.ready)return;
   // Bybit pushes up to 10 updates a second per market, so stream the 80 busiest plus starred ones; the rest refresh every minute.
   const mine=state.pairs.filter(p=>p.ex==='bybit'),busy=new Set(mine.slice().sort((a,b)=>(b.vol||0)-(a.vol||0)).slice(0,80).map(p=>p.sym));
-  const names=mine.filter(p=>(busy.has(p.sym)||state.watch.has(p.key))&&!bybitSubs.has(p.sym)).map(p=>p.sym);
+  const alk=new Set(state.alerts.filter(a=>a.hit==null).map(a=>a.k));
+  const names=mine.filter(p=>(busy.has(p.sym)||state.watch.has(p.key)||alk.has(p.key))&&!bybitSubs.has(p.sym)).map(p=>p.sym);
   for(let i=0;i<names.length;i+=100)f.send({op:'subscribe',args:names.slice(i,i+100).map(n=>'tickers.'+n)});
   names.forEach(n=>bybitSubs.add(n));
 }
@@ -1436,7 +1455,7 @@ async function loadAll(manual,quiet){
   state.byId=new Map(state.pairs.map(p=>[p.id,p]));
   buildGroups();
   state.loading=false;$('#refresh').classList.remove('spin');
-  startFeeds();try{loadLight()}catch(e){recordErr('market light',e)}
+  startFeeds();try{loadLight()}catch(e){recordErr('market light',e)}checkAway();
   if(quiet&&!changed){patchRows();renderVenues();freshness();return}
   renderAll();
   if(state.selected&&state.gByKey.has(state.selected))refreshDetailHead();
@@ -1544,6 +1563,65 @@ function scanTargets(){if(state.cat==='setups')return setupPool();return listTar
 
 /* ---------- rendering ---------- */
 const STAR='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="m12 3 2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 16.8 6.6 19.7l1.1-6.1L3.2 9.4l6.1-.8z"/></svg>';
+const BELL='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></svg>';
+// price alerts: checked every second against live prices while the app is open; on opening, past 1-hour candles are checked too
+function saveAlerts(){LS.set('alerts',state.alerts);renderBell();if(state.cat==='watch')renderList()}
+function alertsFor(key){return state.alerts.filter(a=>a.k===key)}
+function gPrice(key){const g=state.gByKey.get(key);return g&&g.price>0?g.price:null}
+function renderBell(){const b=document.getElementById('dBell');if(!b||!state.selected)return;b.innerHTML=BELL;
+  const n=alertsFor(state.selected).filter(a=>a.hit==null).length;b.setAttribute('aria-pressed',n>0);b.setAttribute('aria-label',n?`Price alerts for this market (${n} set)`:'Set a price alert for this market')}
+function alertLine(a){const w=a.d>0?'rises to':'falls to';return a.hit!=null?`Reached ${fmtUsd(a.p)}${a.away?' while the app was closed':''}`:`When price ${w} <b>${fmtUsd(a.p)}</b>`}
+function alertSub(a){const now=gPrice(a.k),t=new Date(a.hit!=null?a.hit:a.t);
+  const when=t.toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+  return a.hit!=null?`${a.away?'Around':'At'} ${when}${a.hp?` · price then ${fmtUsd(a.hp)}`:''}`:`Set ${when}${now?` · now ${fmtUsd(now)}, ${fmtPct((a.p/now-1)*100)} away`:''}`}
+function alertItem(a,withName){const name=withName?`<b>${esc(a.root||a.k)}</b> · `:'';
+  return `<li class="al-item${a.hit!=null?' hit':''}">${withName?`<button type="button" class="open" data-alopen="${esc(a.k)}"><span class="al-txt">${name}${alertLine(a)}<small>${alertSub(a)}</small></span></button>`:`<span class="al-txt">${alertLine(a)}<small>${alertSub(a)}</small></span>`}<button type="button" class="x" data-aldel="${esc(a.id)}" aria-label="Remove this alert">×</button></li>`}
+function alBoxHTML(g){
+  const now=g.price,mine=alertsFor(g.key),sr=current&&current.p&&current.p.key===g.key&&current.sr,q=[];
+  if(sr){if(sr.res[0])q.push(['Resistance R1',sr.res[0].p]);if(sr.sup[0])q.push(['Support S1',sr.sup[0].p])}
+  if(now>0)q.push(['+5%',now*1.05],['−5%',now*0.95],['+10%',now*1.1],['−10%',now*0.9]);
+  const dp=now>0?dec(now):2;
+  return `<h3>Price alert</h3><p class="sub">${esc(g.root)} · now ${now>0?fmtUsd(now):'—'} · rings while the app is open</p>
+    <form class="al-form" id="alForm" autocomplete="off"><input id="alIn" type="number" inputmode="decimal" step="any" min="0" placeholder="Alert price, e.g. ${now>0?fmtPrice(+(now*1.05).toFixed(dp)).replace(/,/g,''):'40'}" aria-label="Alert price"><button type="submit" class="btn primary">Set alert</button></form>
+    <p class="al-prev" id="alPrev">Type a price, or tap one below.</p>
+    ${q.length?`<div class="al-quick">${q.map(([l,v])=>`<button type="button" data-alq="${+v.toFixed(Math.min(dp,10))}">${l} · ${fmtUsd(v)}</button>`).join('')}</div>`:''}
+    ${mine.length?`<ul class="al-list">${mine.map(a=>alertItem(a,false)).join('')}</ul>`:''}
+    <p class="note">The app rings, shows a banner and buzzes (on phones that allow it) when the price is reached while it's open. If it was closed, the next time you open it, it checks the last 16 days of 1-hour candles and tells you if the price was reached while you were away. All alerts are listed on the Starred page and stay on this device.</p>`;
+}
+function renderAlBox(){const el=document.getElementById('alBox'),g=state.gByKey.get(state.selected);if(!el)return;
+  const open=!!state.alOpen&&!!g;el.hidden=!open;const b=document.getElementById('dBell');if(b)b.setAttribute('aria-expanded',open);if(open)el.innerHTML=alBoxHTML(g)}
+function previewAlert(){const el=document.getElementById('alPrev'),v=parseFloat(($('#alIn')||{}).value),now=gPrice(state.selected);if(!el)return;
+  el.innerHTML=!(v>0)?'Type a price, or tap one below.':!now?'Waiting for a live price…':`Rings when price ${v>now?'rises':'falls'} to <b>${fmtUsd(v)}</b> (${fmtPct((v/now-1)*100)} from now).`}
+function addAlert(v){const g=state.gByKey.get(state.selected),now=g&&g.price;
+  if(!g||!(v>0)){showToast('Type a price above 0.');return}
+  if(state.alerts.filter(a=>a.hit==null).length>=AL_MAX){showToast(`You can have up to ${AL_MAX} alerts. Remove one first.`);return}
+  const a=newAlert(g.key,g.root,v,now,NOW());if(!a){showToast(now?'That is the price right now. Pick a price above or below it.':'Waiting for a live price, try again in a moment.');return}
+  state.alerts.unshift(a);state.alerts=cleanAlerts(state.alerts);saveAlerts();renderAlBox();unlockSound();
+  showToast(`Alert set: ${g.root} ${a.d>0?'rises':'falls'} to ${fmtUsd(v)}.`);try{subscribeBybit()}catch(e){}}
+function removeAlert(id){state.alerts=state.alerts.filter(a=>a.id!==id);saveAlerts();renderAlBox();state.alNew=(state.alNew||[]).filter(x=>x!==id);renderAlBar()}
+let audioCtx=null;
+function unlockSound(){try{if(!audioCtx){const AC=window.AudioContext||window.webkitAudioContext;if(AC)audioCtx=new AC()}if(audioCtx&&audioCtx.state==='suspended')audioCtx.resume()}catch(e){}}
+function ring(){try{if(navigator.vibrate)navigator.vibrate([250,120,250])}catch(e){}
+  try{if(!audioCtx||audioCtx.state!=='running')return;const t=audioCtx.currentTime;
+    [[880,0],[1175,0.18],[880,0.5],[1175,0.68]].forEach(([f,d])=>{const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type='sine';o.frequency.value=f;
+      g.gain.setValueAtTime(0.0001,t+d);g.gain.exponentialRampToValueAtTime(0.25,t+d+0.02);g.gain.exponentialRampToValueAtTime(0.0001,t+d+0.16);o.connect(g);g.connect(audioCtx.destination);o.start(t+d);o.stop(t+d+0.18)})}catch(e){}}
+function fireAlert(a,price,at,away){a.hit=at;a.hp=price||null;a.away=!!away;state.alNew=[...(state.alNew||[]).filter(x=>x!==a.id),a.id];LS.set('alerts',state.alerts);renderBell();renderAlBar();ring();
+  if(state.cat==='watch')renderList();if(state.alOpen)renderAlBox()}
+function checkAlerts(){for(const a of state.alerts){if(a.hit!=null)continue;const p=gPrice(a.k);if(p&&alertHit(a,p))fireAlert(a,p,NOW(),false)}}
+function renderAlBar(){const el=document.getElementById('alBar');if(!el)return;const L=(state.alNew||[]).map(id=>state.alerts.find(a=>a.id===id)).filter(Boolean);
+  if(!L.length){el.hidden=true;el.innerHTML='';return}
+  const a=L[L.length-1],more=L.length-1;
+  el.innerHTML=`<p><b>${esc(a.root||a.k)} ${a.d>0?'rose':'fell'} to ${fmtUsd(a.p)}</b>${a.away?' while the app was closed':''}. ${esc(alertSub(a))}.${more?` (${more} more)`:''}</p>
+    <div class="acts"><button type="button" data-albar="view" data-k="${esc(a.k)}">View chart</button><button type="button" data-albar="ok">OK</button></div>`;el.hidden=false}
+// when the app opens: was any alert's price reached while it was closed? (1-hour candles, last ~16 days)
+let awayChecked=false;
+async function checkAway(){if(awayChecked||!state.groups||!state.groups.length)return;awayChecked=true;
+  for(const a of state.alerts.filter(x=>x.hit==null).slice(0,12)){const g=state.gByKey.get(a.k);if(!g)continue;
+    try{const cs=await getCandles(g.primary,'1h');const hit=alertTouched(a,cs);if(hit)fireAlert(a,null,hit.at,true)}catch(e){}}}
+function alertsSectionHTML(){const L=state.alerts;if(!L.length)return '';
+  const act=L.filter(a=>a.hit==null),done=L.filter(a=>a.hit!=null).sort((x,y)=>y.hit-x.hit);
+  return `<div class="card albox" id="alList"><h3>Price alerts</h3><p class="sub">${plural(act.length,'alert')} waiting${done.length?` · ${done.length} reached`:''} · tap one to open its chart</p>
+    <ul class="al-list">${[...done,...act].map(a=>alertItem(a,true)).join('')}</ul>${done.length?'<div class="al-quick"><button type="button" data-alclear="1">Clear reached alerts</button></div>':''}</div>`}
 const FLAME='<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c.6 3.4-1.2 5.1-2.6 6.6C8 10.2 7 11.7 7 14a5 5 0 0 0 10 0c0-1.6-.6-3-1.4-4.1-.3 1.2-1 2-2 2.3.5-3.5-.4-7.4-1.6-10.2z"/></svg>';
 const FLASK='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.7 3h10.6a2 2 0 0 0 1.7-3l-5-9V3"/><path d="M7.5 15h9"/></svg>';
 const TARGET='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>';
@@ -1675,6 +1753,7 @@ function renderListInner(force){
   let html;
   if(!v.length)html=`<div class="list"><div class="empty">${state.cat==='watch'?'No starred markets yet. Tap the star on any row to keep it here.':'No markets match. Try another tab or clear the search.'}</div></div>`;
   else html=`<div class="list">${v.slice(0,state.limit).map(g=>rowHTML(g)).join('')}${v.length>state.limit?`<button class="more" id="more">Show ${Math.min(120,v.length-state.limit)} more</button>`:''}</div>`;
+  if(state.cat==='watch')html=alertsSectionHTML()+html;
   area.innerHTML=html;
   const m=$('#more');if(m)m.onclick=()=>{state.limit+=120;renderList()};
   renderMood(v);
@@ -1971,6 +2050,28 @@ function srLevels(cs,atr,opt){
   // a zone made of swing highs that is now below price was resistance that broke and may act as support (and the reverse)
   for(const z of sup)z.flip=z.highs>z.lows;for(const z of res)z.flip=z.lows>z.highs;
   return{price,atr,sup,res,at,zones:zones.length,look:Math.min(look,n)};
+}
+/* Price alerts (owner request, 3 Nov 2026). Kept on the device. d = 1 rings when price rises to p, −1 when it falls to p
+   (set from where price was when the alert was made). t, hit: milliseconds. */
+const AL_MAX=50;
+function cleanAlerts(a){
+  if(!Array.isArray(a))return [];const fin=v=>typeof v==='number'&&isFinite(v),seen=new Set(),out=[];
+  for(const x of a){if(!x||typeof x!=='object'||typeof x.k!=='string'||!x.k||x.k.length>60||!fin(x.p)||!(x.p>0&&x.p<1e12)||(x.d!==1&&x.d!==-1)||!fin(x.t))continue;
+    const id=typeof x.id==='string'&&/^[\w.|:-]{1,80}$/.test(x.id)?x.id:x.k+'|'+x.p+'|'+x.t;if(seen.has(id))continue;seen.add(id);
+    out.push({id,k:x.k,root:typeof x.root==='string'?x.root.slice(0,20):'',p:x.p,d:x.d,t:x.t,hit:fin(x.hit)?x.hit:null,hp:fin(x.hp)?x.hp:null,away:x.away===true});
+    if(out.length>=AL_MAX)break}
+  return out;
+}
+function newAlert(k,root,target,price,now){
+  if(!(target>0&&target<1e12)||!(price>0)||Math.abs(target/price-1)<1e-6)return null;
+  return{id:(k+'|'+target+'|'+now).replace(/[^\w.|:-]/g,'').slice(0,80),k,root:String(root||'').slice(0,20),p:target,d:target>price?1:-1,t:now,hit:null,hp:null,away:false};
+}
+function alertHit(a,price){return a.hit==null&&price>0&&(a.d>0?price>=a.p:price<=a.p)}
+// while the app was closed: the first candle that started after the alert was made and reached the price
+function alertTouched(a,cs){
+  if(a.hit!=null||!cs)return null;
+  for(const k of cs){if(k.time*1000<a.t)continue;if(a.d>0?k.high>=a.p:k.low<=a.p)return{at:k.time*1000,p:a.p}}
+  return null;
 }
 // which part of the last move price is in (used for wording and for the backtest's buckets)
 
@@ -2915,7 +3016,7 @@ function refreshDetailHead(){
   $('#dPrice').textContent=fmtUsd(p.unitPrice);
   const c=$('#dChg');c.className='pill '+pctCls(p.chg);c.textContent=fmtPct(p.chg)+' 24h';
   $('#dSrc').textContent='on '+EX[p.ex].name;
-  const st=$('#dStar');st.innerHTML=STAR;st.setAttribute('aria-pressed',state.watch.has(g.key));
+  const st=$('#dStar');st.innerHTML=STAR;st.setAttribute('aria-pressed',state.watch.has(g.key));renderBell();
   const box=$('#venueBox');
   if(g.members.length>1){
     box.innerHTML=`<div class="card"><h3>Where it trades</h3><div class="vtable"><table><thead><tr><th>Exchange</th><th>Price</th><th>24h</th><th>Volume</th><th>Funding</th></tr></thead><tbody>${
@@ -2992,11 +3093,11 @@ function renderTrendDetails(an){
 }
 let loadToken=0;
 async function openGroup(key,quiet,cid){
-  const g=state.gByKey.get(key);if(!g)return;
+  const g=state.gByKey.get(key);if(!g)return;if(key!==state.selected)state.alOpen=false;
   state.selected=key;if(cid)state.selContract=cid;else if(!g.members.some(p=>p.id===state.selContract))state.selContract=g.primary.id;
   $('#dEmpty').hidden=true;$('#dBody').hidden=false;
   if(!quiet&&matchMedia('(max-width:979px)').matches)openSheet();
-  refreshDetailHead();renderTf();renderToggles();
+  refreshDetailHead();renderTf();renderToggles();renderAlBox();
   const p=state.byId.get(state.selContract);
   const tok=++loadToken,msg=$('#chartMsg');msg.hidden=false;msg.textContent='Loading chart…';stopChartFeed();
   $('#sigCard').innerHTML='<div class="sc-body"><p class="sc-text muted">Reading the chart…</p></div>';
@@ -3243,6 +3344,16 @@ $('#themeOpts').addEventListener('click',e=>{const b=e.target.closest('[data-the
 $('#compactBtn').addEventListener('click',()=>setCompact(!state.compact));
 $('#panesBtn').addEventListener('click',()=>{state.ind.panes=!state.ind.panes;LS.set('ind3',state.ind);applyPanes()});
 $('#dStar').addEventListener('click',()=>{if(state.selected)toggleStar(state.selected)});
+$('#dBell').addEventListener('click',()=>{if(!state.selected)return;unlockSound();state.alOpen=!state.alOpen;renderAlBox()});
+$('#alBox').addEventListener('submit',e=>{e.preventDefault();const i=$('#alIn');addAlert(parseFloat(i&&i.value));if(document.activeElement)document.activeElement.blur()});
+$('#alBox').addEventListener('input',e=>{if(e.target.id==='alIn')previewAlert()});
+$('#alBox').addEventListener('click',e=>{const q=e.target.closest('[data-alq]'),d=e.target.closest('[data-aldel]');
+  if(q){const i=$('#alIn');if(i){i.value=q.dataset.alq;previewAlert()}}else if(d)removeAlert(d.dataset.aldel)});
+$('#listArea').addEventListener('click',e=>{const o=e.target.closest('[data-alopen]'),d=e.target.closest('[data-aldel]'),c=e.target.closest('[data-alclear]');
+  if(d){e.stopPropagation();removeAlert(d.dataset.aldel)}else if(c){state.alerts=state.alerts.filter(a=>a.hit==null);state.alNew=[];saveAlerts();renderAlBar()}
+  else if(o){const k=o.dataset.alopen;if(state.gByKey.get(k))openGroup(k);else showToast('This market isn\'t in the list right now.')}});
+$('#alBar').addEventListener('click',e=>{const b=e.target.closest('[data-albar]');if(!b)return;state.alNew=[];renderAlBar();if(b.dataset.albar==='view'&&state.gByKey.get(b.dataset.k))openGroup(b.dataset.k)});
+document.addEventListener('pointerdown',unlockSound,{once:true});
 $('#back').addEventListener('click',closeDetail);
 $('#mtf').addEventListener('click',e=>{const b=e.target.closest('[data-mtf]');if(b&&b.dataset.mtf!==state.tf)setTf(b.dataset.mtf)});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(!$('#legal').hidden)return;if(!$('#help').hidden)closeHelp();else closeDetail()}});
@@ -3332,12 +3443,13 @@ new MutationObserver(retheme).observe(document.documentElement,{attributes:true,
 const hdr=$('#top');const setH=()=>document.documentElement.style.setProperty('--hdr',hdr.offsetHeight+'px');setH();try{new ResizeObserver(setH).observe(hdr)}catch(e){}
 
 // live: patch prices every second from the streams; quiet REST refresh every 60s; re-read list signals every 5 minutes
-setInterval(()=>{if(state.mode!=='live')return;if(dirty.size){patchRows();dirty.clear()}freshness()},1000);
+setInterval(()=>{if(state.mode!=='live')return;if(dirty.size){patchRows();dirty.clear();try{checkAlerts()}catch(e){recordErr('price alerts',e)}}freshness()},1000);
 let ticks=0;
 setInterval(()=>{if(state.mode!=='live'||document.hidden||state.loading)return;ticks++;
   if(ticks%5===0){state.trend.forEach((v,k)=>{if(!current||k!==current.p.id+'|'+state.tf)state.trend.delete(k)});[...candleCache.keys()].forEach(k=>{if(!current||k.indexOf(current.p.id+'|')!==0)candleCache.delete(k)})}
   loadAll(true,ticks%5!==0)},60000);
 
+state.alerts=cleanAlerts(LS.get('alerts',[]));
 state.theme=LS.get('theme','system');applyTheme(state.theme);
 state.compact=!!LS.get('compact',false);document.body.classList.toggle('compact',state.compact);$('#compactBtn').setAttribute('aria-pressed',state.compact);
 applyPanes();seenBump(state.cat);

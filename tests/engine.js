@@ -102,6 +102,18 @@ ok(srLevels(cs.slice(0,12),2)===null&&srLevels(cs,0)===null,'sr: needs enough ca
 // no look-ahead: levels at a past candle equal levels computed on candles cut there
 let conf=true;for(const L of [25,30,40,50,61]){const q=pivots(cs2.slice(0,L+1),5,0);if([...q.hi,...q.lo].some(x=>x.i>L-5))conf=false}
 ok(conf,'sr: a turning point counts only after 5 later candles confirm it');}
+// price alerts (kept on the device)
+{const t0=Date.UTC(2026,10,3,12);
+const up=newAlert('INTC','INTC',40,36.5,t0),dn=newAlert('BTC','BTC',60000,78000,t0);
+ok(up.d===1&&dn.d===-1&&up.hit===null&&newAlert('X','X',10,10,t0)===null&&newAlert('X','X',0,10,t0)===null&&newAlert('X','X',5,0,t0)===null,'alerts: direction from price now; no alert at the current price, zero or no price');
+ok(!alertHit(up,39.99)&&alertHit(up,40)&&alertHit(up,41)&&!alertHit(dn,60000.01)&&alertHit(dn,59000),'alerts: rings at or past the price in its direction');
+ok(!alertHit(Object.assign({},up,{hit:t0}),45),'alerts: a reached alert does not ring again');
+const H=3600,cs=[{time:t0/1000-H,high:41,low:35},{time:t0/1000,high:39,low:36},{time:t0/1000+H,high:40.2,low:38},{time:t0/1000+2*H,high:42,low:39}];
+const hit=alertTouched(up,cs);ok(hit&&hit.at===t0+H*1000,'alerts: closed-app check ignores candles before the alert, finds the first after');
+ok(alertTouched(newAlert('INTC','INTC',30,36.5,t0),cs)===null&&alertTouched(Object.assign({},up,{hit:1}),cs)===null,'alerts: nothing touched, or already reached');
+const many=Array.from({length:70},(_,i)=>newAlert('M'+i,'M',10+i,5,t0));
+const cl=cleanAlerts([up,up,dn,null,'x',{k:'<b>',p:-1,d:1,t:1},{k:'A',p:5,d:2,t:1},{k:'A',p:5,d:1,t:'1'},{...up,p:41,id:'bad id <x>'}]);
+ok(cl.length===3&&cl[0].id===up.id&&cl[2].id!==up.id&&!cl[2].id.includes('<')&&cleanAlerts(many).length===AL_MAX&&cleanAlerts('x').length===0,'alerts: saved list cleaned, duplicates dropped, capped at '+AL_MAX+' ('+cl.length+')');}
 // public track record: cleaning and stats (losses and unscored records kept, junk dropped)
 {const rec=(o)=>Object.assign({m:'BTC',tf:'1h',dir:1,conf:72,confirmed:true,t0:Date.UTC(2026,9,27)/1000,entry:100,stop:98,how:'stop',r:-1.02,reach:false,t1:Date.UTC(2026,9,27,5)/1000},o);
 const raw={start:1,updated:2,source:'Gate',markets:['BTC'],open:[rec({how:undefined}),{m:'X'}],closed:[rec(),rec({how:'target',r:2.1,reach:true,dir:-1,stop:102,confirmed:false}),

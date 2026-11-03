@@ -60,6 +60,52 @@ async def isolation_check(b):
     if errs: problems.append("isolation: uncaught JS error: " + errs[0])
     await pg.close()
 
+async def alerts_check(b):
+    """Price alerts: set one from the chart's bell, see it on the Starred page, remove it; an alert reached while the app was closed shows a banner."""
+    pg = await b.new_page(viewport={"width": 390, "height": 800})
+    await block_exchanges(pg)
+    errs = []; pg.on("pageerror", lambda e: errs.append(str(e)))
+    await pg.add_init_script(ACCEPT)
+    await pg.goto("file://" + PAGE); await pg.wait_for_timeout(2500)
+    key = await pg.get_attribute(".row", "data-key")
+    await pg.click(".row"); await pg.wait_for_timeout(1500)
+    await pg.click("#dBell"); await pg.wait_for_timeout(200)
+    t = await pg.inner_text("#alBox") if await pg.is_visible("#alBox") else ""
+    if "Price alert" not in t or "+5%" not in t: problems.append(f"alerts: bell did not open the alert card: {t[:80]!r}")
+    await pg.click('#alBox [data-alq]'); await pg.wait_for_timeout(100)
+    if "Rings when price" not in await pg.inner_text("#alPrev"): problems.append("alerts: quick price did not fill the box")
+    await pg.click('#alForm button[type="submit"]'); await pg.wait_for_timeout(300)
+    if await pg.locator("#alBox .al-item").count() != 1: problems.append("alerts: alert not listed after setting it")
+    if await pg.get_attribute("#dBell", "aria-pressed") != "true": problems.append("alerts: bell not lit after setting an alert")
+    saved = await pg.evaluate("JSON.parse(localStorage.getItem('fradar:alerts')||'[]')")
+    if len(saved) != 1 or saved[0].get("k") != key: problems.append(f"alerts: not saved on the device: {saved!r}")
+    await pg.locator("#alBox").screenshot(path=os.path.join(OUT, "alert-card.png"))
+    await pg.click("#back"); await pg.wait_for_timeout(400)
+    await pg.click('[data-nav="watch"]'); await pg.wait_for_timeout(500)
+    lt = await pg.inner_text("#listArea")
+    if "Price alerts" not in lt or "1 alert waiting" not in lt: problems.append(f"alerts: Starred page list missing: {lt[:120]!r}")
+    for bad in ("undefined", "NaN"):
+        if bad in lt: problems.append(f"alerts: Starred page shows '{bad}'")
+    await pg.click('#alList [data-aldel]'); await pg.wait_for_timeout(300)
+    if await pg.locator("#alList").count(): problems.append("alerts: removing the alert did not clear the list")
+    # reached while the app was closed: an alert made 2 days ago that the sample prices have already passed
+    past = int(time.time() * 1000) - 2 * 86400000
+    if errs: problems.append("alerts: uncaught JS error: " + errs[0])
+    await pg.close()
+    pg = await b.new_page(viewport={"width": 390, "height": 800})   # file:// pages don't keep storage across reloads here, so seed it before load
+    await block_exchanges(pg)
+    errs = []; pg.on("pageerror", lambda e: errs.append(str(e)))
+    await pg.add_init_script(ACCEPT + f"try{{localStorage.setItem('fradar:alerts', JSON.stringify([{{id:'t1',k:{json.dumps(key)},root:'TEST',p:0.0000001,d:1,t:{past},hit:null}}]))}}catch(e){{}}")
+    await pg.goto("file://" + PAGE); await pg.wait_for_timeout(3500)
+    bar = await pg.inner_text("#alBar") if await pg.is_visible("#alBar") else ""
+    if "while the app was closed" not in bar: problems.append(f"alerts: closed-app check did not show the banner: {bar!r}")
+    else: await pg.locator("#alBar").screenshot(path=os.path.join(OUT, "alert-banner.png"))
+    if bar:
+        await pg.click('#alBar [data-albar="ok"]'); await pg.wait_for_timeout(200)
+        if await pg.is_visible("#alBar"): problems.append("alerts: OK did not close the banner")
+    if errs: problems.append("alerts: uncaught JS error: " + errs[0])
+    await pg.close()
+
 async def pull_check(b):
     """Pull to refresh: a short pull does nothing; a long pull at the top shows 'Release to refresh' and reloads."""
     pg = await b.new_page(viewport={"width": 390, "height": 800}, has_touch=True, is_mobile=True)
@@ -376,6 +422,7 @@ async def main():
                 if scheme == "dark": await pg.screenshot(path=os.path.join(OUT, "setups-later.png"))
             await pg.close()
         await isolation_check(b)
+        await alerts_check(b)
         await pull_check(b)
         await legal_check(b)
         await mine_check(b)

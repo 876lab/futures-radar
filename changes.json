@@ -1,4 +1,9 @@
 [
+  {"date": "2026-11-04", "title": "Company info on stocks, and the 200-week EMA", "items": [
+    "Open any stock (like Intel or Tesla) and a short card says what the company does, where it's listed (Nasdaq or NYSE), and whether the US stock market is open right now.",
+    "The stock market is open 9:30am–4pm New York time, but these futures trade around the clock, so prices can jump at the open. The card links to the exchange's page and the company's SEC filings.",
+    "Every chart now has the 200-week EMA as a dashed purple line. The top line of the chart shows its price and how far the current price is above or below it. Turn it off with the 200W EMA chip."
+  ]},
   {"date": "2026-11-03", "title": "Price alerts: typo check and better catch-up", "items": [
     "If an alert price is far from the current price (like $132.90 for ZEC at $1,133), the app now asks first and suggests the price you probably meant, e.g. $1,132.90.",
     "When you switch back to the app after it was in the background, it now checks straight away whether any alert price was reached while you were away, and again every 10 minutes."

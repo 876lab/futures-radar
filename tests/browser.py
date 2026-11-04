@@ -116,6 +116,34 @@ async def alerts_check(b):
     if errs: problems.append("alerts: uncaught JS error: " + errs[0])
     await pg.close()
 
+async def stock_check(b):
+    """Stock futures: company card with listing exchange and hours on the chart screen; not shown for crypto. 200W EMA chip and legend."""
+    for scheme in ("light", "dark"):
+        pg = await b.new_page(viewport={"width": 390, "height": 800}, color_scheme=scheme)
+        await block_exchanges(pg)
+        errs = []; pg.on("pageerror", lambda e: errs.append(str(e)))
+        await pg.add_init_script(ACCEPT)
+        await pg.goto("file://" + PAGE); await pg.wait_for_timeout(2500)
+        await pg.click('[data-nav="markets"]'); await pg.wait_for_timeout(500)
+        await pg.fill("#q", "tesla"); await pg.wait_for_timeout(500)
+        await pg.click(".row"); await pg.wait_for_timeout(1800)
+        co = await pg.inner_text("#coBox") if await pg.is_visible("#coBox") else ""
+        for want in ("Tesla", "Nasdaq: TSLA", "electric cars", "9:30am", "around the clock", "SEC filings"):
+            if want.lower() not in co.lower(): problems.append(f"[{scheme}] stock card: '{want}' missing: {co[:120]!r}")
+        if await pg.locator('#coBox a[href*="nasdaq.com/market-activity/stocks/tsla"]').count() != 1: problems.append(f"[{scheme}] stock card: Nasdaq link missing")
+        if not await pg.locator('#toggles [data-ind="w200"]').count(): problems.append(f"[{scheme}] chart: 200W EMA chip missing")
+        lg = await pg.inner_text("#legend")
+        if "EMA 200W" not in lg: problems.append(f"[{scheme}] chart: 200W EMA missing from the legend: {lg[:160]!r}")
+        for bad in ("undefined", "NaN"):
+            if bad in co or bad in lg: problems.append(f"[{scheme}] stock card or legend shows '{bad}'")
+        await pg.locator("#coBox").screenshot(path=os.path.join(OUT, f"stock-card-{scheme}.png"))
+        await pg.click("#back"); await pg.wait_for_timeout(300)
+        await pg.fill("#q", "bitcoin"); await pg.wait_for_timeout(500)
+        await pg.click(".row"); await pg.wait_for_timeout(1200)
+        if await pg.is_visible("#coBox"): problems.append(f"[{scheme}] stock card shown on a crypto market")
+        if errs: problems.append(f"[{scheme}] stock check: uncaught JS error: " + errs[0])
+        await pg.close()
+
 async def pull_check(b):
     """Pull to refresh: a short pull does nothing; a long pull at the top shows 'Release to refresh' and reloads."""
     pg = await b.new_page(viewport={"width": 390, "height": 800}, has_touch=True, is_mobile=True)
@@ -433,6 +461,7 @@ async def main():
             await pg.close()
         await isolation_check(b)
         await alerts_check(b)
+        await stock_check(b)
         await pull_check(b)
         await legal_check(b)
         await mine_check(b)

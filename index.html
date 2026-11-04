@@ -131,6 +131,8 @@ button{cursor:pointer}
 .row:hover{background:var(--surface-2)}
 .row.sel-on{background:var(--surface-2);box-shadow:inset 3px 0 0 var(--accent)}
 .star.bell[aria-pressed="true"]{color:var(--accent)} .star.bell[aria-pressed="true"] svg{fill:currentColor}
+.cobox{display:grid;gap:6px;padding:12px 16px;font-size:13.5px} .cobox p{margin:0} .co-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap} .co-h b{font-size:15px}
+.co-ex{font-weight:700} .co-hrs{font-size:12.5px;color:var(--muted)} .co-links{font-size:12.5px}
 .albox{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;padding:14px 16px}
 .albox .note{margin:0;padding:0;font-size:12px;color:var(--muted)} .albox h3{margin:0;padding:0} .albox .sub{font-size:12px;color:var(--muted);margin:0}
 .al-form{display:flex;gap:8px} .al-form input{flex:1;min-width:0;font:inherit;font-size:16px;padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--fg)}
@@ -709,6 +711,7 @@ html,body{overscroll-behavior-y:none}
             <button class="star" id="dStar" aria-pressed="false" aria-label="Star this market"></button>
           </div>
           <div class="d-price"><span class="p" id="dPrice"></span><span class="pill" id="dChg"></span><span class="src" id="dSrc"></span></div>
+          <div class="card cobox" id="coBox" hidden></div>
           <div id="dlBox" hidden></div>
           <div class="card albox" id="alBox" hidden></div>
           <div class="toolrow">
@@ -832,6 +835,8 @@ html,body{overscroll-behavior-y:none}
       <dt>EMA 20 / 50 / 200</dt><dd>Moving averages. Price above them, with the short line on top, is a classic uptrend.</dd>
       <dt>Funding</dt><dd>A small fee swapped between longs and shorts every few hours on perpetuals. Positive means longs pay shorts.</dd>
       <dt>Volume</dt><dd>Dollar value traded. A move on rising volume is more trustworthy.</dd>
+      <dt>200W EMA</dt><dd>The 200-week exponential moving average: Bitcoin's long-term trend line, watched at cycle lows. The dashed purple line shows it on every candle size (on smaller sizes it uses the last finished week), and the legend shows how far price is above or below it. It needs 200 weeks of history, so newer coins don't have one. Switch it off with the 200W EMA chip.</dd>
+      <dt>Company card</dt><dd>On stock futures, a short description of the company, the exchange where the stock is listed (Nasdaq or NYSE), whether the US stock market is open now, and links to the exchange's quote page and SEC filings.</dd>
       <dt>Price alerts</dt><dd>Tap the bell next to the star on any chart and set a price. While the app is open it rings, shows a banner and buzzes on phones that allow it when the price is reached; when you open the app again it also tells you if the price was reached while it was closed. All alerts are on the Starred page.</dd>
       <dt>Market light</dt><dd>The coloured bar at the top. It reads Bitcoin's daily chart, Fear &amp; Greed and the cycle gauge. Red (Hot): several signs of a fast run-up at once. Green (Oversold): several signs of a hard fall at once. Purple (Stormy): much bigger swings than usual, without a clear extreme. Amber (Calm): no extreme and normal swings. Information only; it never changes a setup.</dd>
       <dt>News</dt><dd>Headlines from crypto and financial news sites, the Federal Reserve and the SEC, refreshed every 15 minutes. Fear &amp; Greed sums up market mood from 0 (extreme fear) to 100 (extreme greed).</dd>
@@ -893,7 +898,7 @@ const BIG_TF={'1w':604800,'1M':2592000};Object.assign(TF_LABEL,{'1w':'1W','1M':'
 const tfSec=tf=>TFS[tf]||BIG_TF[tf]||86400;
 const HOT_MIN_VOL=2e6, SETUP_POOL=60;
 
-const STOCKS=new Set('AAPL MSFT NVDA TSLA AMZN GOOGL GOOG META NFLX AMD INTC COIN MSTR HOOD PLTR BABA ORCL AVGO CRCL GME AMC UBER SHOP PYPL DIS NKE JPM BAC WMT KO PEP MCD IBM CSCO QCOM MU SMCI RIVN LCID SNOW CRM ADBE TSM ASML SPOT ABNB RBLX NIO BIDU PDD SBUX XOM CVX PFE MRNA LLY UNH CRWV CRWD PANW SOFI DJT GLXY BMNR SBET'.split(' '));
+const STOCKS=new Set('AAPL MSFT NVDA TSLA AMZN GOOGL GOOG META NFLX AMD INTC COIN MSTR HOOD PLTR BABA ORCL AVGO CRCL GME AMC UBER SHOP PYPL DIS NKE JPM BAC WMT KO PEP MCD IBM CSCO QCOM MU SMCI RIVN LCID SNOW CRM ADBE TSM ASML SPOT ABNB RBLX NIO BIDU PDD SBUX XOM CVX PFE MRNA LLY UNH CRWV CRWD PANW SOFI DJT GLXY BMNR SBET SNDK'.split(' '));
 const COMMOD=new Set('XAU XAG XPT XPD COPPER WTI BRENT NATGAS PAXG XAUT'.split(' '));
 const INDEX=new Set('SPY QQQ NDX NAS100 US500 US30 US100 DJI RUT IWM DAX GER40 HSI N225 JP225 UK100 VIX DXY SP500'.split(' '));
 const FX=new Set('EUR GBP JPY AUD CAD CHF NZD MXN BRL'.split(' '));
@@ -907,7 +912,7 @@ const NAMES={BTC:'Bitcoin',ETH:'Ethereum',SOL:'Solana',XRP:'XRP',BNB:'BNB',DOGE:
   SEI:'Sei',TIA:'Celestia',ONDO:'Ondo',JUP:'Jupiter',PYTH:'Pyth',STX:'Stacks',FLOKI:'Floki',BTW:'Bitway',
   XAU:'Gold',XAG:'Silver',XPT:'Platinum',XPD:'Palladium',WTI:'Crude oil (WTI)',BRENT:'Brent crude',NATGAS:'Natural gas',COPPER:'Copper',
   US500:'S&P 500',SP500:'S&P 500',SPY:'S&P 500 ETF',QQQ:'Nasdaq 100 ETF',NAS100:'Nasdaq 100',US100:'Nasdaq 100',US30:'Dow Jones 30',
-  TSLA:'Tesla',NVDA:'Nvidia',AAPL:'Apple',MSFT:'Microsoft',AMZN:'Amazon',GOOGL:'Alphabet',GOOG:'Alphabet',META:'Meta',COIN:'Coinbase',MSTR:'Strategy',HOOD:'Robinhood',PLTR:'Palantir',AMD:'AMD',NFLX:'Netflix',CRCL:'Circle',INTC:'Intel',
+  TSLA:'Tesla',NVDA:'Nvidia',AAPL:'Apple',MSFT:'Microsoft',AMZN:'Amazon',GOOGL:'Alphabet',GOOG:'Alphabet',META:'Meta',COIN:'Coinbase',MSTR:'Strategy',HOOD:'Robinhood',PLTR:'Palantir',AMD:'AMD',NFLX:'Netflix',CRCL:'Circle',INTC:'Intel',SNDK:'Sandisk',
   EUR:'Euro',GBP:'British pound',JPY:'Japanese yen'};
 
 const state={
@@ -923,7 +928,8 @@ state.big=null;   // '1w' or '1M' while the chart shows weekly/monthly candles; 
 function ctf(){return state.big||state.tf}
 if(!state.ind||typeof state.ind!=='object')state.ind={ema:false,bb:true,st:true,vol:true,marks:true};
 if(typeof state.ind.fib!=='boolean')state.ind.fib=true;   // Fibonacci levels (added 25 Oct 2026) start switched on
-if(typeof state.ind.sr!=='boolean')state.ind.sr=true;     // support and resistance (added 2 Nov 2026) start switched on
+if(typeof state.ind.sr!=='boolean')state.ind.sr=true;
+if(typeof state.ind.w200!=='boolean')state.ind.w200=true;   // 200-week EMA (added 4 Nov 2026) starts switched on     // support and resistance (added 2 Nov 2026) start switched on
 if(state.view!=='all'&&!EX[state.view])state.view='all';
 if(!(MKT_CATS.includes(state.cat)||PAGES.includes(state.cat)))state.cat='setups';
 state.mcat=LS.get('mcat','hot');if(!MKT_CATS.includes(state.mcat))state.mcat='hot';
@@ -1077,6 +1083,17 @@ function range24(cs){
   if(!Array.isArray(cs)||!cs.length)return null;const end=cs[cs.length-1].time;let hi=-Infinity,lo=Infinity;
   for(const k of cs)if(k.time>end-86400){if(k.high>hi)hi=k.high;if(k.low<lo)lo=k.low}
   return lo>0&&isFinite(hi)?hi/lo-1:null;
+}
+// company profiles for stock futures (owner request, 4 Nov 2026): listing exchange (N = Nasdaq, Y = NYSE) and a short
+// description written for the app; listings checked 4 Nov 2026 (Walmart and Shopify moved to Nasdaq in 2025, BitMine to the NYSE in 2026)
+const CO={AAPL:["N", "Makes the iPhone, Mac, iPad and Apple Watch, and sells services such as the App Store, iCloud and Apple Music. Based in Cupertino, California."],MSFT:["N", "Software and cloud company behind Windows, Microsoft 365 (Office), the Azure cloud, LinkedIn and Xbox. Based in Redmond, Washington."],NVDA:["N", "Designs graphics chips (GPUs), used for gaming and above all for AI data centres. Based in Santa Clara, California."],TSLA:["N", "Makes electric cars, batteries and solar products, and works on self-driving software and robots. Based in Austin, Texas."],AMZN:["N", "Runs the Amazon online store and the AWS cloud business, plus advertising, Prime Video and devices such as Alexa. Based in Seattle, Washington."],GOOGL:["N", "Alphabet, Google's parent company: Search, YouTube, Android, Google Cloud and Waymo self-driving cars. GOOGL shares carry voting rights. Based in Mountain View, California."],GOOG:["N", "Alphabet, Google's parent company: Search, YouTube, Android, Google Cloud and Waymo self-driving cars. GOOG shares have no voting rights. Based in Mountain View, California."],META:["N", "Owns Facebook, Instagram, WhatsApp and Messenger, earns mostly from advertising, and builds VR and smart-glasses devices. Based in Menlo Park, California."],NFLX:["N", "Streaming service for films and series, with paid and ad-supported plans around the world. Based in Los Gatos, California."],AMD:["N", "Designs processors (CPUs) and graphics and AI chips for PCs, game consoles and data centres. Based in Santa Clara, California."],INTC:["N", "Makes processors for PCs and servers and runs its own chip factories, including a contract manufacturing business (Intel Foundry). Based in Santa Clara, California."],COIN:["N", "Coinbase, the largest US crypto exchange, also offering custody and its own Base blockchain. Its results tend to follow crypto prices."],MSTR:["N", "Strategy (formerly MicroStrategy): a business-software company best known for holding a very large amount of bitcoin, so its shares move strongly with bitcoin. Based in Tysons, Virginia."],HOOD:["N", "Robinhood: a trading app for stocks, options and crypto. Based in Menlo Park, California."],PLTR:["N", "Palantir: data-analysis and AI software for governments, militaries and large companies."],BABA:["Y", "Alibaba: China's largest e-commerce group (Taobao, Tmall) with a large cloud business. US shares (ADRs) of a company based in Hangzhou, China."],ORCL:["Y", "Oracle: database and business software, plus a fast-growing cloud business that rents out AI computing power."],AVGO:["N", "Broadcom: chips for networking, phones and custom AI processors, plus business software (VMware). Based in Palo Alto, California."],CRCL:["Y", "Circle: issues the USDC stablecoin and earns mostly from interest on the reserves that back it. Based in New York."],GME:["Y", "GameStop: video-game and collectibles retailer, known for big 'meme stock' swings; also holds some bitcoin. Based in Grapevine, Texas."],AMC:["Y", "AMC Entertainment: the world's largest cinema chain and a well-known 'meme stock'. Based in Leawood, Kansas."],UBER:["Y", "Uber: ride-hailing, Uber Eats food delivery and freight. Based in San Francisco, California."],SHOP:["N", "Shopify: software that lets businesses run online stores and take payments. Moved its US listing from the NYSE to Nasdaq in 2025 and is also listed in Toronto. Based in Ottawa, Canada."],PYPL:["N", "PayPal: online payments, including PayPal checkout and the Venmo app. Based in San Jose, California."],DIS:["Y", "Disney: films and studios (Marvel, Pixar, Star Wars), theme parks, ESPN and the Disney+ streaming service. Based in Burbank, California."],NKE:["Y", "Nike: the world's largest sportswear and sneaker company. Based in Beaverton, Oregon."],JPM:["Y", "JPMorgan Chase: the largest US bank, in consumer banking, investment banking and asset management. Based in New York."],BAC:["Y", "Bank of America: one of the largest US banks, plus Merrill wealth management. Based in Charlotte, North Carolina."],WMT:["N", "Walmart: the world's largest retailer by sales, with Walmart stores, Sam's Club and a growing online business. Moved its listing from the NYSE to Nasdaq in December 2025. Based in Bentonville, Arkansas."],KO:["Y", "Coca-Cola: soft drinks and other beverages sold in more than 200 countries. Based in Atlanta, Georgia."],PEP:["N", "PepsiCo: drinks (Pepsi, Gatorade) and snacks (Lay's, Doritos, Quaker). Based in Purchase, New York."],MCD:["Y", "McDonald's: the largest fast-food chain, with restaurants mostly run by franchisees. Based in Chicago, Illinois."],IBM:["Y", "IBM: business software, hybrid cloud, consulting and mainframe computers; also works on quantum computing. Based in Armonk, New York."],CSCO:["N", "Cisco: networking equipment (routers, switches) and security software. Based in San Jose, California."],QCOM:["N", "Qualcomm: chips and patents for smartphones (Snapdragon), cars and PCs. Based in San Diego, California."],MU:["N", "Micron: memory chips, including DRAM, high-bandwidth memory for AI and flash storage. Based in Boise, Idaho."],SMCI:["N", "Super Micro Computer: builds servers and server racks, many of them for AI data centres. Based in San Jose, California."],RIVN:["N", "Rivian: electric pickups, SUVs and delivery vans. Based in Irvine, California."],LCID:["N", "Lucid: luxury electric cars (the Air sedan and Gravity SUV). Based in Newark, California."],SNOW:["Y", "Snowflake: cloud data-storage and analytics platform for companies. Based in Bozeman, Montana."],CRM:["Y", "Salesforce: customer-management (CRM) software, Slack and AI agents for businesses. Based in San Francisco, California."],ADBE:["N", "Adobe: creative and document software such as Photoshop, Premiere and Acrobat (PDF). Based in San Jose, California."],TSM:["Y", "TSMC: the world's largest contract chip maker, producing chips for Apple, Nvidia and many others. US shares (ADRs) of a company based in Hsinchu, Taiwan."],ASML:["N", "ASML: makes the lithography machines used to print the most advanced chips, and is the only maker of EUV machines. US-listed shares of a company based in Veldhoven, the Netherlands."],SPOT:["Y", "Spotify: music, podcast and audiobook streaming with free and paid plans. Based in Stockholm, Sweden."],ABNB:["N", "Airbnb: app for booking short-term stays and experiences from hosts. Based in San Francisco, California."],RBLX:["Y", "Roblox: online platform where users create and play games, popular with young players. Based in San Mateo, California."],NIO:["Y", "NIO: Chinese electric-car maker known for its battery-swap stations. US shares (ADRs) of a company based in Shanghai, China."],BIDU:["N", "Baidu: China's main search engine, plus AI and self-driving taxis (Apollo Go). US shares (ADRs) of a company based in Beijing, China."],PDD:["N", "PDD Holdings: runs the Pinduoduo shopping app in China and Temu abroad. US shares (ADRs); headquarters in Dublin, Ireland."],SBUX:["N", "Starbucks: the largest coffee-shop chain. Based in Seattle, Washington."],XOM:["Y", "ExxonMobil: the largest US oil and gas company; its shares often follow oil prices. Based near Houston, Texas."],CVX:["Y", "Chevron: oil and gas production and refining; its shares often follow oil prices. Based in Houston, Texas."],PFE:["Y", "Pfizer: large maker of medicines and vaccines. Based in New York."],MRNA:["N", "Moderna: mRNA vaccines and medicines, best known for its COVID-19 vaccine. Based in Cambridge, Massachusetts."],LLY:["Y", "Eli Lilly: drug maker behind the weight-loss and diabetes medicines Zepbound and Mounjaro. Based in Indianapolis, Indiana."],UNH:["Y", "UnitedHealth Group: the largest US health insurer, plus Optum health services. Based in Minnesota."],CRWV:["N", "CoreWeave: rents out cloud computing built on Nvidia chips to AI companies. Based in Livingston, New Jersey."],CRWD:["N", "CrowdStrike: cybersecurity software that protects company computers and cloud systems. Based in Austin, Texas."],PANW:["N", "Palo Alto Networks: cybersecurity firewalls and security software. Based in Santa Clara, California."],SOFI:["N", "SoFi Technologies: online bank offering loans, savings, investing and crypto. Based in San Francisco, California."],DJT:["N", "Trump Media & Technology Group: runs the Truth Social app and holds bitcoin. Based in Sarasota, Florida."],GLXY:["N", "Galaxy Digital: crypto trading, asset management and data-centre company; also listed in Toronto. Based in New York."],BMNR:["Y", "BitMine Immersion Technologies: holds a large treasury of ether (ETH), so its shares move strongly with ether. Moved up from NYSE American to the NYSE in April 2026. Based in Las Vegas, Nevada."],SBET:["N", "SharpLink: holds ether (ETH) as its main treasury asset, so its shares move strongly with ether."],SNDK:["N", "Sandisk: flash memory and storage (SSDs, memory cards), spun off from Western Digital in February 2025. Based in Milpitas, California."]};
+const CO_EX={N:['Nasdaq','https://www.nasdaq.com/market-activity/stocks/'],Y:['NYSE','https://www.nyse.com/quote/XNYS:']};
+// US regular stock-market hours, 9:30am-4pm New York time, Monday-Friday (holidays not counted). ms: a timestamp.
+function usMarket(ms){
+  const parts=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',weekday:'short',hour:'numeric',minute:'numeric',hour12:false}).formatToParts(new Date(ms));
+  const get=t=>(parts.find(p=>p.type===t)||{}).value,wd=get('weekday'),m=(+get('hour')%24)*60+(+get('minute'));
+  const weekday=!['Sat','Sun'].includes(wd),open=weekday&&m>=570&&m<960;
+  return{open,pre:weekday&&m<570,wd};
 }
 function typeTag(c){if(c.has('stocks'))return 'Stock';if(c.has('tradfi'))return 'TradFi';if(c.has('meme'))return 'Meme';if(c.has('ai'))return 'AI';return 'Crypto'}
 
@@ -1568,6 +1585,17 @@ const BELL='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-wi
 function saveAlerts(){LS.set('alerts',state.alerts);renderBell();if(state.cat==='watch')renderList()}
 function alertsFor(key){return state.alerts.filter(a=>a.k===key)}
 function gPrice(key){const g=state.gByKey.get(key);return g&&g.price>0?g.price:null}
+function renderCo(g){
+  const el=document.getElementById('coBox');if(!el)return;const sym=g.cats.has('stocks')?(stockRoot(g.root)||g.root):null,c=sym&&CO[sym];
+  if(!sym){el.hidden=true;el.innerHTML='';return}
+  const ex=c&&CO_EX[c[0]],mk=usMarket(NOW());
+  const hours=`The stock itself trades${ex?' on '+ex[0]:''} Monday to Friday, 9:30am–4pm New York time (US holidays excluded) and is <b>${mk.open?'open now':'closed now'}</b>. This futures contract trades around the clock, so its price can jump when the stock market opens.`;
+  el.innerHTML=`<div class="co-h"><b>${esc(NAMES[sym]||g.name||sym)}</b>${ex?`<span class="tag co-ex">${ex[0]}: ${esc(sym)}</span>`:''}</div>
+    ${c?`<p>${esc(c[1])}</p>`:'<p class="muted">No company description in the app for this one yet.</p>'}
+    <p class="co-hrs">${hours}</p>
+    <p class="co-links">${ex?`<a href="${ex[1]+(c[0]==='N'?sym.toLowerCase():sym)}" target="_blank" rel="noopener">${ex[0]} quote page</a> · `:''}<a href="${esc(edgarURL(sym,''))}" target="_blank" rel="noopener">SEC filings</a></p>`;
+  el.hidden=false;
+}
 function renderBell(){const b=document.getElementById('dBell');if(!b||!state.selected)return;b.innerHTML=BELL;
   const n=alertsFor(state.selected).filter(a=>a.hit==null).length;b.setAttribute('aria-pressed',n>0);b.setAttribute('aria-label',n?`Price alerts for this market (${n} set)`:'Set a price alert for this market')}
 function alertLine(a){const w=a.d>0?'rises to':'falls to';return a.hit!=null?`Reached ${fmtUsd(a.p)}${a.away?' while you were away':''}`:`When price ${w} <b>${fmtUsd(a.p)}</b>`}
@@ -2089,6 +2117,18 @@ function alertTouched(a,cs){
   if(a.hit!=null||!cs)return null;
   for(const k of cs){if(k.time*1000<a.t)continue;if(a.d>0?k.high>=a.p:k.low<=a.p)return{at:k.time*1000,p:a.p}}
   return null;
+}
+/* 200-week EMA (owner request, 4 Nov 2026), drawn on every candle size. weekly: weekly candles, oldest first. On the 1W
+   chart each candle uses the EMA including its own week; on other sizes a candle uses the EMA as of the last completed
+   week, so the line never uses a weekly close that hadn't happened yet. Needs 200 weeks of history. */
+function w200Series(weekly){
+  if(!weekly||weekly.length<200)return null;const v=ema(weekly.map(k=>k.close),200),t=weekly.map(k=>k.time);
+  return{t,v,idx:new Map(t.map((x,i)=>[x,i]))};
+}
+function w200At(W,time,own){
+  if(!W)return null;const ws=barStart('1w',time);let i=W.idx.get(ws);
+  if(i==null){let lo=0,hi=W.t.length-1;i=-1;while(lo<=hi){const m=(lo+hi)>>1;if(W.t[m]<ws){i=m;lo=m+1}else hi=m-1}own=true}   // week missing: last earlier week
+  const j=own?i:i-1;return j>=0&&W.v[j]!=null?W.v[j]:null;
 }
 // which part of the last move price is in (used for wording and for the backtest's buckets)
 
@@ -2914,7 +2954,7 @@ function ensureCharts(){
   const line=(ch,color,w,extra)=>ch.addLineSeries(Object.assign({color,lineWidth:w||1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false},extra||{}));
   const c={main,rs,md,
     bbU:line(main,bbc,1),bbL:line(main,bbc,1),bbM:line(main,css('--up'),1,{lineStyle:0}),
-    e200:line(main,css('--c3'),2),e50:line(main,css('--c2'),2),e20:line(main,css('--c1'),2),stU:line(main,up,2),stD:line(main,dn,2),plines:[],flines:[]};
+    w200:line(main,css('--c3'),3,{lineStyle:2,autoscaleInfoProvider:()=>null}),e200:line(main,css('--c3'),2),e50:line(main,css('--c2'),2),e20:line(main,css('--c1'),2),stU:line(main,up,2),stD:line(main,dn,2),plines:[],flines:[]};
   c.candle=main.addCandlestickSeries({upColor:up,downColor:dn,borderUpColor:up,borderDownColor:dn,wickUpColor:up,wickDownColor:dn});
   c.vol=main.addHistogramSeries({priceScaleId:'vol',priceFormat:{type:'volume'},lastValueVisible:false,priceLineVisible:false});
   main.priceScale('vol').applyOptions({scaleMargins:{top:0.82,bottom:0}});
@@ -2951,6 +2991,8 @@ function draw(keep){
   ch.bbU.setData(ser(S?S.bb.up:blank));ch.bbL.setData(ser(S?S.bb.lo:blank));ch.bbM.setData(ser(S?S.bb.mid:blank));
   ch.stU.setData(ser(S?S.st.line.map((v,i)=>S.st.dir[i]===1?v:null):blank));
   ch.stD.setData(ser(S?S.st.line.map((v,i)=>S.st.dir[i]===-1?v:null):blank));
+  const own=ctf()==='1w',W=current.w200&&current.w200.W;current.w200v=W?cs.map(k=>w200At(W,k.time,own)):null;
+  ch.w200.setData(ser(current.w200v||blank));
   ch.r6.setData(ser(S?S.r6:blank));ch.r12.setData(ser(S?S.r12:blank));ch.r24.setData(ser(S?S.r24:blank));
   const h=S?S.M.h:blank;
   ch.mh.setData(h.map((v,i)=>v==null?{time:T[i]}:{time:T[i],value:v,color:v>=0?(h[i-1]!=null&&v<h[i-1]?hexA(up,.45):up):(h[i-1]!=null&&v>h[i-1]?hexA(dn,.45):dn)}));
@@ -2995,6 +3037,7 @@ function applyToggles(){
   [charts.bbU,charts.bbL,charts.bbM].forEach(s=>s.applyOptions({visible:!!i.bb}));
   [charts.stU,charts.stD].forEach(s=>s.applyOptions({visible:!!i.st}));
   charts.vol.applyOptions({visible:!!i.vol});
+  charts.w200.applyOptions({visible:!!i.w200});
   const mk=(i.marks&&current&&current.marks?current.marks:[]).concat(current&&current.simMarks?current.simMarks:[]).sort((a,b)=>a.time-b.time);
   charts.candle.setMarkers(mk);
 }
@@ -3002,6 +3045,7 @@ function renderLegend(idx){
   if(!current)return;const {cs,an}=current;const i=idx==null?cs.length-1:idx;const k=cs[i];if(!k)return;
   const S=an&&an.series,c=k.close>=k.open?'up':'down',f=v=>v==null?'—':fmtPrice(v),f2=v=>v==null?'—':v.toFixed(2);
   const parts=[`<span>O <b>${f(k.open)}</b></span><span>H <b>${f(k.high)}</b></span><span>L <b>${f(k.low)}</b></span><span>C <b class="${c}">${f(k.close)}</b></span>`];
+  if(state.ind.w200&&current.w200){const v=current.w200v&&current.w200v[i];parts.push(v!=null?`<span style="color:var(--c3)">EMA 200W <b>${f(v)}</b> (price ${fmtPct((k.close/v-1)*100)})</span>`:`<span style="color:var(--muted)">EMA 200W: ${current.w200.n<200?`needs 200 weeks of history (${current.w200.n} so far)`:'—'}</span>`)}
   if(S&&state.ind.bb)parts.push(`<span style="color:var(--bb)">BOLL(20,2) UB <b>${f(S.bb.up[i])}</b> MB <b style="color:var(--up)">${f(S.bb.mid[i])}</b> LB <b>${f(S.bb.lo[i])}</b></span>`);
   if(S&&state.ind.st&&S.st.line[i]!=null)parts.push(`<span style="color:var(--${S.st.dir[i]>0?'up':'down'})">SuperTrend(10,3) <b style="color:inherit">${f(S.st.line[i])}</b></span>`);
   if(S&&state.ind.ema)[['EMA20','--c1',S.e20],['EMA50','--c2',S.e50],['EMA200','--c3',S.e200]].forEach(([n,v,a])=>{if(a[i]!=null)parts.push(`<span class="k"><i style="background:var(${v})"></i>${n} <b>${f(a[i])}</b></span>`)});
@@ -3013,7 +3057,7 @@ function renderLegend(idx){
   }else{$('#rsiLegend').innerHTML='<span>RSI 6 / 12 / 24</span>';$('#macdLegend').innerHTML='<span>MACD(12,26,9)</span>'}
 }
 function renderToggles(){
-  const T=[['bb','Bollinger','--bb'],['st','Supertrend','--up'],['marks','B/S marks','--accent'],['sr','Support/Resistance','--up'],['fib','Fibonacci','--c4'],['ema','EMA 20/50/200','--c2'],['vol','Volume','--muted']];
+  const T=[['bb','Bollinger','--bb'],['st','Supertrend','--up'],['marks','B/S marks','--accent'],['sr','Support/Resistance','--up'],['w200','200W EMA','--c3'],['fib','Fibonacci','--c4'],['ema','EMA 20/50/200','--c2'],['vol','Volume','--muted']];
   $('#toggles').innerHTML=T.map(([k,l,c])=>`<button class="chip" data-ind="${k}" aria-pressed="${!!state.ind[k]}"><i style="background:var(${c})"></i>${l}</button>`).join('');
 }
 
@@ -3033,7 +3077,7 @@ function refreshDetailHead(){
   $('#dPrice').textContent=fmtUsd(p.unitPrice);
   const c=$('#dChg');c.className='pill '+pctCls(p.chg);c.textContent=fmtPct(p.chg)+' 24h';
   $('#dSrc').textContent='on '+EX[p.ex].name;
-  const st=$('#dStar');st.innerHTML=STAR;st.setAttribute('aria-pressed',state.watch.has(g.key));renderBell();
+  const st=$('#dStar');st.innerHTML=STAR;st.setAttribute('aria-pressed',state.watch.has(g.key));renderBell();renderCo(g);
   const box=$('#venueBox');
   if(g.members.length>1){
     box.innerHTML=`<div class="card"><h3>Where it trades</h3><div class="vtable"><table><thead><tr><th>Exchange</th><th>Price</th><th>24h</th><th>Volume</th><th>Funding</th></tr></thead><tbody>${
@@ -3122,7 +3166,7 @@ async function openGroup(key,quiet,cid){
     try{const cs=await getCandles(p,tf);if(tok!==loadToken)return;const an=analyze(cs);
       if(!an){current=null;msg.textContent=cs.length<2?'No price history for this market on '+TF_LABEL[tf]+' candles.':`Only ${plural(cs.length,TF_LABEL[tf]+' candle')} of history so far; the chart needs at least 35. A shorter candle size will work.`;$('#sigCard').innerHTML='';$('#signals').innerHTML='';$('#fibBox').hidden=true;$('#srBox').hidden=true;return}
       current={p,cs,an,rc:null,han:null,big:tf};msg.hidden=true;
-      renderBigSignal(an,tf);renderTrendDetails(an);loadMTF(p,g,tok);loadBook(p,tok);
+      renderBigSignal(an,tf);renderTrendDetails(an);loadMTF(p,g,tok);loadBook(p,tok);loadW200(p,tok);
       requestAnimationFrame(()=>{try{draw();startChartFeed(p,tf)}catch(e){recordErr('chart',e);msg.hidden=false;msg.textContent='The chart hit a snag. Tap a candle size to try again.'}});
     }catch(e){if(tok!==loadToken)return;msg.hidden=false;msg.textContent=`Couldn't load ${TF_LABEL[tf]} candles from ${EX[p.ex].name}. Tap a candle size to try again.`;$('#sigCard').innerHTML=''}
     return}
@@ -3132,7 +3176,7 @@ async function openGroup(key,quiet,cid){
     current={p,cs:r.cs,an:r.an,rc:r.rc,han:r.han};
     if(p.id===g.primary.id)state.trend.set(p.id+'|'+state.tf,{score:r.an.score,rec:r.rc.rec,conf:r.rc.conf,dir:r.rc.dir});
     msg.hidden=true;
-    renderSignal(r.rc);renderTrendDetails(r.an);loadMTF(p,g,tok);loadBook(p,tok);
+    renderSignal(r.rc);renderTrendDetails(r.an);loadMTF(p,g,tok);loadBook(p,tok);loadW200(p,tok);
     requestAnimationFrame(()=>{try{draw();updateRow(g.key);startChartFeed(p,state.tf)}catch(e){recordErr('chart',e);msg.hidden=false;msg.textContent='The chart hit a snag. Tap a candle size to try again.'}});
   }catch(e){if(tok!==loadToken)return;msg.hidden=false;
     const net=e&&(e.name==='AbortError'||/HTTP|fetch|network|load failed|No data|No candles/i.test(String(e.message||e)));
@@ -3231,6 +3275,11 @@ function renderSR(){
 function renderFib(){
   const el=$('#fibBox');if(!el)return;const f=current&&current.fib;
   el.hidden=!f;el.innerHTML=f?fibHTML(f,ctf()):'';
+}
+async function loadW200(p,tok){
+  let wk=null;try{wk=await getCandles(p,'1w')}catch(e){}
+  if(tok!==loadToken||!current||current.p!==p)return;
+  current.w200={W:w200Series(wk),n:wk?wk.length:0};if(charts)draw(true);else renderLegend(null);
 }
 async function loadMTF(p,g,tok){
   current.mtf={};current.cf=null;renderMTF();

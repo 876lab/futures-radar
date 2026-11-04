@@ -93,6 +93,8 @@ The working plan for nightly improvement runs. Each run picks the **first unchec
 - [ ] **Unusual activity scanner.** A section (inside Hot) for volume spikes vs the 20-candle average and sudden moves in the last hour.
 - [ ] **Trading sessions and liquidity.** Show the current session (Asia / London / New York) and warn in thin hours and weekends.
 - [x] **Price alerts (owner request, 3 Nov 2026).** Bell on every chart, banner + chime while open, closed-app check from 1-hour candles on opening, list on Starred.
+- [x] **Company card for stocks + 200W EMA line (owner request, 4 Nov 2026).**
+- [ ] **Company card follow-ups (small).** Re-check listings now and then (companies keep moving from the NYSE to Nasdaq); add US market holidays and early closes from an official calendar; next earnings date once a data route exists (the filings follow-up).
 - [ ] **Signal alerts while the app is open.** Same banner when a starred market's chart reading turns to Long/Short setup, or price reaches its nearest support/resistance. Builds on the price alerts.
 - [ ] **Push notifications (parked by the owner, 22 Oct 2026; do not pick up unless he asks).** He uses an iPhone. Plan discussed: (1) make the app a proper Home Screen app (icon + manifest); (2) in-app alerts while open (iPhone Safari can't vibrate); (3) background Web Push from a GitHub job checking Gate every 5–15 min. Step 3 needs his OK for a signing key as a GitHub secret, the app added to the Home Screen (iOS 16.4+), and a way for the job to know his starred markets (depends on the login decision). Free alternative: the ntfy app.
 - [x] **Company earnings filings (owner request, 28 Oct 2026).** News page card with SEC EDGAR links (8-K, 10-Q, 10-K, all) per ticker; SOFI and GOOGL to start.

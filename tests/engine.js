@@ -118,6 +118,22 @@ ok(cl.length===3&&cl[0].id===up.id&&cl[2].id!==up.id&&!cl[2].id.includes('<')&&c
 ok(alertFar(132.9,1133.5)&&!alertFar(40,36.5)&&!alertFar(74900,76706)&&!alertFar(0,10),'alerts: far from price (over 25%) is flagged');
 ok(alertTypo(132.9,1133.5)[0]===1132.9&&alertTypo(7490,76706).join()==='77490,74900'&&alertTypo(767060,76806)[0]===76706&&alertTypo(1.85,0.1855)[0]===0.185&&alertTypo(11133.5,1135)[0]===1133.5&&!alertTypo(11335,1133.5).length,'alerts: typo suggestions (missing digit, extra digit, decimal point)');
 ok(!alertTypo(40,36.5).length&&!alertTypo(5,36.5).length&&!alertTypo(0,1).length,'alerts: no suggestion when nothing lands near the price');
+// company profiles for stock futures and US market hours
+{const miss=[...STOCKS].filter(t=>!CO[t]||!CO_EX[CO[t][0]]||typeof CO[t][1]!=='string');
+ok(!miss.length,'company profiles: every stock has an exchange and description (missing: '+miss.join(' ')+')');
+ok(Object.values(CO).every(c=>c[1].length>=30&&c[1].length<=260&&!/\b(buy|sell|undervalued|cheap|should)\b/i.test(c[1])),'company profiles: short, factual wording');
+ok(CO.WMT[0]==='N'&&CO.SHOP[0]==='N'&&CO.BMNR[0]==='Y'&&CO.INTC[0]==='N'&&CO.JPM[0]==='Y'&&CO.PLTR[0]==='N','company profiles: listings checked 4 Nov 2026');
+const ny=(y,m,d,h,mi)=>Date.UTC(y,m,d,h+5,mi);   // November: New York is UTC-5
+ok(usMarket(ny(2026,10,4,10,0)).open&&!usMarket(ny(2026,10,4,9,29)).open&&usMarket(ny(2026,10,4,9,30)).open&&!usMarket(ny(2026,10,4,16,0)).open,'US market hours: 9:30am to 4pm New York time');
+ok(!usMarket(ny(2026,10,7,12,0)).open&&!usMarket(ny(2026,10,8,12,0)).open,'US market hours: closed at weekends');
+ok(usMarket(Date.UTC(2026,6,1,13,45)).open&&!usMarket(Date.UTC(2026,6,1,20,30)).open,'US market hours follow New York summer time');}
+// 200-week EMA lookup: own week on the 1W chart, last completed week elsewhere
+{const W0=Date.UTC(2021,0,4)/1000,wk=Array.from({length:260},(_,i)=>({time:W0+i*604800,open:100+i,high:101+i,low:99+i,close:100+i,volume:1}));
+ok(w200Series(wk.slice(0,199))===null,'200W EMA: needs 200 weeks');
+const W=w200Series(wk),last=wk[259].time,e=ema(wk.map(k=>k.close),200);
+ok(Math.abs(w200At(W,last,true)-e[259])<1e-9&&Math.abs(w200At(W,last+3*86400,false)-e[258])<1e-9&&Math.abs(w200At(W,last+3*86400+3600,false)-e[258])<1e-9,'200W EMA: 1W uses its own week, smaller candles use the last completed week');
+ok(w200At(W,wk[199].time,false)===null&&w200At(W,wk[200].time+60,false)===e[199],'200W EMA: nothing before the first full 200 weeks');
+ok(w200At(W,last+30*86400,false)===e[259],'200W EMA: after the last weekly candle, the latest value');}
 // public track record: cleaning and stats (losses and unscored records kept, junk dropped)
 {const rec=(o)=>Object.assign({m:'BTC',tf:'1h',dir:1,conf:72,confirmed:true,t0:Date.UTC(2026,9,27)/1000,entry:100,stop:98,how:'stop',r:-1.02,reach:false,t1:Date.UTC(2026,9,27,5)/1000},o);
 const raw={start:1,updated:2,source:'Gate',markets:['BTC'],open:[rec({how:undefined}),{m:'X'}],closed:[rec(),rec({how:'target',r:2.1,reach:true,dir:-1,stop:102,confirmed:false}),

@@ -160,6 +160,24 @@ const a={f:'4H only, confirmed',e:'x',n:600,avgR:0.05,older:0.02,newer:0.08,nOld
 const L=cleanLab({rows:[base,a,b,c,{f:'bad'}],div:{'1h':{n:10,turn:0.6},'15m':{n:1,turn:1}},flip:{},base:{},divGroup:[]});
 const P=labPicks(L,200);ok(L.rows.length===4&&P.base&&P.picks.length===1&&P.picks[0].f==='4H only, confirmed'&&!L.div['15m'],'lab: only ideas better on both halves with enough trades are picked');
 ok(cleanLab(null)===null&&cleanLab({rows:[]})===null,'lab: missing or empty');}
+// hidden divergence and stop-hunts (information only)
+{const H=3600,mk=arr=>arr.map((m,i)=>({time:i*H,open:m,high:m+0.5,low:m-0.5,close:m,volume:1}));
+// uptrend pullbacks: lows at i=10 (100) and i=30 (103, a higher low) while RSI lows go 40 -> 34: hidden bullish
+const pr=[],rs=[];for(let i=0;i<45;i++){const d1=Math.abs(i-10),d2=Math.abs(i-30);pr.push(i<20?100+Math.min(d1,10)*0.8:103+Math.min(d2,10)*0.8);rs.push(i<20?40+Math.min(d1,10)*2:34+Math.min(d2,10)*2.5)}
+const cs=mk(pr),e50=pr.map(()=>95),d=rsiDivergences(cs,rs,0,e50),hd=d.filter(x=>x.kind==='hidden');
+ok(hd.length===1&&hd[0].dir===1&&hd[0].a.i===10&&hd[0].b.i===30&&hd[0].at===33,'hidden divergence: higher low with lower RSI low in an uptrend ('+JSON.stringify(d.map(x=>[x.kind,x.dir,x.a.i,x.b.i]))+')');
+ok(rsiDivergences(cs,rs,0,pr.map(()=>110)).filter(x=>x.kind==='hidden').length===0&&rsiDivergences(cs,rs,0).filter(x=>x.kind==='hidden').length===0,'hidden divergence: only with price above its 50-candle average (and only when it is passed)');
+ok(divAt(d,40,20)===null&&divAt(d,40,20,'hidden')===hd[0],'divAt keeps regular and hidden apart');
+// stop-hunt: swing high 110 at i=10, closes stay below it, then i=30 spikes to 111 and closes at 107
+const c=[];for(let i=0;i<40;i++){const m=i===10?109:104+Math.sin(i)*1.5;c.push({time:i*H,open:m,high:i===10?110:m+0.6,low:m-0.6,close:m,volume:1})}
+c[30]={time:30*H,open:106,high:111,low:105.5,close:107,volume:1};const atr=c.map(()=>2);
+const h=stopHunts(c,atr,0),bear=h.filter(x=>x.dir<0);
+ok(bear.length===1&&bear[0].i===30&&bear[0].level===110&&bear[0].j===10&&bear[0].ext===111,'stop-hunt: wick above a swing high that closes back below ('+JSON.stringify(h)+')');
+const c2=c.map(k=>({...k}));c2[30]={...c2[30],close:110.5};ok(stopHunts(c2,atr,0).filter(x=>x.dir<0).length===0,'stop-hunt: a close above the high is a breakout, not a hunt');
+const c3=c.map(k=>({...k}));c3[20]={...c3[20],close:110.2,high:110.4};{const h3=stopHunts(c3,atr,0).filter(x=>x.dir<0);ok(!h3.some(x=>x.level===110)&&h3.some(x=>x.level===110.4),'stop-hunt: a level already closed past is not reused (the newer swing high is)')}
+const c4=c.map(k=>({...k}));c4[30]={...c4[30],high:110.2};ok(stopHunts(c4,atr,0).filter(x=>x.dir<0).length===0,'stop-hunt: needs a wick at least 0.15 ATR past the level');
+let same=true;for(const L of [29,30,35]){const a=stopHunts(c.slice(0,L+1),atr.slice(0,L+1),0),b=h.filter(x=>x.at<=L);if(JSON.stringify(a)!==JSON.stringify(b))same=false}
+ok(same,'stop-hunt: no look-ahead');}
 // public track record: cleaning and stats (losses and unscored records kept, junk dropped)
 {const rec=(o)=>Object.assign({m:'BTC',tf:'1h',dir:1,conf:72,confirmed:true,t0:Date.UTC(2026,9,27)/1000,entry:100,stop:98,how:'stop',r:-1.02,reach:false,t1:Date.UTC(2026,9,27,5)/1000},o);
 const raw={start:1,updated:2,source:'Gate',markets:['BTC'],open:[rec({how:undefined}),{m:'X'}],closed:[rec(),rec({how:'target',r:2.1,reach:true,dir:-1,stop:102,confirmed:false}),

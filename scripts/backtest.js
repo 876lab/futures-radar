@@ -63,8 +63,8 @@ function runMarket(m, c) {
   for (const tf of TFS_RUN) {
     const cs = c[tf], hcs = c[HTF[tf]]; if (!cs || cs.length < SIM_WARM + 20) continue;
     const S = computeSeries(cs), step = TFS[tf];
-    const divs = rsiDivergences(cs, S.r12, SIM_WARM);
-    if (tf !== '15m') signalStats(cs, S, divs, tf);
+    const divs = rsiDivergences(cs, S.r12, SIM_WARM, S.e50), hunts = stopHunts(cs, S.at, SIM_WARM);
+    if (tf !== '15m') signalStats(cs, S, divs, tf, hunts);
     const onEntry = (t, x) => {
       const i = x.i, close = cs[i].time + step, price = cs[i].close;
       let hi = -Infinity, lo = Infinity, vol = 0;
@@ -87,9 +87,11 @@ function runMarket(m, c) {
       lab.pb = le && !le.miss ? le.r : null; lab.pbMiss = !!(le && le.miss);
       lab.trail = runExit(cs, S, i + 1, cs[i + 1].open * (1 + t.dir * OPTS.slip), t.dir, cs[i + 1].open * (1 + t.dir * OPTS.slip) - t.dir * R0, { maxHold: OPTS.maxHold, trail: true });
       lab.h48 = sim(R0, { maxHold: 48 });   // entry as a limit (maker) order: 0.02% instead of 0.05% on the way in, exits still 0.05%
-      const dv = divAt(divs, i, 20);
+      const dv = divAt(divs, i, 20), hd = divAt(divs, i, 20, 'hidden');
+      let hn = null; for (let q = hunts.length - 1; q >= 0; q--) { if (hunts[q].at > i) continue; if (i - hunts[q].at <= 5) hn = hunts[q]; break; }
+      const rel = x => x ? (x.dir === t.dir ? 'with' : 'against') : 'none';
       const lt = lightFor(close);
-      out.push({ light: lt, m: m.root, tf, dir: t.dir, conf: t.conf, t0: t.t0, r: +t.r.toFixed(3), reach: t.mfe >= 1.5, how: t.how, bars: t.bars, lab, div: dv ? (dv.dir === t.dir ? 'with' : 'against') : 'none',
+      out.push({ light: lt, m: m.root, tf, dir: t.dir, conf: t.conf, t0: t.t0, r: +t.r.toFixed(3), reach: t.mfe >= 1.5, how: t.how, bars: t.bars, lab, div: rel(dv), hdiv: rel(hd), hunt: rel(hn),
         confirmed: cf.ok, d4h: dirs['4h'], d1d: dirs['1d'], range: range == null ? null : +range.toFixed(4), vol: Math.round(vol),
         adx: x.an.adx == null ? null : +x.an.adx.toFixed(1), score: x.an.score, htf: x.han ? (x.han.score >= 20 ? 1 : x.han.score <= -20 ? -1 : 0) : null,
         r6: r6 == null ? null : +r6.toFixed(1), pctB: up != null && up > lb ? +((price - lb) / (up - lb)).toFixed(3) : null,
@@ -138,9 +140,17 @@ function firstTouch(cs, c, dir, A) {
     if (adv >= A) return 0; if (fav >= A) return 1; }
   return null;
 }
-function signalStats(cs, S, divs, tf) {
-  const g = SIG[tf] = SIG[tf] || { div: [0, 0], flip: [0, 0], base: [0, 0] }, add = (key, v) => { if (v == null) return; g[key][0] += v; g[key][1]++; };
-  for (const d of divs) { const A = S.at[d.at]; if (A > 0) add('div', firstTouch(cs, d.at, d.dir, A)); }
+function signalStats(cs, S, divs, tf, hunts) {
+  const g = SIG[tf] = SIG[tf] || { div: [0, 0], flip: [0, 0], base: [0, 0], hdiv: [0, 0], hunt: [0, 0], divlvl: [0, 0], combo: [0, 0] }, add = (key, v) => { if (v == null) return; g[key][0] += v; g[key][1]++; };
+  for (const d of divs) { const A = S.at[d.at]; if (!(A > 0)) continue; const v = firstTouch(cs, d.at, d.dir, A);
+    if (d.kind === 'hidden') { add('hdiv', v); continue; }
+    add('div', v);
+    // did it form at an existing support/resistance zone? (zones from the candles before its second swing only)
+    const Ab = S.at[d.b.i], sr = Ab > 0 ? srLevels(cs.slice(Math.max(0, d.b.i - 300), d.b.i), Ab) : null;
+    if (sr && [...sr.sup, ...sr.res, ...(sr.at ? [sr.at] : [])].some(z => d.b.p >= z.lo - 0.25 * Ab && d.b.p <= z.hi + 0.25 * Ab)) add('divlvl', v); }
+  for (const h of hunts || []) { const A = S.at[h.at]; if (!(A > 0)) continue; add('hunt', firstTouch(cs, h.at, h.dir, A));
+    const d = divs.find(x => x.kind !== 'hidden' && x.dir === h.dir && Math.abs(x.at - h.at) <= 5 && !x.usedCombo);
+    if (d) { d.usedCombo = true; const k = Math.max(d.at, h.at); if (k < cs.length) add('combo', firstTouch(cs, k, h.dir, S.at[k] || A)); } }
   for (let i = SIM_WARM; i < cs.length - 1; i++) { const a = S.st.dir[i - 1], b = S.st.dir[i], A = S.at[i]; if (!(A > 0)) continue;
     if (a != null && b != null && a !== b) add('flip', firstTouch(cs, i, b, A));
     if (i % 7 === 0) { add('base', firstTouch(cs, i, 1, A)); add('base', firstTouch(cs, i, -1, A)); } }
@@ -157,7 +167,9 @@ const LAB_FILTERS = [['All setups', t => true], ['Confirmed setups (what Setups 
   ['Confirmed, with the 1D trend', t => t.confirmed && t.d1d === t.dir], ['Confirmed, market light calm (amber)', t => t.confirmed && t.light === 'amber'],
   ['Confirmed, market light not stormy', t => t.confirmed && t.light && t.light !== 'purple'], ['Confirmed, skip weekends, with the 1D trend', t => t.confirmed && t.wday !== 0 && t.wday !== 6 && t.d1d === t.dir],
   ['Confirmed, agreement under 70', t => t.confirmed && t.conf < 70], ['Confirmed, price within 1 ATR of its 20-candle average', t => t.confirmed && t.ext != null && Math.abs(t.ext) <= 1],
-  ['Confirmed, no recent divergence against it', t => t.confirmed && t.div !== 'against'], ['Confirmed shorts only', t => t.confirmed && t.dir < 0], ['Confirmed longs only', t => t.confirmed && t.dir > 0]];
+  ['Confirmed, no recent divergence against it', t => t.confirmed && t.div !== 'against'],
+  ['Confirmed, hidden divergence agrees', t => t.confirmed && t.hdiv === 'with'], ['Confirmed, stop-hunt the same way (last 5 candles)', t => t.confirmed && t.hunt === 'with'],
+  ['Confirmed, no stop-hunt against it', t => t.confirmed && t.hunt !== 'against'], ['Confirmed shorts only', t => t.confirmed && t.dir < 0], ['Confirmed longs only', t => t.confirmed && t.dir > 0]];
 function labReport(trades, mid) {
   const rows = [], st = (tr, key) => { const v = tr.map(t => key === 'base' ? t.r : t.lab[key]).filter(x => x != null); if (!v.length) return null;
     return { n: v.length, avgR: +(v.reduce((a, b) => a + b, 0) / v.length).toFixed(4), win: +(v.filter(x => x > 0).length / v.length).toFixed(4) }; };
@@ -165,14 +177,15 @@ function labReport(trades, mid) {
     for (const ek of Object.keys(LAB_EXITS)) { if (ek !== 'base' && !(ek === 'mk' || ek === 'pb' || (['trail', 'h48'].includes(ek) && fk === 'Confirmed, skip weekends') || ['All setups', 'Confirmed setups (what Setups shows)', '1H and 4H, confirmed', '4H only, confirmed'].includes(fk))) continue;
       const a = st(tr, ek), o = st(older, ek), w = st(newer, ek); if (!a) continue;
       rows.push({ f: fk, e: LAB_EXITS[ek], n: a.n, avgR: a.avgR, win: a.win, older: o && o.avgR, newer: w && w.avgR, nOld: o ? o.n : 0, nNew: w ? w.n : 0 }); } }
-  const div = {}, flip = {}, base = {};
-  for (const tf in SIG) { const g = SIG[tf], r = x => x[1] ? { n: x[1], turn: +(x[0] / x[1]).toFixed(4) } : null; div[tf] = r(g.div); flip[tf] = r(g.flip); base[tf] = r(g.base); }
+  const div = {}, flip = {}, base = {}, hdiv = {}, hunt = {}, divlvl = {}, combo = {};
+  for (const tf in SIG) { const g = SIG[tf], r = x => x[1] ? { n: x[1], turn: +(x[0] / x[1]).toFixed(4) } : null; div[tf] = r(g.div); flip[tf] = r(g.flip); base[tf] = r(g.base);
+    hdiv[tf] = r(g.hdiv); hunt[tf] = r(g.hunt); divlvl[tf] = r(g.divlvl); combo[tf] = r(g.combo); }
   const conf = trades.filter(t => t.confirmed), pbFill = conf.length ? +(conf.filter(t => t.lab.pb != null).length / conf.length).toFixed(4) : null;
   const D = DAY_TR.filter(t => t.confirmed).sort((a, b) => a.t0 - b.t0), day = D.length ? { n: D.length, avgR: +(D.reduce((a, t) => a + t.r, 0) / D.length).toFixed(4), win: +(D.filter(t => t.r > 0).length / D.length).toFixed(4),
     older: null, newer: null } : null;
   if (day) { const md = D[Math.floor(D.length / 2)].t0, a = D.filter(t => t.t0 < md), b = D.filter(t => t.t0 >= md), av = x => x.length ? +(x.reduce((s, t) => s + t.r, 0) / x.length).toFixed(4) : null;
     day.older = av(a); day.newer = av(b); rows.push({ f: '1D setups (separate run)', e: "Today's stop and targets", n: day.n, avgR: day.avgR, win: day.win, older: day.older, newer: day.newer, nOld: a.length, nNew: b.length }); }
-  return { pbFill, rows, div, flip, base, divGroup: group(trades.filter(t => t.tf !== '15m'), t => ({ with: 'Divergence agrees', against: 'Divergence against', none: 'No recent divergence' })[t.div], ['Divergence agrees', 'No recent divergence', 'Divergence against']) };
+  return { pbFill, rows, div, flip, base, hdiv, hunt, divlvl, combo, divGroup: group(trades.filter(t => t.tf !== '15m'), t => ({ with: 'Divergence agrees', against: 'Divergence against', none: 'No recent divergence' })[t.div], ['Divergence agrees', 'No recent divergence', 'Divergence against']) };
 }
 const SESSION = h => h < 8 ? 'Asia (0–8 UTC)' : h < 13 ? 'London (8–13 UTC)' : h < 21 ? 'New York (13–21 UTC)' : 'Late (21–24 UTC)';
 const WDAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -230,7 +243,8 @@ async function main() {
   const L = rep.lab, best = [...L.rows].filter(r => r.n >= 200 && r.older != null && r.newer != null).sort((a, b) => Math.min(b.older, b.newer) - Math.min(a.older, a.newer)).slice(0, 6);
   console.log('lab (best on both halves): ' + best.map(r => r.f + ' + ' + r.e + ': n ' + r.n + ', avg ' + r.avgR + 'R (older ' + r.older + ', newer ' + r.newer + ')').join(' | '));
   console.log('lab round 2: pullback fill rate ' + L.pbFill + '; ' + L.rows.filter(r => /Pullback|Trail|48 candles|1D|light|1D trend/.test(r.e + r.f)).map(r => r.f + ' + ' + r.e + ': n ' + r.n + ', ' + r.avgR + 'R (' + r.older + ' / ' + r.newer + ')').join(' | '));
-  console.log('lab signals: ' + Object.keys(L.div).map(tf => tf + ' div ' + JSON.stringify(L.div[tf]) + ' flip ' + JSON.stringify(L.flip[tf]) + ' base ' + JSON.stringify(L.base[tf])).join(' | '));
+  console.log('lab signals: ' + Object.keys(L.div).map(tf => tf + ': ' + ['div', 'divlvl', 'hdiv', 'hunt', 'combo', 'flip', 'base'].map(k => k + ' ' + (L[k][tf] ? Math.round(L[k][tf].turn * 1000) / 10 + '% of ' + L[k][tf].n : '—')).join(', ')).join(' | '));
+  console.log('lab at entry: ' + L.rows.filter(r => /hidden|stop-hunt/.test(r.f) && r.e === "Today's stop and targets").map(r => r.f + ': n ' + r.n + ', ' + r.avgR + 'R (' + r.older + ' / ' + r.newer + ')').join(' | '));
   console.log('lab divergence at entry: ' + L.divGroup.map(g => g.k + ' ' + g.n + ' avg ' + g.avgR.toFixed(3) + 'R').join(', '));
 }
 main().catch(e => { console.error('backtest failed: ' + (e && e.stack || e)); process.exit(1); });

@@ -466,6 +466,11 @@ async def main():
             for bad in ("undefined", "NaN"):
                 if bad in dv: problems.append(f"[{scheme}] divergence card shows '{bad}'")
             if scheme == "light": await pg.locator("#divBox").screenshot(path=os.path.join(OUT, "divergence.png"))
+            hb = await pg.inner_text("#huntBox") if await pg.is_visible("#huntBox") else ""
+            if "Stop-hunts" not in hb or "4H candles" not in hb or "What is a stop-hunt?" not in hb or not await pg.locator('#toggles [data-ind="hunt"]').count(): problems.append(f"[{scheme}] chart 4H: stop-hunt card or chip wrong: {hb[:120]!r}")
+            for bad in ("undefined", "NaN", "Infinity"):
+                if bad in hb: problems.append(f"[{scheme}] stop-hunt card shows '{bad}'")
+            if scheme == "light": await pg.locator("#huntBox").screenshot(path=os.path.join(OUT, "stop-hunt.png"))
             await pg.click(f'#tfSeg [data-tf="{was}"]'); await pg.wait_for_timeout(1200)
             if "chart reading ·" not in (await pg.inner_text("#sigCard")).lower(): problems.append(f"[{scheme}] chart: going back from 1M to {was} did not bring the chart reading back")
             if scheme == "dark":

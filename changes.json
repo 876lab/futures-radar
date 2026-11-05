@@ -1,4 +1,9 @@
 [
+  {"date": "2026-11-05", "title": "Hidden divergence and stop-hunts", "items": [
+    "Blue 'HDiv' marks show hidden divergence: in a trend, a pullback where RSI dips further than price, which often means the trend is about to carry on.",
+    "Amber 'Hunt' arrows show stop-hunts: price pokes past a recent high or low (where many stops sit), then closes back. The breakout failed, which often comes before a move the other way.",
+    "Each has a card under the chart explaining the latest one, and a chip to hide it. The nightly backtest measures how often they were right, including a divergence at a support or resistance level."
+  ]},
   {"date": "2026-11-05", "title": "Back up your data", "items": [
     "Settings → Back up your data → Save backup file. On iPhone or iPad choose Save to Files (iCloud Drive is safest).",
     "It holds your starred markets, price alerts, imported trades, Simulator and Picks choices, and your settings.",

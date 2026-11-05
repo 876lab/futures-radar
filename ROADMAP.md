@@ -94,6 +94,8 @@ The working plan for nightly improvement runs. Each run picks the **first unchec
 - [ ] **Fees in the sizing box.** Let him enter his Gate taker fee (default 0.05%) so "If stopped out" and the max-loss check include fees both ways.
 - [x] **Order-book depth (information).** (done 2026-10-24: chart-screen card + hourly `market-data` snapshots) From Gate's public order book: bid vs ask depth within ±1% and ±2% of price, and large resting orders ("walls") with a note that walls can move or vanish. Plus an hourly GitHub job saving depth, open interest and funding for the top markets, so the backtest can later test whether they help.
 - [ ] **Test order-book, open-interest and funding conditions in the backtest** (after ~3–4 weeks of hourly snapshots): join `market.json` rows to simulated entries by market and hour and add buckets (thin vs deep book, buy/sell balance, OI change, extreme funding, recent liquidations).
+- [x] **Hidden divergence + stop-hunts (owner request, 5 Nov 2026).** Information only; measured nightly.
+- [ ] **Next signals the owner agreed to consider:** Bollinger squeeze (bands unusually narrow → a big move often follows) and a crowded-trade warning (funding and open interest from the hourly `market-data` snapshots). Same pattern: mark, card, chip, measured in the lab.
 - [ ] **Unusual activity scanner.** A section (inside Hot) for volume spikes vs the 20-candle average and sudden moves in the last hour.
 - [ ] **Trading sessions and liquidity.** Show the current session (Asia / London / New York) and warn in thin hours and weekends.
 - [x] **Price alerts (owner request, 3 Nov 2026).** Bell on every chart, banner + chime while open, closed-app check from 1-hour candles on opening, list on Starred.

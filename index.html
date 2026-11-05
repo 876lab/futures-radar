@@ -754,6 +754,7 @@ html,body{overscroll-behavior-y:none}
             <div class="chart-msg" id="chartMsg" hidden></div>
           </div>
           <div class="card book divb" id="divBox" hidden></div>
+          <div class="card book divb" id="huntBox" hidden></div>
           <div class="card book srl" id="srBox" hidden></div>
           <div class="card book fib" id="fibBox" hidden></div>
           <div class="card book" id="bookBox" hidden></div>
@@ -857,6 +858,7 @@ html,body{overscroll-behavior-y:none}
       <dt>Funding</dt><dd>A small fee swapped between longs and shorts every few hours on perpetuals. Positive means longs pay shorts.</dd>
       <dt>Volume</dt><dd>Dollar value traded. A move on rising volume is more trustworthy.</dd>
       <dt>RSI divergence</dt><dd>When price makes a new high but RSI 12 peaks lower (bearish), or price makes a new low but RSI bottoms higher (bullish): a sign the move is losing strength. Purple "Div" marks on 1H, 4H and 1D charts; it's a warning, not a reversal signal, and it appears a few candles after the swing. The nightly backtest measures how often it pointed the right way.</dd>
+      <dt>Stop-hunts</dt><dd>Amber "Hunt" arrows (1H, 4H, 1D): a candle pokes past a recent swing high or low, where many traders keep their stops, then closes back on the other side, so the breakout failed. Often comes before a move the other way; a warning, not a guarantee. Measured nightly by the backtest.</dd>
       <dt>200W EMA</dt><dd>The 200-week exponential moving average: Bitcoin's long-term trend line, watched at cycle lows. The dashed purple line shows it on every candle size (on smaller sizes it uses the last finished week), and the legend shows how far price is above or below it. It needs 200 weeks of history, so newer coins don't have one. Switch it off with the 200W EMA chip.</dd>
       <dt>Company card</dt><dd>On stock futures, a short description of the company, the exchange where the stock is listed (Nasdaq or NYSE), whether the US stock market is open now, and links to the exchange's quote page and SEC filings.</dd>
       <dt>Price alerts</dt><dd>Tap the bell next to the star on any chart and set a price. While the app is open it rings, shows a banner and buzzes on phones that allow it when the price is reached; when you open the app again it also tells you if the price was reached while it was closed. All alerts are on the Starred page.</dd>
@@ -952,7 +954,8 @@ if(!state.ind||typeof state.ind!=='object')state.ind={ema:false,bb:true,st:true,
 if(typeof state.ind.fib!=='boolean')state.ind.fib=true;   // Fibonacci levels (added 25 Oct 2026) start switched on
 if(typeof state.ind.sr!=='boolean')state.ind.sr=true;
 if(typeof state.ind.w200!=='boolean')state.ind.w200=true;
-if(typeof state.ind.div!=='boolean')state.ind.div=true;     // RSI divergence marks (added 5 Nov 2026) start switched on   // 200-week EMA (added 4 Nov 2026) starts switched on     // support and resistance (added 2 Nov 2026) start switched on
+if(typeof state.ind.div!=='boolean')state.ind.div=true;
+if(typeof state.ind.hunt!=='boolean')state.ind.hunt=true;   // stop-hunt marks (added 5 Nov 2026) start switched on     // RSI divergence marks (added 5 Nov 2026) start switched on   // 200-week EMA (added 4 Nov 2026) starts switched on     // support and resistance (added 2 Nov 2026) start switched on
 if(state.view!=='all'&&!EX[state.view])state.view='all';
 if(!(MKT_CATS.includes(state.cat)||PAGES.includes(state.cat)))state.cat='setups';
 state.mcat=LS.get('mcat','hot');if(!MKT_CATS.includes(state.mcat))state.mcat='hot';
@@ -2159,16 +2162,34 @@ function w200At(W,time,own){
    a lower high (by 2+ points, first RSI high 55+); bullish = price makes a lower low while RSI makes a higher low (first
    RSI low 45 or under). A divergence is only known 3 candles after its second swing (`at`), so nothing looks ahead. */
 const DIV_K=3;
-function rsiDivergences(cs,r,from){
+function rsiDivergences(cs,r,from,e50){
   const P=pivots(cs,DIV_K,Math.max(0,(from||0)-60)),out=[];
   const scan=(arr,bear)=>{for(let j=1;j<arr.length;j++){const a=arr[j-1],b=arr[j],gap=b.i-a.i;if(gap<5||gap>60)continue;
     const ra=r[a.i],rb=r[b.i];if(ra==null||rb==null)continue;
-    if(bear?(b.p>a.p&&rb<=ra-2&&ra>=55):(b.p<a.p&&rb>=ra+2&&ra<=45))out.push({dir:bear?-1:1,a:{i:a.i,p:a.p,r:ra},b:{i:b.i,p:b.p,r:rb},at:b.i+DIV_K})}};
+    if(bear?(b.p>a.p&&rb<=ra-2&&ra>=55):(b.p<a.p&&rb>=ra+2&&ra<=45))out.push({kind:'regular',dir:bear?-1:1,a:{i:a.i,p:a.p,r:ra},b:{i:b.i,p:b.p,r:rb},at:b.i+DIV_K});
+    // hidden divergence (trend continuation; only when the 50-candle average is passed): in an uptrend price makes a higher
+    // low while RSI makes a lower low (bullish); in a downtrend a lower high while RSI makes a higher high (bearish)
+    else if(e50&&e50[b.i]!=null&&(bear?(b.p<a.p&&rb>=ra+2&&b.p<e50[b.i]):(b.p>a.p&&rb<=ra-2&&b.p>e50[b.i])))out.push({kind:'hidden',dir:bear?-1:1,a:{i:a.i,p:a.p,r:ra},b:{i:b.i,p:b.p,r:rb},at:b.i+DIV_K})}};
   scan(P.hi,true);scan(P.lo,false);
   return out.filter(d=>d.at<cs.length&&d.at>=(from||0)).sort((x,y)=>x.at-y.at);
 }
 // the latest divergence already known at candle i and no older than `maxAge` candles (from its confirmation)
-function divAt(divs,i,maxAge){let best=null;for(const d of divs){if(d.at>i)break;if(i-d.at<=maxAge)best=d}return best}
+function divAt(divs,i,maxAge,kind){kind=kind||'regular';let best=null;for(const d of divs){if(d.at>i)break;if((d.kind||'regular')===kind&&i-d.at<=maxAge)best=d}return best}
+/* Stop-hunts (owner request, 5 Nov 2026; information only), also called swing failures: a candle trades past an earlier
+   swing high (or low; 5 candles each side) from the last 60 candles that no candle had closed beyond, by at least 0.15 ATR, then closes back on the
+   other side. Stops resting past that swing were likely triggered and the break failed: a bearish hunt above a high, a bullish
+   hunt below a low. Known when that candle closes. */
+function stopHunts(cs,atr,from){
+  const HK=5,P=pivots(cs,HK,Math.max(0,(from||0)-70)),out=[],used=new Set(),start=Math.max(from||0,HK+1),last={'1':-9,'-1':-9};
+  for(let i=start;i<cs.length;i++){const A=atr[i];if(!(A>0))continue;const k=cs[i];
+    for(const [arr,dir] of [[P.hi,-1],[P.lo,1]]){if(i-last[dir]<=3)continue;let best=null;
+      for(let q=arr.length-1;q>=0;q--){const s=arr[q];if(s.i+HK>=i||used.has(dir+':'+s.i))continue;if(i-s.i>60)break;
+        let intact=true;for(let j=s.i+1;j<i;j++){if(dir<0?cs[j].close>s.p:cs[j].close<s.p){intact=false;break}}
+        if(!intact)continue;
+        if(dir<0?(k.high>=s.p+0.15*A&&k.close<s.p):(k.low<=s.p-0.15*A&&k.close>s.p)){if(!best||(dir<0?s.p>best.p:s.p<best.p))best=s}}
+      if(best){used.add(dir+':'+best.i);last[dir]=i;out.push({dir,i,at:i,level:best.p,j:best.i,ext:dir<0?k.high:k.low})}}}
+  return out;
+}
 // which part of the last move price is in (used for wording and for the backtest's buckets)
 
 function fibZone(retr){
@@ -2227,7 +2248,8 @@ function cleanLab(L){
     older:fin(r.older)?clamp(r.older,-5,5):null,newer:fin(r.newer)?clamp(r.newer,-5,5):null,nOld:fin(r.nOld)?r.nOld:0,nNew:fin(r.nNew)?r.nNew:0}));
   const sig=o=>{const out={};if(o&&typeof o==='object')for(const tf of ['1h','4h','1d']){const x=o[tf];if(x&&fin(x.n)&&x.n>0&&fin(x.turn))out[tf]={n:Math.round(x.n),turn:clamp(x.turn,0,1)}}return out};
   const dg=(Array.isArray(L.divGroup)?L.divGroup:[]).slice(0,3).filter(g=>g&&typeof g.k==='string'&&fin(g.n)&&fin(g.avgR)).map(g=>({k:g.k.slice(0,40),n:Math.round(g.n),avgR:g.avgR,reach:fin(g.reach)?g.reach:0}));
-  return rows.length?{pbFill:fin(L.pbFill)?clamp(L.pbFill,0,1):null,rows,div:sig(L.div),flip:sig(L.flip),base:sig(L.base),divGroup:dg}:null;
+  const hdiv=sig(L.hdiv),hunt=sig(L.hunt),divlvl=sig(L.divlvl),combo=sig(L.combo);
+  return rows.length?{hdiv,hunt,divlvl,combo,pbFill:fin(L.pbFill)?clamp(L.pbFill,0,1):null,rows,div:sig(L.div),flip:sig(L.flip),base:sig(L.base),divGroup:dg}:null;
 }
 // ideas that held up: at least `minN` trades and better than today's rules on BOTH the older and the newer half
 function labPicks(lab,minN){
@@ -2252,7 +2274,7 @@ async function loadBT(){
   if(bt.loading||(bt.data&&NOW()-bt.at<30*60000)||(bt.err&&NOW()-bt.at<5*60000))return;bt.loading=true;
   try{const r=await fetch(BT_URL+'?t='+Math.floor(NOW()/600000));if(!r.ok)throw new Error('HTTP '+r.status);const j=cleanBT(await r.json());if(!j)throw new Error('bad data');bt.data=j;bt.err=null}
   catch(e){bt.err=String(e&&e.message||e)}
-  bt.at=NOW();bt.loading=false;const c=document.getElementById('btCard');if(c)c.innerHTML=btCardHTML();const lc=document.getElementById('labCard');if(lc)lc.innerHTML=labCardHTML();renderConfirm();if(current)renderDiv();
+  bt.at=NOW();bt.loading=false;const c=document.getElementById('btCard');if(c)c.innerHTML=btCardHTML();const lc=document.getElementById('labCard');if(lc)lc.innerHTML=labCardHTML();renderConfirm();if(current){renderDiv();renderHunt()}
 }
 // public track record (scripts/track.js, published hourly to the track-data branch, which is only ever added to)
 const TR_URL=NEWS_URL.replace('/news-data/news.json','/track-data/track.json');
@@ -2826,7 +2848,8 @@ function labCardHTML(){
   if(!L)return `<h3>What the backtest is learning</h3><p class="note">Appears after the next nightly backtest. It replays the same setups with other stops, targets and filters to see what would have worked better.</p>`;
   const {base,picks}=labPicks(L,200),r=v=>v==null?'—':fmtR(v),cls=v=>v>0?'up':v<0?'down':'';
   const row=x=>`<tr><td><b>${esc(x.f)}</b><small>${esc(x.e)}</small></td><td>${x.n.toLocaleString()}</td><td class="${cls(x.avgR)}">${r(x.avgR)}</td><td class="${cls(x.older)}">${r(x.older)}</td><td class="${cls(x.newer)}">${r(x.newer)}</td></tr>`;
-  const sigLine=(tf)=>{const a=L.div[tf],b=L.flip[tf],c=L.base[tf];return a||b?`<li><b>${TF_LABEL[tf]}:</b> ${a?`RSI divergences pointed the right way ${fmtP(a.turn)} of ${a.n.toLocaleString()} times`:''}${a&&b?'; ':''}${b?`B/S flips ${fmtP(b.turn)} of ${b.n.toLocaleString()}`:''}${c?` (any random candle: ${fmtP(c.turn)})`:''}.</li>`:''};
+  const sigLine=(tf)=>{const c=L.base[tf],parts=[['RSI divergences',L.div[tf]],['at a level',L.divlvl&&L.divlvl[tf]],['hidden divergences',L.hdiv&&L.hdiv[tf]],['stop-hunts',L.hunt&&L.hunt[tf]],['stop-hunt + divergence',L.combo&&L.combo[tf]],['B/S flips',L.flip[tf]]].filter(x=>x[1]);
+    return parts.length?`<li><b>${TF_LABEL[tf]}, pointed the right way:</b> ${parts.map(([k,x])=>`${k} ${fmtP(x.turn)} of ${x.n.toLocaleString()}`).join('; ')}${c?` (any random candle: ${fmtP(c.turn)})`:''}.</li>`:''};
   const verdict=picks.length?`${picks.length===1?'One idea':plural(picks.length,'idea')} did better than today's rules on both the older and the newer half of the data. That's the first test an idea has to pass before changing the rules; the app's rules stay the same until you decide.`:
     "No idea beat today's rules on both halves of the data yet, so nothing is ready to change. The lab keeps testing every night.";
   return `<h3>What the backtest is learning</h3><p class="sub">Same setups, other stops, targets and filters · ${esc(d.source)} · split into an older and a newer half</p>
@@ -3090,8 +3113,8 @@ function draw(keep){
   let sr=null;try{sr=srLevels(current.cs,current.an&&current.an.atr)}catch(e){recordErr('support and resistance',e)}
   current.sr=sr;renderSR();
   const DIV_TF=['1h','4h','1d'].includes(ctf());let divs=null;
-  try{const A_=current.an;if(DIV_TF&&A_&&A_.series)divs=rsiDivergences(current.cs,A_.series.r12,Math.max(0,current.cs.length-300))}catch(e){recordErr('RSI divergence',e)}
-  current.divs=divs;current.divTf=DIV_TF;renderDiv();
+  let hunts=null;try{const A_=current.an;if(DIV_TF&&A_&&A_.series){divs=rsiDivergences(current.cs,A_.series.r12,Math.max(0,current.cs.length-300),A_.series.e50);hunts=stopHunts(current.cs,A_.series.at,Math.max(0,current.cs.length-300))}}catch(e){recordErr('RSI divergence',e)}
+  current.divs=divs;current.hunts=hunts;current.divTf=DIV_TF;renderDiv();renderHunt();
   if(!ch){msg.hidden=false;msg.textContent="The chart library didn't load. Check your connection and refresh.";return}
   const {cs,an,rc}=current;if(keep){try{current.range=ch.main.timeScale().getVisibleLogicalRange()}catch(e){}}
   const T=cs.map(k=>k.time+tzOff);current.tIndex=new Map(T.map((t,i)=>[t,i]));
@@ -3116,7 +3139,8 @@ function draw(keep){
   const marks=[];
   if(S)for(let i=1;i<cs.length;i++){const a=S.st.dir[i-1],b=S.st.dir[i];if(a!=null&&b!=null&&a!==b)marks.push(b>0?{time:T[i],position:'belowBar',color:up,shape:'arrowUp',text:'B'}:{time:T[i],position:'aboveBar',color:dn,shape:'arrowDown',text:'S'})}
   current.marks=marks;
-  current.divMarks=(divs||[]).map(d=>({time:T[d.b.i],position:d.dir<0?'aboveBar':'belowBar',color:css('--c3'),shape:'circle',text:'Div'})).filter(m=>m.time!=null);
+  current.divMarks=(divs||[]).map(d=>({time:T[d.b.i],position:d.dir<0?'aboveBar':'belowBar',color:css(d.kind==='hidden'?'--c2':'--c3'),shape:'circle',text:d.kind==='hidden'?'HDiv':'Div'})).filter(m=>m.time!=null);
+  current.huntMarks=(hunts||[]).map(h=>({time:T[h.i],position:h.dir<0?'aboveBar':'belowBar',color:css('--accent'),shape:h.dir<0?'arrowDown':'arrowUp',text:'Hunt'})).filter(m=>m.time!=null);
   const sm=[];const ss=state.simShow;
   if(ss&&ss.id===current.p.id&&ss.tf===state.tf){
     for(const t of ss.trades){const a=t.t0+tzOff,b=t.t1+tzOff;
@@ -3154,7 +3178,7 @@ function applyToggles(){
   [charts.stU,charts.stD].forEach(s=>s.applyOptions({visible:!!i.st}));
   charts.vol.applyOptions({visible:!!i.vol});
   charts.w200.applyOptions({visible:!!i.w200});
-  const mk=(i.marks&&current&&current.marks?current.marks:[]).concat(current&&current.simMarks?current.simMarks:[],i.div&&current&&current.divMarks?current.divMarks:[]).sort((a,b)=>a.time-b.time);
+  const mk=(i.marks&&current&&current.marks?current.marks:[]).concat(current&&current.simMarks?current.simMarks:[],i.div&&current&&current.divMarks?current.divMarks:[],i.hunt&&current&&current.huntMarks?current.huntMarks:[]).sort((a,b)=>a.time-b.time);
   charts.candle.setMarkers(mk);
 }
 function renderLegend(idx){
@@ -3173,7 +3197,7 @@ function renderLegend(idx){
   }else{$('#rsiLegend').innerHTML='<span>RSI 6 / 12 / 24</span>';$('#macdLegend').innerHTML='<span>MACD(12,26,9)</span>'}
 }
 function renderToggles(){
-  const T=[['bb','Bollinger','--bb'],['st','Supertrend','--up'],['marks','B/S marks','--accent'],['sr','Support/Resistance','--up'],['w200','200W EMA','--c3'],['div','RSI divergence','--c3'],['fib','Fibonacci','--c4'],['ema','EMA 20/50/200','--c2'],['vol','Volume','--muted']];
+  const T=[['bb','Bollinger','--bb'],['st','Supertrend','--up'],['marks','B/S marks','--accent'],['sr','Support/Resistance','--up'],['w200','200W EMA','--c3'],['div','RSI divergence','--c3'],['hunt','Stop-hunts','--accent'],['fib','Fibonacci','--c4'],['ema','EMA 20/50/200','--c2'],['vol','Volume','--muted']];
   $('#toggles').innerHTML=T.map(([k,l,c])=>`<button class="chip" data-ind="${k}" aria-pressed="${!!state.ind[k]}"><i style="background:var(${c})"></i>${l}</button>`).join('');
 }
 
@@ -3280,7 +3304,7 @@ async function openGroup(key,quiet,cid){
   $('#sigCard').innerHTML='<div class="sc-body"><p class="sc-text muted">Reading the chart…</p></div>';
   if(state.big){const tf=state.big;
     try{const cs=await getCandles(p,tf);if(tok!==loadToken)return;const an=analyze(cs);
-      if(!an){current=null;msg.textContent=cs.length<2?'No price history for this market on '+TF_LABEL[tf]+' candles.':`Only ${plural(cs.length,TF_LABEL[tf]+' candle')} of history so far; the chart needs at least 35. A shorter candle size will work.`;$('#sigCard').innerHTML='';$('#signals').innerHTML='';$('#fibBox').hidden=true;$('#srBox').hidden=true;$('#divBox').hidden=true;return}
+      if(!an){current=null;msg.textContent=cs.length<2?'No price history for this market on '+TF_LABEL[tf]+' candles.':`Only ${plural(cs.length,TF_LABEL[tf]+' candle')} of history so far; the chart needs at least 35. A shorter candle size will work.`;$('#sigCard').innerHTML='';$('#signals').innerHTML='';$('#fibBox').hidden=true;$('#srBox').hidden=true;$('#divBox').hidden=true;$('#huntBox').hidden=true;return}
       current={p,cs,an,rc:null,han:null,big:tf};msg.hidden=true;
       renderBigSignal(an,tf);renderTrendDetails(an);loadMTF(p,g,tok);loadBook(p,tok);loadW200(p,tok);
       requestAnimationFrame(()=>{try{draw();startChartFeed(p,tf)}catch(e){recordErr('chart',e);msg.hidden=false;msg.textContent='The chart hit a snag. Tap a candle size to try again.'}});
@@ -3392,14 +3416,36 @@ function divHTML(){
   const head=d?(d.dir<0?`<b class="down">Bearish divergence</b> on ${L}: price made a <b>higher high</b> (${fmtUsd(d.a.p)} on ${when(d.a.i)} → ${fmtUsd(d.b.p)} on ${when(d.b.i)}) but RSI 12 made a <b>lower high</b> (${Math.round(d.a.r)} → ${Math.round(d.b.r)}). The up-move may be losing strength.`
     :`<b class="up">Bullish divergence</b> on ${L}: price made a <b>lower low</b> (${fmtUsd(d.a.p)} on ${when(d.a.i)} → ${fmtUsd(d.b.p)} on ${when(d.b.i)}) but RSI 12 made a <b>higher low</b> (${Math.round(d.a.r)} → ${Math.round(d.b.r)}). The down-move may be losing strength.`)
     +` Confirmed ${plural(n-1-d.at,'candle')} ago.`:`No divergence in the last 20 ${L} candles. Purple "Div" marks on the chart show past ones.`;
+  const h=divAt(current.divs||[],n-1,20,'hidden'),hl=h?`<p class="big">${h.dir>0?`<b class="up">Hidden bullish divergence</b> on ${L}: in an uptrend, price made a <b>higher low</b> (${fmtUsd(h.a.p)} → ${fmtUsd(h.b.p)}) while RSI 12 made a <b>lower low</b> (${Math.round(h.a.r)} → ${Math.round(h.b.r)}). Pullbacks like this often end with the uptrend carrying on.`
+    :`<b class="down">Hidden bearish divergence</b> on ${L}: in a downtrend, price made a <b>lower high</b> (${fmtUsd(h.a.p)} → ${fmtUsd(h.b.p)}) while RSI 12 made a <b>higher high</b> (${Math.round(h.a.r)} → ${Math.round(h.b.r)}). Bounces like this often end with the downtrend carrying on.`} Confirmed ${plural(n-1-h.at,'candle')} ago (blue "HDiv" mark).</p>`:'';
+  const L2=bt.data&&bt.data.lab,hs=L2&&L2.hdiv&&L2.hdiv[tf],ls=L2&&L2.divlvl&&L2.divlvl[tf];
+  const ev2=(hs&&hs.n>=30?`<p class="note">Hidden divergences: price moved 1 ATR their way first <b>${fmtP(hs.turn)}</b> of ${hs.n.toLocaleString()} times.</p>`:'')+(ls&&ls.n>=30?`<p class="note">Regular divergences that formed <b>at a support or resistance level</b>: <b>${fmtP(ls.turn)}</b> of ${ls.n.toLocaleString()} times.</p>`:'');
   const ev=bt_&&bt_[tf]&&bt_[tf].n>=30?`<p class="note">Nightly backtest (Gate, ${L}): after ${bt_[tf].n.toLocaleString()} past divergences, price moved 1 ATR their way before 1 ATR against <b>${fmtP(bt_[tf].turn)}</b> of the time (50% would be a coin flip).</p>`:'';
-  return `<h3>RSI divergence</h3><p class="sub">${L} candles · RSI 12 · information only</p><p class="big">${head}</p>${ev}
+  return `<h3>RSI divergence</h3><p class="sub">${L} candles · RSI 12 · information only</p><p class="big">${head}</p>${hl}${ev}${ev2}
     <details><summary>What is a divergence?</summary><ul class="sim-notes">
       <li>A divergence is when price and RSI disagree. If price pushes to a new high but RSI (momentum) peaks lower, buyers are pushing with less force: a <b>bearish</b> divergence. The mirror image at lows is <b>bullish</b>.</li>
+      <li><b>Hidden</b> divergence (blue "HDiv") is the trend-continuation version: in an uptrend, a pullback makes a higher low in price but a lower low in RSI, which often means the pullback is done. Only shown when price is on the trend's side of its 50-candle average.</li>
       <li>It's a warning, not a reversal signal: in strong trends, divergences often appear several times while price keeps going.</li>
       <li>It can only be confirmed a few candles after the second swing, so the mark appears after the turn has started.</li>
       <li>Switch the marks off with the RSI divergence chip.</li></ul></details>`;
 }
+function huntHTML(){
+  const tf=ctf(),L=TF_LABEL[tf],cs=current.cs,n=cs.length;
+  if(!current.divTf)return `<h3>Stop-hunts</h3><p class="note">Shown on 1H, 4H and 1D candles. Switch to one of those to see them.</p>`;
+  const H=(current.hunts||[]).filter(h=>n-1-h.at<=20),h=H[H.length-1],when=i=>esc(new Date(cs[i].time*1000).toLocaleString('en-US',{month:'short',day:'numeric',hour:tf==='1d'?undefined:'numeric'}));
+  const head=h?(h.dir>0?`<b class="up">Stop-hunt below a low</b> on ${L}: price dipped to ${fmtUsd(h.ext)}, under the swing low at <b>${fmtUsd(h.level)}</b> (${when(h.j)}), then closed back above it on ${when(h.i)}. Stops under that low were likely triggered and the break failed, which often comes before a move back up.`
+    :`<b class="down">Stop-hunt above a high</b> on ${L}: price spiked to ${fmtUsd(h.ext)}, over the swing high at <b>${fmtUsd(h.level)}</b> (${when(h.j)}), then closed back below it on ${when(h.i)}. Stops above that high were likely triggered and the break failed, which often comes before a move back down.`)+` ${n-1-h.at?plural(n-1-h.at,'candle')+' ago':'On the latest candle'}.`
+    :`No stop-hunt in the last 20 ${L} candles. Amber "Hunt" arrows on the chart show past ones.`;
+  const L2=bt.data&&bt.data.lab,st=L2&&L2.hunt&&L2.hunt[tf],cb=L2&&L2.combo&&L2.combo[tf];
+  const ev=(st&&st.n>=30?`<p class="note">Nightly backtest (Gate, ${L}): after ${st.n.toLocaleString()} past stop-hunts, price moved 1 ATR their way before 1 ATR against <b>${fmtP(st.turn)}</b> of the time (50% would be a coin flip).</p>`:'')+(cb&&cb.n>=30?`<p class="note">Stop-hunt plus an RSI divergence the same way within 5 candles: <b>${fmtP(cb.turn)}</b> of ${cb.n.toLocaleString()} times.</p>`:'');
+  return `<h3>Stop-hunts</h3><p class="sub">${L} candles · swing highs and lows of the last 60 candles · information only</p><p class="big">${head}</p>${ev}
+    <details><summary>What is a stop-hunt?</summary><ul class="sim-notes">
+      <li>Many traders put their stop just past a recent high or low. When price pokes past that level, those stops are triggered, then price snaps back. That's a <b>stop-hunt</b> (also called a liquidity sweep or swing failure).</li>
+      <li>The sign is the <b>close</b>: the wick goes past the level, but the candle closes back on the original side, so the breakout failed.</li>
+      <li>It works best at clear levels (see Support and resistance) and on bigger candle sizes. It's a warning, not a guarantee; sometimes the next candle breaks through for real.</li>
+      <li>Your own stop is safer a little further from obvious highs and lows than exactly on them. Switch the arrows off with the Stop-hunts chip.</li></ul></details>`;
+}
+function renderHunt(){const el=$('#huntBox');if(!el)return;const ok=current&&state.ind.hunt&&current.cs;el.hidden=!ok;el.innerHTML=ok?huntHTML():''}
 function renderDiv(){const el=$('#divBox');if(!el)return;const ok=current&&state.ind.div&&current.cs;el.hidden=!ok;el.innerHTML=ok?divHTML():''}
 function renderSR(){
   const el=$('#srBox');if(!el)return;const r=current&&current.sr,ok=r&&(r.sup.length||r.res.length||r.at);
@@ -3536,7 +3582,7 @@ $('#tabs').addEventListener('click',e=>{const b=e.target.closest('[data-cat]');i
 $('#sort').addEventListener('change',e=>{state.sort=e.target.value;LS.set('sort',state.sort);renderList();if(/^trend/.test(state.sort))scan(40)});
 let qT;$('#q').addEventListener('input',e=>{clearTimeout(qT);qT=setTimeout(()=>{state.q=e.target.value.trim().toUpperCase();state.limit=120;renderTabs();renderList(state.cat==='news')},120)});
 $('#tfSeg').addEventListener('click',e=>{const b=e.target.closest('[data-tf]');if(!b)return;if(BIG_TF[b.dataset.tf])setBig(b.dataset.tf);else setTf(b.dataset.tf)});
-$('#toggles').addEventListener('click',e=>{const b=e.target.closest('[data-ind]');if(!b)return;const k=b.dataset.ind;state.ind[k]=!state.ind[k];LS.set('ind3',state.ind);renderToggles();if((k==='fib'||k==='sr'||k==='div')&&current)draw(true);else applyToggles();renderLegend(null)});
+$('#toggles').addEventListener('click',e=>{const b=e.target.closest('[data-ind]');if(!b)return;const k=b.dataset.ind;state.ind[k]=!state.ind[k];LS.set('ind3',state.ind);renderToggles();if((k==='fib'||k==='sr'||k==='div'||k==='hunt')&&current)draw(true);else applyToggles();renderLegend(null)});
 $('#venueBox').addEventListener('click',e=>{const r=e.target.closest('[data-cid]');if(r&&state.selected)openGroup(state.selected,true,r.dataset.cid)});
 $('#venueBox').addEventListener('keydown',e=>{const r=e.target.closest('[data-cid]');if(r&&(e.key==='Enter'||e.key===' ')){e.preventDefault();openGroup(state.selected,true,r.dataset.cid)}});
 $('#themeOpts').addEventListener('click',e=>{const b=e.target.closest('[data-theme-set]');if(!b)return;state.theme=b.dataset.themeSet;LS.set('theme',state.theme);applyTheme(state.theme)});

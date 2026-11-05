@@ -76,7 +76,8 @@ function runMarket(m, c) {
       const R0 = x.rc.levels.R, sim = (R, o2) => { const v = simTrade(cs, i, { dir: t.dir, conf: t.conf, levels: { R } }, Object.assign({}, OPTS, o2 || {}));
         return v && !v.unfinished ? +v.r.toFixed(3) : null; };
       const lab = { s15: sim(Math.max(R0, 1.5 * A)), s20: sim(Math.max(R0, 2 * A)), s25: sim(Math.max(R0, 2.5 * A)), t15: sim(R0, { plan: 'tp1' }), t10: sim(R0, { plan: 'tp1', tp1x: 1 }),
-        s20t15: sim(Math.max(R0, 2 * A), { plan: 'tp1' }), s20t10: sim(Math.max(R0, 2 * A), { plan: 'tp1', tp1x: 1 }) };
+        s20t15: sim(Math.max(R0, 2 * A), { plan: 'tp1' }), s20t10: sim(Math.max(R0, 2 * A), { plan: 'tp1', tp1x: 1 }),
+        mk: +(t.r + 0.3 * t.cost).toFixed(3) };   // entry as a limit (maker) order: 0.02% instead of 0.05% on the way in, exits still 0.05%
       const dv = divAt(divs, i, 20);
       out.push({ m: m.root, tf, dir: t.dir, conf: t.conf, t0: t.t0, r: +t.r.toFixed(3), reach: t.mfe >= 1.5, how: t.how, bars: t.bars, lab, div: dv ? (dv.dir === t.dir ? 'with' : 'against') : 'none',
         confirmed: cf.ok, d4h: dirs['4h'], d1d: dirs['1d'], range: range == null ? null : +range.toFixed(4), vol: Math.round(vol),
@@ -107,16 +108,17 @@ function signalStats(cs, S, divs, tf) {
     if (i % 7 === 0) { add('base', firstTouch(cs, i, 1, A)); add('base', firstTouch(cs, i, -1, A)); } }
 }
 const LAB_EXITS = { base: "Today's stop and targets", s15: 'Stop at least 1.5 ATR away', s20: 'Stop at least 2 ATR away', s25: 'Stop at least 2.5 ATR away',
-  t15: 'Close it all at 1.5R (no target 2)', t10: 'Close it all at 1R', s20t15: 'Stop 2+ ATR, close all at 1.5R', s20t10: 'Stop 2+ ATR, close all at 1R' };
+  mk: 'Lower fees: limit-order entry (0.02%)', t15: 'Close it all at 1.5R (no target 2)', t10: 'Close it all at 1R', s20t15: 'Stop 2+ ATR, close all at 1.5R', s20t10: 'Stop 2+ ATR, close all at 1R' };
 const LAB_FILTERS = [['All setups', t => true], ['Confirmed setups (what Setups shows)', t => t.confirmed], ['1H and 4H, confirmed', t => t.confirmed && t.tf !== '15m'],
   ['4H only, confirmed', t => t.confirmed && t.tf === '4h'], ['Confirmed, skip weekends', t => t.confirmed && t.wday !== 0 && t.wday !== 6],
+  ['1H and 4H, confirmed, skip weekends', t => t.confirmed && t.tf !== '15m' && t.wday !== 0 && t.wday !== 6], ['4H only, confirmed, skip weekends', t => t.confirmed && t.tf === '4h' && t.wday !== 0 && t.wday !== 6],
   ['Confirmed, agreement under 70', t => t.confirmed && t.conf < 70], ['Confirmed, price within 1 ATR of its 20-candle average', t => t.confirmed && t.ext != null && Math.abs(t.ext) <= 1],
   ['Confirmed, no recent divergence against it', t => t.confirmed && t.div !== 'against'], ['Confirmed shorts only', t => t.confirmed && t.dir < 0], ['Confirmed longs only', t => t.confirmed && t.dir > 0]];
 function labReport(trades, mid) {
   const rows = [], st = (tr, key) => { const v = tr.map(t => key === 'base' ? t.r : t.lab[key]).filter(x => x != null); if (!v.length) return null;
     return { n: v.length, avgR: +(v.reduce((a, b) => a + b, 0) / v.length).toFixed(4), win: +(v.filter(x => x > 0).length / v.length).toFixed(4) }; };
   for (const [fk, f] of LAB_FILTERS) { const tr = trades.filter(f), older = tr.filter(t => t.t0 < mid), newer = tr.filter(t => t.t0 >= mid);
-    for (const ek of Object.keys(LAB_EXITS)) { if (ek !== 'base' && !['All setups', 'Confirmed setups (what Setups shows)', '1H and 4H, confirmed', '4H only, confirmed'].includes(fk)) continue;
+    for (const ek of Object.keys(LAB_EXITS)) { if (ek !== 'base' && !(ek === 'mk' || ['All setups', 'Confirmed setups (what Setups shows)', '1H and 4H, confirmed', '4H only, confirmed'].includes(fk))) continue;
       const a = st(tr, ek), o = st(older, ek), w = st(newer, ek); if (!a) continue;
       rows.push({ f: fk, e: LAB_EXITS[ek], n: a.n, avgR: a.avgR, win: a.win, older: o && o.avgR, newer: w && w.avgR, nOld: o ? o.n : 0, nNew: w ? w.n : 0 }); } }
   const div = {}, flip = {}, base = {};

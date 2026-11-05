@@ -2,6 +2,13 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-11-05 (owner request: make the Simulator easier to read)
+- **Plain summary at the top of every run, in dollars:** "Starting with $100 and risking $2 (2%) on each trade, the app's setups would have taken 230 trades over 33 days. You'd end with $…", three boxes (won / lost / about even, with the typical dollar win and loss), one sentence on why (most trades hit the stop first; or fees turned a small profit into a loss; or wins and losses cancel out), and the total paid in fees and slippage. Account size and risk come from the position size calculator and the Risk box. Same fixed dollar risk per trade (no compounding); the compounded "Account result" stays under More numbers.
+- **"Latest trades, in plain words":** the 12 most recent simulated trades, e.g. "SOL 15m long · Nov 4, 7:15 PM — reached target 2 after 7.5 hours +$4.33", coloured green/red/grey.
+- **"How a simulated trade works":** four numbered steps, ending with the three usual outcomes (full loss, smaller win at target 1 then entry, bigger win at target 2) — which explains why results look like "a loss or break-even" so often.
+- The tiles (win rate, profit factor, drawdown…), the balance chart and the breakdown tables moved into a **"More numbers and breakdowns"** fold-out. No change to the simulation itself.
+- New pure `simMoney`, `fmtDur` (5 engine tests); browser test checks the summary, the trade list and that the detail is folded away.
+
 ## 2026-11-04 (owner request: company card for stocks, 200-week EMA)
 - **Company card on stock-futures charts** (only when the market is a stock): the company name, the listing exchange as a tag ("Nasdaq: INTC", "NYSE: JPM"), a one-to-two-sentence description written for the app (what it does, where it's based, ADR or dual listing where relevant), US regular hours (9:30am–4pm New York time, Mon–Fri, holidays not counted) with "open now"/"closed now", a line that the futures contract trades around the clock and can jump at the open, and links to the exchange's quote page and SEC filings. 66 profiles (every ticker the app treats as a stock, plus Sandisk/SNDK, now added to the stock list); stocks without a profile show the hours and SEC link only.
 - Listings checked 4 Nov 2026: Walmart moved from the NYSE to Nasdaq on 9 Dec 2025; Shopify moved its US listing to Nasdaq in 2025 (still also in Toronto); BitMine moved from NYSE American to the NYSE on 9 Apr 2026; Sandisk listed on Nasdaq after its February 2025 separation from Western Digital. Pending moves of other companies (Hilton 5 Nov, GM 17 Nov) don't affect the app's list.

@@ -420,6 +420,10 @@ async def main():
                 await pg.wait_for_selector("#simRes", timeout=30000)
                 res = await pg.inner_text("#simRes")
                 if "NaN" in res or "undefined" in res: problems.append("simulator results show NaN/undefined")
+                for want in ("Starting with", "trades", "won", "lost", "about even", "Fees and slippage cost", "Latest trades, in plain words", "How a simulated trade works", "More numbers and breakdowns"):
+                    if want not in res: problems.append(f"simulator: plain summary missing '{want}'")
+                if await pg.is_visible("#simRes .tiles"): problems.append("simulator: detailed numbers should be folded away under 'More numbers'")
+                await pg.locator("#simRes").screenshot(path=os.path.join(OUT, "sim-plain.png"))
                 await pg.screenshot(path=os.path.join(OUT, "sim.png"), full_page=True)
                 # running again with other settings gives a new, numbered result; clear and reset work
                 await pg.click('[data-sim="minConf"][data-v="70"]'); await pg.click("#simRun")

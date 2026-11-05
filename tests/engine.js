@@ -134,6 +134,15 @@ const W=w200Series(wk),last=wk[259].time,e=ema(wk.map(k=>k.close),200);
 ok(Math.abs(w200At(W,last,true)-e[259])<1e-9&&Math.abs(w200At(W,last+3*86400,false)-e[258])<1e-9&&Math.abs(w200At(W,last+3*86400+3600,false)-e[258])<1e-9,'200W EMA: 1W uses its own week, smaller candles use the last completed week');
 ok(w200At(W,wk[199].time,false)===null&&w200At(W,wk[200].time+60,false)===e[199],'200W EMA: nothing before the first full 200 weeks');
 ok(w200At(W,last+30*86400,false)===e[259],'200W EMA: after the last weekly candle, the latest value');}
+// simulator in dollars (plain summary)
+{const T=(r,cost,how,t0,t1)=>({r,cost,how,t0,t1});
+const tr=[T(-1.05,0.05,'stop',0,3600),T(0.68,0.07,'breakeven',3600,7200),T(2.9,0.1,'target',7200,86400*3),T(0.04,0.06,'time',100,200),T(-1.04,0.04,'stop',300,400)];
+const M=simMoney(tr,1000,2);
+ok(M.risk===20&&M.n===5&&M.wins===2&&M.losses===2&&M.even===1,'sim money: $20 risk, 2 won, 2 lost, 1 even');
+ok(Math.abs(M.net-(-1.05+0.68+2.9+0.04-1.04)*20)<1e-9&&Math.abs(M.fees-0.32*20)<1e-9&&Math.abs(M.beforeFees-M.net-M.fees)<1e-9&&Math.abs(M.end-1000-M.net)<1e-9,'sim money: net, fees and end balance');
+ok(Math.abs(M.avgWin-(0.68+2.9)/2*20)<1e-9&&Math.abs(M.avgLoss-(-1.045*20))<1e-9&&M.how.stop===2&&Math.abs(M.days-3)<1e-9,'sim money: typical win and loss, exits, days covered');
+ok(simMoney([],100,2).n===0&&simMoney([],100,2).net===0,'sim money: no trades');
+ok(fmtDur(1800)==='30 min'&&fmtDur(3600)==='1 hour'&&fmtDur(5*3600)==='5 hours'&&fmtDur(30*3600)==='30 hours'&&fmtDur(3*86400)==='3 days','durations in words');}
 // public track record: cleaning and stats (losses and unscored records kept, junk dropped)
 {const rec=(o)=>Object.assign({m:'BTC',tf:'1h',dir:1,conf:72,confirmed:true,t0:Date.UTC(2026,9,27)/1000,entry:100,stop:98,how:'stop',r:-1.02,reach:false,t1:Date.UTC(2026,9,27,5)/1000},o);
 const raw={start:1,updated:2,source:'Gate',markets:['BTC'],open:[rec({how:undefined}),{m:'X'}],closed:[rec(),rec({how:'target',r:2.1,reach:true,dir:-1,stop:102,confirmed:false}),

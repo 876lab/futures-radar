@@ -1,4 +1,9 @@
 [
+  {"date": "2026-11-05", "title": "A simpler Simulator", "items": [
+    "Results now start with a plain story in dollars: how many trades, how many won and lost, and what your account would be at the end.",
+    "A list of the latest trades says in words how each one ended, e.g. 'hit the stop' or 'reached target 2', with the dollar result.",
+    "'How a simulated trade works' explains the three usual endings. The detailed numbers are still there under 'More numbers and breakdowns'."
+  ]},
   {"date": "2026-11-04", "title": "Company info on stocks, and the 200-week EMA", "items": [
     "Open any stock (like Intel or Tesla) and a short card says what the company does, where it's listed (Nasdaq or NYSE), and whether the US stock market is open right now.",
     "The stock market is open 9:30am–4pm New York time, but these futures trade around the clock, so prices can jump at the open. The card links to the exchange's page and the company's SEC filings.",

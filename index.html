@@ -133,6 +133,12 @@ button{cursor:pointer}
 .star.bell[aria-pressed="true"]{color:var(--accent)} .star.bell[aria-pressed="true"] svg{fill:currentColor}
 .cobox{display:grid;gap:6px;padding:12px 16px;font-size:13.5px} .cobox p{margin:0} .co-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap} .co-h b{font-size:15px}
 .co-ex{font-weight:700} .co-hrs{font-size:12.5px;color:var(--muted)} .co-links{font-size:12.5px}
+.sim-plain{display:grid;gap:8px;margin-top:6px} .sim-plain p{margin:0} .sim-story{font-size:15px;line-height:1.45} .sim-end{font-size:17px;text-decoration:underline;text-underline-offset:3px}
+.sim-wl{display:grid;grid-template-columns:repeat(3,1fr);gap:6px} .sim-wl>div{border-radius:10px;padding:8px 10px;font-size:13px;display:grid;background:var(--flat-bg)}
+.sim-wl b{font-size:20px} .sim-wl small{color:var(--muted);font-size:11.5px} .sim-wl .w{background:var(--up-bg)} .sim-wl .w b{color:var(--up)} .sim-wl .l{background:var(--down-bg)} .sim-wl .l b{color:var(--down)}
+.sim-trades{list-style:none;margin:0;padding:0;display:grid;gap:5px} .sim-trades li{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:8px 10px;border-radius:10px;background:var(--surface-2);border-left:4px solid var(--c4);font-size:13px}
+.sim-trades li.w{border-left-color:var(--up)} .sim-trades li.l{border-left-color:var(--down)} .sim-trades small{display:block;color:var(--muted);font-size:12px} .sim-trades li>b{white-space:nowrap;font-variant-numeric:tabular-nums}
+.sim-steps{margin:0;padding-left:20px;display:grid;gap:6px;font-size:13.5px} .sim-more{margin:4px 16px 8px} .sim-more>summary{cursor:pointer;font-weight:600;padding:8px 0;color:var(--accent)} .sim-tech{font-size:13px;color:var(--muted);margin:4px 0 8px}
 .albox{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;padding:14px 16px}
 .albox .note{margin:0;padding:0;font-size:12px;color:var(--muted)} .albox h3{margin:0;padding:0} .albox .sub{font-size:12px;color:var(--muted);margin:0}
 .al-form{display:flex;gap:8px} .al-form input{flex:1;min-width:0;font:inherit;font-size:16px;padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--fg)}
@@ -980,6 +986,7 @@ function cleanNews(j){
   const sources=(Array.isArray(j.sources)?j.sources:[]).filter(x=>x&&typeof x==='object').slice(0,30).map(x=>({name:str(x.name,60),ok:x.ok===true,n:fin(x.n)?x.n:0,err:str(x.err,60)}));
   return {v:j.v,updated:fin(j.updated)?j.updated:0,items,fng,calendar,sources,delist};
 }
+function fmtDur(sec){if(!(sec>0))return 'under a minute';const h=sec/3600;return h<1?Math.max(1,Math.round(sec/60))+' min':h<48?(h<10?+h.toFixed(1):Math.round(h))+' hour'+(h===1?'':'s'):Math.round(h/24)+' days'}
 function fmtMoney(v){return (v<0?'−$':'$')+Math.abs(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function fmtVol(v){if(!v||!isFinite(v))return '—';const a=Math.abs(v);return '$'+(a>=1e9?(v/1e9).toFixed(2)+'B':a>=1e6?(v/1e6).toFixed(1)+'M':a>=1e3?(v/1e3).toFixed(0)+'K':v.toFixed(0))}
 function fmtPct(x){if(x==null||!isFinite(x))return '—';return (x>0?'+':'')+x.toFixed(2)+'%'}
@@ -2717,6 +2724,17 @@ function eqChart(curve){
     <text class="eq-txt" x="${L}" y="${H-5}">Trade 1</text><text class="eq-txt" x="${W-Rr}" y="${H-5}" text-anchor="end">Trade ${n-1}</text>
   </svg>`;
 }
+// the simulator's results in dollars, for the plain summary (owner request, 5 Nov 2026). Same fixed dollar risk on every
+// trade (no compounding). A trade within ±0.1R of zero counts as "about even".
+function simMoney(trades,acct,riskPct){
+  const risk=acct*riskPct/100,W=trades.filter(t=>t.r>0.1),L=trades.filter(t=>t.r<-0.1),E=trades.length-W.length-L.length;
+  const sum=(a,f)=>a.reduce((x,t)=>x+f(t),0),avg=(a,f)=>a.length?sum(a,f)/a.length:0;
+  const net=sum(trades,t=>t.r)*risk,fees=sum(trades,t=>t.cost)*risk,how={};
+  for(const t of trades)how[t.how]=(how[t.how]||0)+1;
+  const t0=trades.length?Math.min(...trades.map(t=>t.t0)):0,t1=trades.length?Math.max(...trades.map(t=>t.t1)):0;
+  return{risk,n:trades.length,wins:W.length,losses:L.length,even:E,avgWin:avg(W,t=>t.r)*risk,avgLoss:avg(L,t=>t.r)*risk,net,fees,beforeFees:net+fees,end:acct+net,how,days:t1>t0?(t1-t0)/86400:0};
+}
+const SIM_HOW_TXT={stop:'hit the stop',breakeven:'reached target 1 (half closed), rest closed at entry',target:'reached target 2',target1:'reached target 1',time:'closed after the time limit'};
 function groupRows(trades,keyFn,order){
   const m=new Map();trades.forEach(t=>{const k=keyFn(t);if(!m.has(k))m.set(k,[]);m.get(k).push(t)});
   return (order||[...m.keys()]).filter(k=>m.has(k)).map(k=>{const tr=m.get(k),w=tr.filter(t=>t.r>0).length;return{k,n:tr.length,win:w/tr.length,avg:tr.reduce((a,t)=>a+t.r,0)/tr.length}});
@@ -2896,6 +2914,20 @@ function simResultsHTML(){
   const head=s.avgR>=0.1?'Profitable':s.avgR>-0.05?'About break-even':'Losing';
   const perTrade=s.avgR*o.risk;
   const tfsUsed=[...new Set(res.rows.map(r=>TF_LABEL[r.tf]))].join(', ');
+  const acct=state.acct>0?state.acct:100,M=simMoney(res.trades,acct,o.risk),$=v=>(v<0?'−':'')+fmtMoney(Math.abs(v)),sg=v=>(v>=0?'+':'−')+fmtMoney(Math.abs(v));
+  const days=M.days>=2?`over ${Math.round(M.days)} days`:M.days>0?`over ${Math.max(1,Math.round(M.days*24))} hours`:'';
+  const why=M.losses>M.wins*1.4?'Most trades hit their stop before reaching target 1, which is why so many end as losses.':
+    M.beforeFees>0&&M.net<=0?`Before fees the trades made ${sg(M.beforeFees)}; fees and slippage (${$(M.fees)}) turned that into a loss. Short candle sizes pay fees more often for smaller moves.`:
+    M.net>0?'More was won than lost, after fees.':'Wins and losses roughly cancel out, so the total ends close to where it started.';
+  const plain=`<div class="sim-plain">
+      <p class="sim-story">Starting with <b>${$(acct)}</b> and risking <b>${$(M.risk)}</b> (${o.risk}%) on each trade, the app's setups would have taken <b>${M.n} trades</b> ${days}. You'd end with <b class="sim-end">${$(M.end)}</b> (${sg(M.net)}).</p>
+      <div class="sim-wl"><div class="w"><b>${M.wins}</b> won<small>typically ${sg(M.avgWin)}</small></div><div class="l"><b>${M.losses}</b> lost<small>typically ${sg(M.avgLoss)}</small></div><div class="e"><b>${M.even}</b> about even<small>small win or loss</small></div></div>
+      <p>${why} Fees and slippage cost <b>${$(M.fees)}</b> in total.</p>
+      <p class="hint">Account size and risk come from your position size calculator and the Risk box above. Change them there to see your own numbers.</p></div>`;
+  const recent=[...res.trades].sort((a,b)=>b.t1-a.t1).slice(0,12);
+  const tradeList=recent.length?`<div class="sim-sec"><h4>Latest trades, in plain words</h4><ul class="sim-trades">${recent.map(t=>{const v=t.r*M.risk,h=t.how==='target'&&o.plan==='tp1'?'target1':t.how;
+    return `<li class="${t.r>0.1?'w':t.r<-0.1?'l':'e'}"><span><b>${esc(t.root)}</b> ${TF_LABEL[t.tf]} ${t.dir>0?'long':'short'} · ${esc(new Date(t.t0*1000).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}))}<small>${SIM_HOW_TXT[h]||esc(t.how)} after ${fmtDur(t.t1-t.t0)}</small></span><b class="${v>0?'up':v<0?'down':''}">${sg(v)}</b></li>`}).join('')}</ul>
+      <p class="hint">Tap a market under "More numbers" → "By market" to see its trades on the chart.</p></div>`:'';
   let text=`Out of ${s.n} trades, ${fmtP(s.win)} were winners and ${fmtP(s.reach)} reached target 1. After fees, the average trade made ${fmtR(s.avgR)}, which is about ${(perTrade>0?'+':perTrade<0?'−':'')+Math.abs(perTrade).toFixed(2)}% of your account per trade at ${o.risk}% risk.`;
   text+=` If fees and slippage were twice as high, the average would be ${fmtR(s.avg2)}.`;
   if(s.n<30)text+=' That is too few trades to trust. Add more markets or candle sizes.';
@@ -2916,14 +2948,24 @@ function simResultsHTML(){
     <div class="sim-verdict ${cls}">
       <div class="sc-eyebrow">Result · ${res.markets} market${res.markets===1?'':'s'} · ${tfsUsed}${res.cancelled?' · stopped early':''} · run ${sim.runs||1} at ${new Date(res.at).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}</div>
       <div class="sc-head">${head}</div>
-      <p>${esc(text)}</p>
+      ${plain}
       ${res.demo?'<p class="demo">Sample data: these numbers come from made-up prices and mean nothing. Run it on your live app for real results.</p>':''}
     </div>
+    ${tradeList}
+    <div class="sim-sec"><h4>How a simulated trade works</h4><ol class="sim-steps">
+      <li><b>The app goes back in time</b> and replays the chart candle by candle, as if it were live, using only the candles it would have seen then.</li>
+      <li><b>When a Long or Short setup appears</b>, it opens a pretend trade at the next candle with the app's own stop and targets.</li>
+      <li><b>The trade ends</b> when price hits the stop (a loss of your full risk), or reaches target 1 (half is closed at 1.5× the risk and the stop moves to the entry price), then either target 2 (3× the risk) or back to entry (a smaller win). Trades still open after ${o.maxHold} candles are closed at the market price.</li>
+      <li><b>Fees and slippage</b> are taken off every trade, like a real exchange.</li></ol>
+      <p class="hint">So most trades end one of three ways: a full loss, a smaller win (target 1 then back to entry) or a bigger win (target 2).</p></div>
+    <details class="sim-more"><summary>More numbers and breakdowns</summary>
+    <p class="sim-tech">${esc(text)}</p>
     <div class="tiles">${tiles.map(([k,v,sub])=>`<div><div class="k">${k}</div><div class="v">${v}</div><div class="s">${sub}</div></div>`).join('')}</div>
     <div class="sim-sec"><h4>Account balance, trade by trade</h4>${eqChart(s.curve)}
       <p class="hint">"R" is the amount you risk on one trade. +1R means you won what you risked; −1R means the stop was hit.</p></div>
     ${btable('By candle size',byTf,'Candle size')}${btable('Long vs short',bySide,'Direction')}${btable('By agreement',byConf,'Agreement')}${btable('How trades ended',byHow,'Exit')}
     ${mkt}
+    </details>
     <div class="sim-sec"><h4>How the test works</h4><ul class="sim-notes">
       <li>Setups are read when each candle closes, using only the candles before it. Trades enter at the next candle's open.</li>
       <li>The stop sits where the app puts it. Target 1 is 1.5× the risk and target 2 is 3×.</li>

@@ -254,6 +254,54 @@ async def mine_check(b):
         if "Choose a CSV file" not in await pg.inner_text("#mineCard"): problems.append(f"[{scheme}] my trades: remove did not work")
         await pg.close()
 
+async def backup_check(b):
+    """Back up your data: save a backup file, lose everything, restore it, undo the restore; a wrong file gets a plain message."""
+    ctx = await b.new_context(viewport={"width": 390, "height": 800}, accept_downloads=True)
+    pg = await ctx.new_page()
+    errs = []; pg.on("pageerror", lambda e: errs.append(str(e)))
+    await block_exchanges(pg)
+    seed = ("localStorage.setItem('fradar:terms','1');localStorage.setItem('fradar:watch2',JSON.stringify(['binance:BTCUSDT','gate:ETH_USDT']));"
+            "localStorage.setItem('fradar:alerts','[]');localStorage.setItem('fradar:acct','250');localStorage.setItem('fradar:risk','1.5');"
+            "localStorage.setItem('fradar:errs','[\"x\"]');")
+    await pg.goto("file://" + PAGE); await pg.evaluate(seed); await pg.reload(); await pg.wait_for_timeout(2000)
+    await pg.click("#openSettings"); await pg.wait_for_timeout(300)
+    if not await pg.is_visible("#backupGrp") or "No backup yet" not in await pg.inner_text("#bkLast"): problems.append("backup: Settings has no 'Back up your data' group")
+    async with pg.expect_download() as dl_info: await pg.click("#bkSave")
+    dl = await dl_info.value; bf = os.path.join(OUT, "fr-backup.json"); await dl.save_as(bf)
+    import re as _re
+    if not _re.match(r"^futures-radar-backup-\d{4}-\d\d-\d\d\.json$", dl.suggested_filename): problems.append("backup: file name " + dl.suggested_filename)
+    bk = json.load(open(bf))
+    if bk.get("app") != "Futures Radar" or bk.get("version") != 1: problems.append("backup: file header wrong")
+    d = bk.get("data", {})
+    if d.get("watch2") != ["binance:BTCUSDT", "gate:ETH_USDT"] or d.get("acct") != 250 or d.get("risk") != 1.5: problems.append("backup: starred markets or settings missing: " + json.dumps(d)[:200])
+    if "errs" in d or "bkLast" in d: problems.append("backup: includes the error log or its own bookkeeping")
+    await pg.wait_for_timeout(200)
+    if "Last backup: today" not in await pg.inner_text("#bkLast"): problems.append("backup: last-backup line not updated")
+    # lose everything, as if the Home Screen icon were removed
+    await pg.evaluate("Object.keys(localStorage).filter(k=>k.startsWith('fradar:')).forEach(k=>localStorage.removeItem(k));localStorage.setItem('fradar:terms','1')")
+    await pg.reload(); await pg.wait_for_timeout(1500)
+    await pg.click("#openSettings"); await pg.wait_for_timeout(300)
+    bad = os.path.join(OUT, "not-a-backup.json"); open(bad, "w").write("hello")
+    await pg.set_input_files("#bkFile", bad); await pg.wait_for_timeout(300)
+    if "isn't a Futures Radar backup" not in await pg.inner_text("#bkPreview"): problems.append("backup: wrong file gets no plain message")
+    await pg.set_input_files("#bkFile", bf); await pg.wait_for_timeout(300)
+    pv = await pg.inner_text("#bkPreview")
+    if "2 starred markets" not in pv or "Restore" not in pv: problems.append("backup: preview missing what the backup holds: " + pv[:120])
+    if await pg.evaluate("document.documentElement.scrollWidth > window.innerWidth + 1"): problems.append("backup: Settings wider than a phone screen")
+    await pg.locator("#backupGrp").screenshot(path=os.path.join(OUT, "backup.png"))
+    async with pg.expect_navigation(): await pg.click("#bkGo")
+    await pg.wait_for_timeout(1500)
+    st = await pg.evaluate("({w:JSON.parse(localStorage.getItem('fradar:watch2')||'null'),a:localStorage.getItem('fradar:acct'),u:!!localStorage.getItem('fradar:bkUndo')})")
+    if st["w"] != ["binance:BTCUSDT", "gate:ETH_USDT"] or st["a"] != "250" or not st["u"]: problems.append("backup: restore did not bring the data back: " + json.dumps(st))
+    await pg.click("#openSettings"); await pg.wait_for_timeout(300)
+    if not await pg.is_visible("#bkUndo"): problems.append("backup: no Undo restore after restoring")
+    async with pg.expect_navigation(): await pg.click("#bkUndo")
+    await pg.wait_for_timeout(1500)
+    st2 = await pg.evaluate("({w:localStorage.getItem('fradar:watch2'),u:localStorage.getItem('fradar:bkUndo')})")
+    if st2["w"] is not None or st2["u"] is not None: problems.append("backup: Undo restore did not go back: " + json.dumps(st2))
+    for e in errs: problems.append("backup: JS error: " + e)
+    await ctx.close()
+
 async def main():
     async with async_playwright() as p:
         b = await p.chromium.launch()
@@ -480,6 +528,7 @@ async def main():
         await stock_check(b)
         await pull_check(b)
         await legal_check(b)
+        await backup_check(b)
         await mine_check(b)
         await b.close()
 

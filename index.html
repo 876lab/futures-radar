@@ -399,6 +399,12 @@ button{cursor:pointer}
 .switch[aria-checked="true"]::after{transform:translateX(18px)}
 .switch:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .setpage input{margin-top:6px}
+.bklast{margin:0;font-weight:700;color:var(--up)} .bklast.stale{color:var(--accent)}
+.filebtn{position:relative;overflow:hidden;cursor:pointer;display:inline-flex;align-items:center}
+.setpage .filebtn input{position:absolute;inset:0;opacity:0;cursor:pointer;font-size:0;margin:0}
+.filebtn:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+.bkprev{display:grid;gap:8px;background:var(--surface-2);border-radius:var(--r);padding:12px}
+.bkprev ul{margin:0;padding-left:18px} .bkprev .err{color:var(--down);font-weight:600;margin:0}
 .inrow{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 @media (min-width:560px){.inrow{grid-template-columns:repeat(4,minmax(0,1fr))}}
 .inrow label{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:600}
@@ -687,6 +693,14 @@ html,body{overscroll-behavior-y:none}
             </div>
             <p>Only needed if an exchange refuses requests from your browser. Put {url} where the exchange address goes; without it the address is added to the end.</p>
             <div class="acts" style="justify-content:flex-start"><button type="button" class="btn primary" id="saveRelay">Save relay and reload prices</button></div>
+          </div>
+          <div class="sgrp" id="backupGrp">
+            <h3>Back up your data</h3>
+            <p>Your starred markets, price alerts, imported trades, Simulator and Picks choices, and these settings are saved only on this device. Removing the Home Screen icon or clearing website data deletes them, so save a backup file now and then (on iPhone or iPad choose Save to Files).</p>
+            <p class="bklast" id="bkLast">No backup yet</p>
+            <div class="acts" style="justify-content:flex-start"><button type="button" class="btn primary" id="bkSave">Save backup file</button><label class="btn filebtn" id="bkPick">Restore from a backup<input type="file" id="bkFile" accept=".json,application/json,text/plain"></label></div>
+            <div id="bkUndoBox"></div>
+            <div id="bkPreview" aria-live="polite"></div>
           </div>
           <div class="sgrp">
             <h3>App health</h3>
@@ -3589,7 +3603,54 @@ function renderSettings(){
   f('#setAcct',state.acct);f('#setRisk',state.risk);f('#maxLoss',state.maxLoss>0?state.maxLoss:'');f('#proxy',state.proxy);
   $('#setAbout').textContent=`Last updated ${changes&&changes[0]?changes[0].date:'recently'}. Every update has to pass automatic tests before it goes live.`;
   renderFeedTable();
+  renderBackup();
 }
+// ---- Backup and restore: every 'fradar:' item on this device in one dated .json file. Restoring replaces those items
+// (an undo copy is kept until it is undone or dismissed); the app then reloads so everything reads the restored data. ----
+const BK_SKIP=new Set(['errs','bkLast','bkUndo']);
+function bkKeys(){const out=[];try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.indexOf('fradar:')===0&&!BK_SKIP.has(k.slice(7)))out.push(k.slice(7))}}catch(e){}return out.sort()}
+function makeBackup(){const data={};bkKeys().forEach(k=>{try{data[k]=JSON.parse(localStorage.getItem('fradar:'+k))}catch(e){}});return{app:'Futures Radar',kind:'backup',version:1,exportedAt:new Date().toISOString(),data}}
+function readBackup(text){let d;
+  try{d=JSON.parse(String(text||'').trim().replace(/^﻿/,''))}catch(e){throw new Error("That isn't a Futures Radar backup. Choose the .json file you saved with Save backup file.")}
+  if(!d||d.app!=='Futures Radar'||!d.data||typeof d.data!=='object'||Array.isArray(d.data))throw new Error("That file isn't a Futures Radar backup. Choose the .json file you saved with Save backup file.");
+  const data={};Object.keys(d.data).forEach(k=>{if(/^[A-Za-z0-9_.-]{1,40}$/.test(k)&&!BK_SKIP.has(k))data[k]=d.data[k]});
+  if(!Object.keys(data).length)throw new Error('This backup is empty.');
+  return{data,exportedAt:Date.parse(d.exportedAt)||0}}
+function bkSummary(data){const n=k=>Array.isArray(data[k])?data[k].length:0,pl=(c,w)=>`${c} ${w}${c===1?'':'s'}`;
+  return[pl(n('watch2'),'starred market'),pl(n('alerts'),'price alert'),pl(n('mytrades'),'imported trade'),'your settings']}
+function bkAge(){const b=LS.get('bkLast',null);if(!b||!b.at)return{t:'No backup yet',stale:true};
+  const days=Math.floor((new Date().setHours(0,0,0,0)-new Date(b.at).setHours(0,0,0,0))/864e5);
+  return{t:'Last backup: '+(days<=0?'today':days===1?'yesterday':days+' days ago'),stale:days>=7}}
+function renderBackup(){const el=$('#bkLast');if(!el)return;const a=bkAge();el.textContent=a.t;el.classList.toggle('stale',a.stale);
+  const u=$('#bkUndoBox');let undo=null;try{undo=localStorage.getItem('fradar:bkUndo')}catch(e){}
+  u.innerHTML=undo?`<div class="bkprev"><p style="margin:0">Your data was restored from a backup.</p><div class="acts" style="justify-content:flex-start"><button type="button" class="btn" id="bkUndo">Undo restore</button><button type="button" class="btn" id="bkKeep">Keep it</button></div></div>`:''}
+async function saveBackup(){const bk=makeBackup(),z=n=>String(n).padStart(2,'0'),d=new Date(),name=`futures-radar-backup-${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}.json`;
+  const blob=new Blob([JSON.stringify(bk,null,1)],{type:'application/json'});let ok=false;
+  const touch=matchMedia('(pointer: coarse)').matches;
+  if(touch&&navigator.canShare&&typeof File==='function'){try{const f=new File([blob],name,{type:'application/json'});if(navigator.canShare({files:[f]})){await navigator.share({files:[f],title:'Futures Radar backup'});ok=true}}catch(e){if(e&&e.name==='AbortError')return}}
+  if(!ok){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.rel='noopener';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},4000);ok=true}
+  LS.set('bkLast',{at:Date.now()});renderBackup();showToast('Backup saved: '+name)}
+let bkPending=null;
+function previewBackup(text){const box=$('#bkPreview');
+  try{const bk=readBackup(text);bkPending=bk;
+    box.innerHTML=`<div class="bkprev"><p style="margin:0"><b>Backup${bk.exportedAt?' from '+esc(new Date(bk.exportedAt).toLocaleDateString(undefined,{day:'numeric',month:'long',year:'numeric'})):''}</b></p><ul>${bkSummary(bk.data).map(x=>`<li>${esc(x)}</li>`).join('')}</ul><p style="margin:0">Restoring replaces these on this device. You can undo it afterwards.</p><div class="acts" style="justify-content:flex-start"><button type="button" class="btn primary" id="bkGo">Restore</button><button type="button" class="btn" id="bkCancel">Cancel</button></div></div>`}
+  catch(e){bkPending=null;box.innerHTML=`<div class="bkprev"><p class="err" role="alert">${esc(e.message)}</p></div>`}}
+function applyBackup(){if(!bkPending)return;const before={};
+  try{bkKeys().forEach(k=>{before[k]=localStorage.getItem('fradar:'+k)});localStorage.setItem('fradar:bkUndo',JSON.stringify(before));
+    bkKeys().forEach(k=>localStorage.removeItem('fradar:'+k));
+    Object.keys(bkPending.data).forEach(k=>localStorage.setItem('fradar:'+k,JSON.stringify(bkPending.data[k])));
+  }catch(e){showToast("Couldn't restore here: this browser won't save data.");return}
+  location.reload()}
+function undoBackup(){let before=null;try{before=JSON.parse(localStorage.getItem('fradar:bkUndo')||'null')}catch(e){}
+  if(!before)return;try{bkKeys().forEach(k=>localStorage.removeItem('fradar:'+k));Object.keys(before).forEach(k=>{if(typeof before[k]==='string')localStorage.setItem('fradar:'+k,before[k])});localStorage.removeItem('fradar:bkUndo')}catch(e){}
+  location.reload()}
+$('#bkSave').addEventListener('click',()=>{saveBackup().catch(()=>showToast("Couldn't save the backup. Try again."))});
+$('#bkFile').addEventListener('change',e=>{const f=e.target.files&&e.target.files[0];if(!f)return;
+  if(f.size>20*1024*1024){previewBackup('');return}
+  const r=new FileReader();r.onload=()=>previewBackup(String(r.result||''));r.onerror=()=>previewBackup('');r.readAsText(f);e.target.value=''});
+$('#backupGrp').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  if(b.id==='bkGo')applyBackup();else if(b.id==='bkCancel'){bkPending=null;$('#bkPreview').innerHTML=''}
+  else if(b.id==='bkUndo')undoBackup();else if(b.id==='bkKeep'){try{localStorage.removeItem('fradar:bkUndo')}catch(e){}renderBackup();showToast('Kept the restored data')}});
 function setCompact(on){state.compact=on;LS.set('compact',on);document.body.classList.toggle('compact',on);$('#compactBtn').setAttribute('aria-pressed',on)}
 function refreshCalc(){if($('#calcOut')&&$('#acct')){$('#acct').value=state.acct;$('#riskPct').value=state.risk;$('#acct').dispatchEvent(new Event('input'))}}
 function openSettingsPage(){if(document.body.classList.contains('d-open'))closeDetail();goPage('settings')}

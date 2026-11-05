@@ -2,6 +2,13 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-11-05 (daytime, owner request): Back up your data
+- The owner asked for backup and restore in all three of his apps (he is replacing old Home Screen shortcuts; on iPhone and iPad a Home Screen web app keeps its own storage and loses it when the icon is removed).
+- Settings → **Back up your data** (new group before App health): **Save backup file** writes every `fradar:` item on the device to `futures-radar-backup-YYYY-MM-DD.json` (`{app: "Futures Radar", kind: "backup", version: 1, exportedAt, data}`): starred markets (`watch2`), price alerts, imported trades, Simulator and Picks choices, and settings. The error log (`errs`) and the backup's own bookkeeping are left out. On phones and tablets it opens the share sheet (Save to Files); elsewhere it downloads. A "Last backup" line is kept on the device (`bkLast`; amber when there is none or it is 7+ days old).
+- **Restore from a backup**: choose the file; a preview lists what it holds (starred markets, price alerts, imported trades, settings) before anything changes. Restoring replaces the `fradar:` items with the backup's, keeps an undo copy (`bkUndo`), and reloads the app so everything reads the restored data; **Undo restore** puts the previous items back, **Keep it** drops the undo copy. A wrong file gets a plain message. Restored values still pass through the existing cleaning (`cleanAlerts`, `cleanTrades`, `LS.get` type checks).
+- No change to signals, maths, login or data sources.
+- Tests: new `backup_check` in `tests/browser.py` (file name and contents, error log left out, last-backup line, wrong file, preview, losing everything then restoring, undo restore). All engine, backtest, browser and stress checks pass.
+
 ## 2026-11-05 (owner go-ahead: learning lab, round 2)
 - New experiments in the nightly backtest, each judged on the older and newer halves: **pullback entry** (a limit order at the far edge of the setup's entry zone, valid for 3 candles, 0.02% fee in; stop unchanged; missed if not filled, fill rate shown); **trail the stop with Supertrend after target 1** (line as of the previous close, never looser than entry); **close after 48 candles** instead of 96; **1D setups** (a separate run, kept out of the main numbers so nights stay comparable); regime filters **with the 1D trend**, **market light calm (amber)**, **market light not stormy** (Bitcoin daily light from Gate, without Fear & Greed or cycle history), and **skip weekends + with the 1D trend**.
 - New exit simulator `runExit` in `scripts/backtest.js`; checked against the app's `simTrade` on the sample data (621 trades, largest difference 0.0005R with trailing off).

@@ -39,6 +39,8 @@ The working plan for nightly improvement runs. Each run picks the **first unchec
 
 ## Backlog (top = next)
 
+- [x] (2026-11-05, built in the daytime session) **Owner request: back up and restore.** Settings → Back up your data: backup file (Save to Files), restore with preview and undo.
+
 - [x] **Neutral wording + Terms, Risk and Privacy pages.** (done 2026-10-23; versioned acceptance key `fradar:terms`, `TERMS_V` = 1 in index.html) **TONIGHT (owner approved 23 Oct 2026):** The owner asked for this specific item in the run at 1:20am on 23 Oct; it may run larger than the usual 300-line limit. **Text and labels only: do not change any signal logic, scores, thresholds or maths.**
   1. **Neutral wording everywhere** (rows, Setups, chart screen, Simulator, help, changes.json going forward). The app describes what the chart shows; it never tells the user what to do.
      - "Enter long" → **Long setup**; "Enter short" → **Short setup**; "Hold" → **Wait** (trend intact but price stretched / no fresh trigger); "Avoid" / "Avoid for now" → **No setup**. Row tags: Long / Short / Wait / No setup.
@@ -131,6 +133,8 @@ The working plan for nightly improvement runs. Each run picks the **first unchec
 - [x] Safety nets: tests on GitHub, daily live health check, broken sections isolated with an App health log (2026-10-21)
 
 ## Notes from runs
+
+- 2026-11-05 (daytime): Backup and restore added at the owner's request. Keep the backup file format (`app: "Futures Radar", version: 1`, `data` = every `fradar:` item except `errs`, `bkLast`, `bkUndo`) readable by future versions; new settings saved with `LS.set` are included automatically.
 
 (Each run adds a dated line here if something was blocked or needs the owner.)
 

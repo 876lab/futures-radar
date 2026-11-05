@@ -74,7 +74,7 @@ The working plan for nightly improvement runs. Each run picks the **first unchec
 - [x] **Multi-timeframe strip.** (done 2026-10-24, with the extra-confirmation checks; owner turned on "Only show confirmed setups" by default) On the chart screen, a row showing the signal on 15m / 1H / 4H / 1D at once, so agreement is visible at a glance.
 - [ ] **VWAP.** Daily (UTC) VWAP line on the chart and a check on the signal card ("Price above today's VWAP"). Information only at first.
 - [ ] **Open interest and funding context.** From exchange public APIs (e.g. Binance `openInterest` and `openInterestHist`, Gate contract stats): OI change over 24h and a "crowded" warning when funding is extreme. Explain in one line.
-- [ ] **RSI divergence.** Detect regular bullish/bearish divergence between price swings and RSI 12; mark it on the chart and mention it on the signal card (information only).
+- [x] **RSI divergence.** (done 5 Nov 2026: 1H/4H/1D marks, card, chip; measured nightly in the learning lab)
 - [x] **Fibonacci levels (owner request, 25 Oct 2026).** (done 2026-10-25: zigzag swings of 3× ATR, retracement and extension lines with a chip, card under the chart, zone recorded in the nightly backtest) Information only.
 - [ ] **Judge the Fibonacci zones with the backtest** (after ~2 weeks of nightly runs): compare "Where price was on the last move" buckets; only if a zone is clearly better or worse across many trades, consider showing it beside the past win rate (information only). Also worth testing: 3-point (A-B-C) extension projections and a 2× vs 3× ATR swing size.
 - [x] **App icon + UI tidy-up (owner request, 25 Oct 2026).** Radar icon, web manifest, aligned compact rows, pause icon on Wait, calmer header.

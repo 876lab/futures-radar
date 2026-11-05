@@ -370,6 +370,9 @@ async def main():
             if "Order book" not in bk or "Within 2% of price" not in bk or "Large" not in bk: problems.append(f"[{scheme}] chart screen: order book card missing")
             for bad in ("undefined", "NaN", "Infinity"):
                 if bad in bk: problems.append(f"[{scheme}] order book shows '{bad}'")
+            # RSI divergence card (1H/4H/1D only) and chip
+            dv = await pg.inner_text("#divBox") if await pg.is_visible("#divBox") else ""
+            if "RSI divergence" not in dv or not await pg.locator('#toggles [data-ind="div"]').count(): problems.append(f"[{scheme}] chart: RSI divergence card or chip missing: {dv[:80]!r}")
             # support and resistance card (ladder) and chart lines, switchable with their chip
             srt = await pg.inner_text("#srBox") if await pg.is_visible("#srBox") else ""
             if "Support and resistance" not in srt or "Now" not in srt or not any(x in srt for x in ("S1", "R1")) or "What do these mean?" not in srt: problems.append(f"[{scheme}] chart screen: support/resistance card missing: {srt[:100]!r}")
@@ -409,6 +412,12 @@ async def main():
                 for bad in ("undefined", "NaN"):
                     if bad in bs: problems.append(f"[{scheme}] chart {lbl}: shows '{bad}'")
                 if scheme == "light" and big == "1w": await pg.screenshot(path=os.path.join(OUT, "chart-1w.png"))
+            await pg.click('#tfSeg [data-tf="4h"]'); await pg.wait_for_timeout(1500)
+            dv = await pg.inner_text("#divBox") if await pg.is_visible("#divBox") else ""
+            if "4H candles" not in dv or ("divergence" not in dv.lower()) or "Switch to one of those" in dv: problems.append(f"[{scheme}] chart 4H: divergence card wrong: {dv[:120]!r}")
+            for bad in ("undefined", "NaN"):
+                if bad in dv: problems.append(f"[{scheme}] divergence card shows '{bad}'")
+            if scheme == "light": await pg.locator("#divBox").screenshot(path=os.path.join(OUT, "divergence.png"))
             await pg.click(f'#tfSeg [data-tf="{was}"]'); await pg.wait_for_timeout(1200)
             if "chart reading ·" not in (await pg.inner_text("#sigCard")).lower(): problems.append(f"[{scheme}] chart: going back from 1M to {was} did not bring the chart reading back")
             if scheme == "dark":
@@ -420,6 +429,9 @@ async def main():
                 await pg.wait_for_selector("#simRes", timeout=30000)
                 res = await pg.inner_text("#simRes")
                 if "NaN" in res or "undefined" in res: problems.append("simulator results show NaN/undefined")
+                lab = await pg.inner_text("#labCard")
+                if "What the backtest is learning" not in lab or "Today's rules" not in lab or "NaN" in lab or "undefined" in lab: problems.append(f"simulator: lab card wrong: {lab[:160]!r}")
+                await pg.locator("#labCard").screenshot(path=os.path.join(OUT, "lab.png"))
                 for want in ("Starting with", "trades", "won", "lost", "about even", "Fees and slippage cost", "Latest trades, in plain words", "How a simulated trade works", "More numbers and breakdowns"):
                     if want not in res: problems.append(f"simulator: plain summary missing '{want}'")
                 if await pg.is_visible("#simRes .tiles"): problems.append("simulator: detailed numbers should be folded away under 'More numbers'")

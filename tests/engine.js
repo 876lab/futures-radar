@@ -143,6 +143,23 @@ ok(Math.abs(M.net-(-1.05+0.68+2.9+0.04-1.04)*20)<1e-9&&Math.abs(M.fees-0.32*20)<
 ok(Math.abs(M.avgWin-(0.68+2.9)/2*20)<1e-9&&Math.abs(M.avgLoss-(-1.045*20))<1e-9&&M.how.stop===2&&Math.abs(M.days-3)<1e-9,'sim money: typical win and loss, exits, days covered');
 ok(simMoney([],100,2).n===0&&simMoney([],100,2).net===0,'sim money: no trades');
 ok(fmtDur(1800)==='30 min'&&fmtDur(3600)==='1 hour'&&fmtDur(5*3600)==='5 hours'&&fmtDur(30*3600)==='30 hours'&&fmtDur(3*86400)==='3 days','durations in words');}
+// RSI divergence (information only): regular bearish/bullish divergence, known 3 candles after the second swing
+{const H=3600,mk=(arr,rs)=>arr.map((m,i)=>({time:i*H,open:m,high:m+0.5,low:m-0.5,close:m,volume:1}));
+// two rising price highs at i=10 and i=30, with RSI lower at the second: bearish
+const prices=[],rsi=[];for(let i=0;i<45;i++){const peak1=10-Math.abs(i-10),peak2=12-Math.abs(i-30);const p=i<20?100+Math.max(0,peak1):100+Math.max(0,peak2);prices.push(p);rsi.push(i<20?50+Math.max(0,peak1)*2.5:50+Math.max(0,peak2)*1.2)}
+const cs=mk(prices),d=rsiDivergences(cs,rsi,0);
+ok(d.length===1&&d[0].dir===-1&&d[0].a.i===10&&d[0].b.i===30&&d[0].at===33,'divergence: higher high with lower RSI high is bearish, known 3 candles later ('+JSON.stringify(d.map(x=>[x.dir,x.a.i,x.b.i,x.at]))+')');
+ok(divAt(d,32,20)===null&&divAt(d,33,20)===d[0]&&divAt(d,53,20)===d[0]&&divAt(d,54,20)===null,'divergence: only from its confirmation candle, for 20 candles');
+const r2=rsi.map((v,i)=>i<20?v:50+(v-50)*3);ok(rsiDivergences(cs,r2,0).length===0,'divergence: no divergence when RSI confirms the new high');
+const inv=mk(prices.map(p=>200-p)),rinv=rsi.map(v=>100-v);const d2=rsiDivergences(inv,rinv,0);ok(d2.length===1&&d2[0].dir===1,'divergence: lower low with higher RSI low is bullish');
+let same=true;for(const L of [33,36,44]){const a=rsiDivergences(cs.slice(0,L+1),rsi.slice(0,L+1),0),b=d.filter(x=>x.at<=L);if(JSON.stringify(a)!==JSON.stringify(b))same=false}
+ok(same,'divergence: no look-ahead (same result on data cut at each candle)');}
+// backtest lab: picks must beat today's rules on both halves
+{const base={f:'Confirmed setups (what Setups shows)',e:"Today's stop and targets",n:2000,avgR:-0.1,older:-0.05,newer:-0.15,nOld:1000,nNew:1000};
+const a={f:'4H only, confirmed',e:'x',n:600,avgR:0.05,older:0.02,newer:0.08,nOld:300,nNew:300},b={f:'y',e:'x',n:600,avgR:0.2,older:0.5,newer:-0.2,nOld:300,nNew:300},c={f:'z',e:'x',n:90,avgR:0.5,older:0.5,newer:0.5,nOld:45,nNew:45};
+const L=cleanLab({rows:[base,a,b,c,{f:'bad'}],div:{'1h':{n:10,turn:0.6},'15m':{n:1,turn:1}},flip:{},base:{},divGroup:[]});
+const P=labPicks(L,200);ok(L.rows.length===4&&P.base&&P.picks.length===1&&P.picks[0].f==='4H only, confirmed'&&!L.div['15m'],'lab: only ideas better on both halves with enough trades are picked');
+ok(cleanLab(null)===null&&cleanLab({rows:[]})===null,'lab: missing or empty');}
 // public track record: cleaning and stats (losses and unscored records kept, junk dropped)
 {const rec=(o)=>Object.assign({m:'BTC',tf:'1h',dir:1,conf:72,confirmed:true,t0:Date.UTC(2026,9,27)/1000,entry:100,stop:98,how:'stop',r:-1.02,reach:false,t1:Date.UTC(2026,9,27,5)/1000},o);
 const raw={start:1,updated:2,source:'Gate',markets:['BTC'],open:[rec({how:undefined}),{m:'X'}],closed:[rec(),rec({how:'target',r:2.1,reach:true,dir:-1,stop:102,confirmed:false}),

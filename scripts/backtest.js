@@ -58,6 +58,8 @@ function runMarket(m, c) {
   for (const tf of TFS_RUN) {
     const cs = c[tf], hcs = c[HTF[tf]]; if (!cs || cs.length < SIM_WARM + 20) continue;
     const S = computeSeries(cs), step = TFS[tf];
+    const divs = rsiDivergences(cs, S.r12, SIM_WARM);
+    if (tf !== '15m') signalStats(cs, S, divs, tf);
     const onEntry = (t, x) => {
       const i = x.i, close = cs[i].time + step, price = cs[i].close;
       let hi = -Infinity, lo = Infinity, vol = 0;
@@ -70,7 +72,13 @@ function runMarket(m, c) {
       const d = new Date(t.t0 * 1000);
       const fb = fibLevels(cs.slice(Math.max(0, i - FIB_LOOK - 60), i + 1), x.an.atr);   // only candles up to the signal
       const fib = !fb ? null : fb.dir !== t.dir ? 'Last move went the other way' : fb.breakout || fb.retr < 0 ? 'Breakout past the swing end' : 'Pullback ' + fibZone(fb.retr);
-      out.push({ m: m.root, tf, dir: t.dir, conf: t.conf, t0: t.t0, r: +t.r.toFixed(3), reach: t.mfe >= 1.5, how: t.how, bars: t.bars,
+      // experiments: the same entry with other stops and targets (stop at least k × ATR; all closed at 1.5R or 1R)
+      const R0 = x.rc.levels.R, sim = (R, o2) => { const v = simTrade(cs, i, { dir: t.dir, conf: t.conf, levels: { R } }, Object.assign({}, OPTS, o2 || {}));
+        return v && !v.unfinished ? +v.r.toFixed(3) : null; };
+      const lab = { s15: sim(Math.max(R0, 1.5 * A)), s20: sim(Math.max(R0, 2 * A)), s25: sim(Math.max(R0, 2.5 * A)), t15: sim(R0, { plan: 'tp1' }), t10: sim(R0, { plan: 'tp1', tp1x: 1 }),
+        s20t15: sim(Math.max(R0, 2 * A), { plan: 'tp1' }), s20t10: sim(Math.max(R0, 2 * A), { plan: 'tp1', tp1x: 1 }) };
+      const dv = divAt(divs, i, 20);
+      out.push({ m: m.root, tf, dir: t.dir, conf: t.conf, t0: t.t0, r: +t.r.toFixed(3), reach: t.mfe >= 1.5, how: t.how, bars: t.bars, lab, div: dv ? (dv.dir === t.dir ? 'with' : 'against') : 'none',
         confirmed: cf.ok, d4h: dirs['4h'], d1d: dirs['1d'], range: range == null ? null : +range.toFixed(4), vol: Math.round(vol),
         adx: x.an.adx == null ? null : +x.an.adx.toFixed(1), score: x.an.score, htf: x.han ? (x.han.score >= 20 ? 1 : x.han.score <= -20 ? -1 : 0) : null,
         r6: r6 == null ? null : +r6.toFixed(1), pctB: up != null && up > lb ? +((price - lb) / (up - lb)).toFixed(3) : null,
@@ -80,6 +88,40 @@ function runMarket(m, c) {
     backtestSeries(cs, hcs, m, tf, Object.assign({}, OPTS, { onEntry }));
   }
   return out;
+}
+// do RSI divergences and Supertrend flips (the chart's B/S marks) on their own point the right way? From the candle where
+// each is known: does price move 1 ATR its way before 1 ATR against within 30 candles (a candle touching both counts as
+// against)? Baseline: the same test from every 7th candle in both directions.
+const SIG = {};
+function firstTouch(cs, c, dir, A) {
+  const p = cs[c].close;
+  for (let k = c + 1; k < Math.min(cs.length, c + 31); k++) { const b = cs[k], fav = dir > 0 ? b.high - p : p - b.low, adv = dir > 0 ? p - b.low : b.high - p;
+    if (adv >= A) return 0; if (fav >= A) return 1; }
+  return null;
+}
+function signalStats(cs, S, divs, tf) {
+  const g = SIG[tf] = SIG[tf] || { div: [0, 0], flip: [0, 0], base: [0, 0] }, add = (key, v) => { if (v == null) return; g[key][0] += v; g[key][1]++; };
+  for (const d of divs) { const A = S.at[d.at]; if (A > 0) add('div', firstTouch(cs, d.at, d.dir, A)); }
+  for (let i = SIM_WARM; i < cs.length - 1; i++) { const a = S.st.dir[i - 1], b = S.st.dir[i], A = S.at[i]; if (!(A > 0)) continue;
+    if (a != null && b != null && a !== b) add('flip', firstTouch(cs, i, b, A));
+    if (i % 7 === 0) { add('base', firstTouch(cs, i, 1, A)); add('base', firstTouch(cs, i, -1, A)); } }
+}
+const LAB_EXITS = { base: "Today's stop and targets", s15: 'Stop at least 1.5 ATR away', s20: 'Stop at least 2 ATR away', s25: 'Stop at least 2.5 ATR away',
+  t15: 'Close it all at 1.5R (no target 2)', t10: 'Close it all at 1R', s20t15: 'Stop 2+ ATR, close all at 1.5R', s20t10: 'Stop 2+ ATR, close all at 1R' };
+const LAB_FILTERS = [['All setups', t => true], ['Confirmed setups (what Setups shows)', t => t.confirmed], ['1H and 4H, confirmed', t => t.confirmed && t.tf !== '15m'],
+  ['4H only, confirmed', t => t.confirmed && t.tf === '4h'], ['Confirmed, skip weekends', t => t.confirmed && t.wday !== 0 && t.wday !== 6],
+  ['Confirmed, agreement under 70', t => t.confirmed && t.conf < 70], ['Confirmed, price within 1 ATR of its 20-candle average', t => t.confirmed && t.ext != null && Math.abs(t.ext) <= 1],
+  ['Confirmed, no recent divergence against it', t => t.confirmed && t.div !== 'against'], ['Confirmed shorts only', t => t.confirmed && t.dir < 0], ['Confirmed longs only', t => t.confirmed && t.dir > 0]];
+function labReport(trades, mid) {
+  const rows = [], st = (tr, key) => { const v = tr.map(t => key === 'base' ? t.r : t.lab[key]).filter(x => x != null); if (!v.length) return null;
+    return { n: v.length, avgR: +(v.reduce((a, b) => a + b, 0) / v.length).toFixed(4), win: +(v.filter(x => x > 0).length / v.length).toFixed(4) }; };
+  for (const [fk, f] of LAB_FILTERS) { const tr = trades.filter(f), older = tr.filter(t => t.t0 < mid), newer = tr.filter(t => t.t0 >= mid);
+    for (const ek of Object.keys(LAB_EXITS)) { if (ek !== 'base' && !['All setups', 'Confirmed setups (what Setups shows)', '1H and 4H, confirmed', '4H only, confirmed'].includes(fk)) continue;
+      const a = st(tr, ek), o = st(older, ek), w = st(newer, ek); if (!a) continue;
+      rows.push({ f: fk, e: LAB_EXITS[ek], n: a.n, avgR: a.avgR, win: a.win, older: o && o.avgR, newer: w && w.avgR, nOld: o ? o.n : 0, nNew: w ? w.n : 0 }); } }
+  const div = {}, flip = {}, base = {};
+  for (const tf in SIG) { const g = SIG[tf], r = x => x[1] ? { n: x[1], turn: +(x[0] / x[1]).toFixed(4) } : null; div[tf] = r(g.div); flip[tf] = r(g.flip); base[tf] = r(g.base); }
+  return { rows, div, flip, base, divGroup: group(trades.filter(t => t.tf !== '15m'), t => ({ with: 'Divergence agrees', against: 'Divergence against', none: 'No recent divergence' })[t.div], ['Divergence agrees', 'No recent divergence', 'Divergence against']) };
 }
 const SESSION = h => h < 8 ? 'Asia (0–8 UTC)' : h < 13 ? 'London (8–13 UTC)' : h < 21 ? 'New York (13–21 UTC)' : 'Late (21–24 UTC)';
 const WDAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -110,6 +152,7 @@ function report(trades, meta) {
         'Pullback 61.8–78.6%', 'Pullback 78.6–100%', 'Pullback Past 100%', 'Last move went the other way'])
     },
     // walk-forward check: does the confirmed vs not-confirmed gap hold on the newer half of the data too?
+    lab: labReport(trades, mid),
     walk: { split: mid, older: group(trades.filter(t => t.t0 < mid), yes, ['Confirmed', 'Not confirmed']), newer: group(trades.filter(t => t.t0 >= mid), yes, ['Confirmed', 'Not confirmed']) },
     odds
   });
@@ -132,6 +175,10 @@ async function main() {
   const c = rep.groups.confirmed;
   console.log('backtest: ' + rep.overall.n + ' trades on ' + markets.length + ' markets (' + fails.length + ' failed) in ' + rep.secs + 's; ' +
     c.map(g => g.k + ' ' + g.n + ' trades, ' + Math.round(g.reach * 100) + '% reached target 1').join('; '));
+  const L = rep.lab, best = [...L.rows].filter(r => r.n >= 200 && r.older != null && r.newer != null).sort((a, b) => Math.min(b.older, b.newer) - Math.min(a.older, a.newer)).slice(0, 6);
+  console.log('lab (best on both halves): ' + best.map(r => r.f + ' + ' + r.e + ': n ' + r.n + ', avg ' + r.avgR + 'R (older ' + r.older + ', newer ' + r.newer + ')').join(' | '));
+  console.log('lab signals: ' + Object.keys(L.div).map(tf => tf + ' div ' + JSON.stringify(L.div[tf]) + ' flip ' + JSON.stringify(L.flip[tf]) + ' base ' + JSON.stringify(L.base[tf])).join(' | '));
+  console.log('lab divergence at entry: ' + L.divGroup.map(g => g.k + ' ' + g.n + ' avg ' + g.avgR.toFixed(3) + 'R').join(', '));
 }
 main().catch(e => { console.error('backtest failed: ' + (e && e.stack || e)); process.exit(1); });
 `);

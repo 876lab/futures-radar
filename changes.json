@@ -1,4 +1,9 @@
 [
+  {"date": "2026-11-05", "title": "RSI divergence, and the backtest now runs experiments", "items": [
+    "On 1H, 4H and 1D charts, purple 'Div' marks show RSI divergences: price makes a new high (or low) but RSI doesn't follow, a sign the move may be tiring. A card explains the latest one.",
+    "Every night the backtest now also tries other stops, targets and filters on the same setups, and checks each idea on the older and the newer half of the data so luck can't fool it.",
+    "See 'What the backtest is learning' on the Simulator page. The app's rules only change when you decide."
+  ]},
   {"date": "2026-11-05", "title": "A simpler Simulator", "items": [
     "Results now start with a plain story in dollars: how many trades, how many won and lost, and what your account would be at the end.",
     "A list of the latest trades says in words how each one ended, e.g. 'hit the stop' or 'reached target 2', with the dollar result.",

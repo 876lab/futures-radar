@@ -2213,7 +2213,7 @@ function cleanLab(L){
     older:fin(r.older)?clamp(r.older,-5,5):null,newer:fin(r.newer)?clamp(r.newer,-5,5):null,nOld:fin(r.nOld)?r.nOld:0,nNew:fin(r.nNew)?r.nNew:0}));
   const sig=o=>{const out={};if(o&&typeof o==='object')for(const tf of ['1h','4h','1d']){const x=o[tf];if(x&&fin(x.n)&&x.n>0&&fin(x.turn))out[tf]={n:Math.round(x.n),turn:clamp(x.turn,0,1)}}return out};
   const dg=(Array.isArray(L.divGroup)?L.divGroup:[]).slice(0,3).filter(g=>g&&typeof g.k==='string'&&fin(g.n)&&fin(g.avgR)).map(g=>({k:g.k.slice(0,40),n:Math.round(g.n),avgR:g.avgR,reach:fin(g.reach)?g.reach:0}));
-  return rows.length?{rows,div:sig(L.div),flip:sig(L.flip),base:sig(L.base),divGroup:dg}:null;
+  return rows.length?{pbFill:fin(L.pbFill)?clamp(L.pbFill,0,1):null,rows,div:sig(L.div),flip:sig(L.flip),base:sig(L.base),divGroup:dg}:null;
 }
 // ideas that held up: at least `minN` trades and better than today's rules on BOTH the older and the newer half
 function labPicks(lab,minN){
@@ -2822,6 +2822,8 @@ function labCardHTML(){
       <div class="tblwrap"><table class="btable"><thead><tr><th>Idea</th><th>Trades</th><th>Avg</th><th>Older</th><th>Newer</th></tr></thead><tbody>${L.rows.map(row).join('')}</tbody></table></div>
       <ul class="sim-notes">${['1h','4h'].map(sigLine).join('')}
       ${L.divGroup.length?`<li><b>Setups and divergence (1H and 4H):</b> ${L.divGroup.map(g=>`${esc(g.k.toLowerCase())} ${fmtR(g.avgR)} (${g.n.toLocaleString()} trades)`).join(', ')}.</li>`:''}
+      ${L.pbFill!=null?`<li><b>Pullback entries</b> (a limit order in the entry zone) were filled for ${fmtP(L.pbFill)} of confirmed setups; the rest were missed, so that row counts fewer trades.</li>`:''}
+      <li><b>Market light</b> here uses Bitcoin's daily chart only (no Fear &amp; Greed or cycle history).</li>
       <li>"Avg" is the average result per trade in R after fees (+1R = won what was risked). "Older" and "Newer" split the period in two: an idea that only works in one half is probably luck.</li>
       <li>"Pointed the right way" means price moved 1 ATR in the signal's direction before 1 ATR against within 30 candles; around 50% is a coin flip.</li>
       <li>Each experiment uses the same entries, so it shows how the exit or filter changes results, not new setups. Past results don't guarantee future ones.</li></ul>

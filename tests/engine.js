@@ -197,6 +197,14 @@ ok(L2[1].startsWith('"'+"'"+'=HYPERLINK(""x"")",')&&L2[1].endsWith(',103,106,202
 ok(csvCell(-1.5)==='-1.5'&&csvCell('-x')==="'"+'-x'&&csvCell('a,b')==='"a,b"'&&csvCell(null)===''&&csvCell(NaN)==='','track csv: cells');}
 ok(s.side.map(r=>r.k+r.n).join()==='Long2,Short1'&&s.tf.map(r=>r.k+r.n).join()==='1H2,4H1'&&s.confirmed[1].n===1,'track: by side, candle size, confirmed');
 ok(s.latest.length===4&&s.latest[0].how==='nodata'&&s.latest.some(r=>r.r<0),'track: latest list keeps losses and unscored records');}
+// live track record beside the past win rate: narrowest group with enough finished setups
+{const mk=(n,o)=>Array.from({length:n},(_,i)=>Object.assign({m:'BTC',tf:'1h',dir:-1,confirmed:true,t0:i,t1:i+1,how:i%3?'stop':'breakeven',r:i%3?-1:0.7,reach:!(i%3)},o));
+const cl=[...mk(120),...mk(60,{dir:1}),...mk(50,{dir:1,confirmed:false}),...mk(40,{tf:'4h'}),...mk(30,{how:'nodata',r:null,reach:false})];
+const a=trackLike(cl,'1h',-1,true,100);ok(a.exact&&a.st.n===120&&a.label==='confirmed 1H short setups'&&Math.abs(a.st.reach-40/120)<1e-9,'track like: exact group when it has enough ('+(a.st&&a.st.n)+')');
+const b=trackLike(cl,'1h',1,true,100);ok(!b.exact&&b.st.n===180&&b.label==='confirmed 1H setups','track like: falls back to same size and confirmation');
+const c=trackLike(cl,'1h',1,false,100);ok(c.st.n===230&&c.label==='all 1H setups','track like: then same candle size');
+const e=trackLike(cl,'4h',-1,true,100);ok(e.st.n===270&&e.label==='all 1H and 4H setups'&&e.all===270,'track like: then everything, unscored left out');
+ok(trackLike(cl,'4h',-1,true,500).st===null&&trackLike(cl,'15m',1,true,100)===null,'track like: nothing under the minimum, no 15m');}
 // crypto cycle gauge (information only)
 {const D=86400,mk=(n,f)=>Array.from({length:n},(_,i)=>{const c=f(i);return{time:1.5e9+i*D,open:c,high:c*1.01,low:c*0.99,close:c,volume:1}});
 let c=cycleAt(mk(1500,()=>100),1499);

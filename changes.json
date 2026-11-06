@@ -1,4 +1,9 @@
 [
+  {"date": "2026-11-06", "title": "Live track record on the chart", "items": [
+    "On 1H and 4H setups, under last night's backtest number, you now also see how the same kind of setups did in the live track record (saved every hour before the result was known).",
+    "If fewer than 100 of that exact kind have finished, it shows a wider group and says so.",
+    "Today it reads about 32% reaching target 1, slightly negative on average: a reminder that setups alone aren't an edge yet."
+  ]},
   {"date": "2026-11-05", "title": "Hidden divergence and stop-hunts", "items": [
     "Blue 'HDiv' marks show hidden divergence: in a trend, a pullback where RSI dips further than price, which often means the trend is about to carry on.",
     "Amber 'Hunt' arrows show stop-hunts: price pokes past a recent high or low (where many stops sit), then closes back. The breakout failed, which often comes before a move the other way.",

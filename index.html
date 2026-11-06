@@ -838,7 +838,7 @@ html,body{overscroll-behavior-y:none}
       <dt>Targets</dt><dd>Target 1 is 1.5 times the risk, target 2 is 3 times. A common approach is to close half at target 1 and move the stop to entry.</dd>
       <dt>Confirmed</dt><dd>A long or short setup is confirmed when at least one of the 4H and 1D trends points the same way and no delisting is scheduled or announced. In the first nightly backtest, setups that went against both bigger trends did worst. Liquidity and the 24-hour range are shown for context. Setups shows only confirmed setups unless you switch that off in Settings. Confirmed setups can still fail.</dd>
       <dt>Your trades</dt><dd>On the Simulator page, load your position history exported from Gate (CSV). You see your win rate, average win vs average loss, biggest loss, and breakdowns by side, coin, time of day, weekday and holding time. <b>Check what the chart said</b> shows what the 1H and 4H chart reading was when you opened each of your latest 40 trades. The file is read on this device and never uploaded; Remove my trades deletes it.</dd>
-      <dt>Last night's backtest</dt><dd>Each night the app's own rules are replayed on the top 30 Gate markets (15m, 1H, 4H). The Simulator page shows how often confirmed and not-confirmed setups reached target 1, with a range for luck, and the chart reading shows the past win rate for setups like the one on screen. It needs at least 100 past trades before it shows a number. Past results don't guarantee future ones.</dd>
+      <dt>Last night's backtest</dt><dd>Each night the app's own rules are replayed on the top 30 Gate markets (15m, 1H, 4H). The Simulator page shows how often confirmed and not-confirmed setups reached target 1, with a range for luck, and the chart reading shows the past win rate for setups like the one on screen. It needs at least 100 past trades before it shows a number. On 1H and 4H the live track record's number for the same kind of setups is shown under it (recorded every hour before the result was known, so it can't be tuned after the fact). Past results don't guarantee future ones.</dd>
       <dt>Crypto cycle gauge</dt><dd>On the News page (and a line on Setups): where Bitcoin sits in its roughly four-year cycle, from 0 (like past cycle lows) to 100 (like past cycle tops). It averages four price measures: price vs the 200-week average, the Mayer Multiple (price vs the 200-day average), the Pi Cycle lines and the distance from the all-time high, and shows the time since the last halving. Updated daily. It describes how today compares with past cycles; it doesn't predict the next move and doesn't change any setup.</dd>
       <dt>Fibonacci levels</dt><dd>Lines on the chart and a card under it, from the last main move (a swing of at least 3× the average candle range). Retracements (23.6%, 38.2%, 50%, 61.8%, 78.6%) show how much of the move price has given back; pullbacks in a trend often pause around 38.2–61.8%. Extensions (127.2%, 161.8%) are levels traders watch past the swing end after a breakout. They are zones, not exact prices, and don't change the chart reading. Switch them off with the Fibonacci chip above the chart.</dd>
       <dt>Order book</dt><dd>On each chart: how much money is waiting to buy and to sell within 1% and 2% of the price, the spread, and unusually large orders. A thin book means bigger spikes and worse stop fills. Large orders often come from automated market makers and can move or vanish in a second, so they are not reliable support or resistance.</dd>
@@ -2284,7 +2284,7 @@ async function loadTrack(){
   if(tr.loading||(tr.data&&NOW()-tr.at<10*60000)||(tr.err&&NOW()-tr.at<5*60000))return;tr.loading=true;
   try{const r=await fetch(TR_URL+'?t='+Math.floor(NOW()/600000));if(!r.ok)throw new Error('HTTP '+r.status);const j=cleanTrack(await r.json());if(!j)throw new Error('bad data');tr.data=j;tr.err=null}
   catch(e){tr.err=String(e&&e.message||e)}
-  tr.at=NOW();tr.loading=false;const c=document.getElementById('trCard');if(c)c.innerHTML=trCardHTML();
+  tr.at=NOW();tr.loading=false;const c=document.getElementById('trCard');if(c)c.innerHTML=trCardHTML();if(current)renderConfirm();
 }
 // crypto cycle gauge (scripts/cycle.js, published daily to the cycle-data branch); information only
 const CY_URL=NEWS_URL.replace('/news-data/news.json','/cycle-data/cycle.json');
@@ -2608,6 +2608,15 @@ function trackStats(closed){
     tf:grp(t=>TF_LABEL[t.tf],['1H','4H']),side:grp(t=>t.dir>0?'Long':'Short',['Long','Short']),
     confirmed:grp(t=>t.confirmed?'Confirmed':'Not confirmed',['Confirmed','Not confirmed']),
     latest:[...closed].sort((a,b)=>b.t1-a.t1).slice(0,10)};
+}
+// live track record for setups like the one on screen: the narrowest group (same candle size, side and
+// confirmation → same size and confirmation → same size → all) with at least minN finished setups; information only
+function trackLike(closed,tf,dir,ok,minN){
+  if(tf!=='1h'&&tf!=='4h')return null;
+  const sc=closed.filter(r=>r.how!=='nodata'),T=TF_LABEL[tf],cf=ok?'confirmed':'not-confirmed';
+  const tries=[[r=>r.tf===tf&&r.dir===dir&&r.confirmed===ok,`${cf} ${T} ${dir>0?'long':'short'} setups`],[r=>r.tf===tf&&r.confirmed===ok,`${cf} ${T} setups`],[r=>r.tf===tf,`all ${T} setups`],[()=>true,'all 1H and 4H setups']];
+  for(let i=0;i<tries.length;i++){const st=btStat(sc.filter(tries[i][0]));if(st.n>=minN)return{st,label:tries[i][1],exact:i===0,all:sc.length}}
+  return{st:null,label:'',exact:false,all:sc.length};
 }
 // CSV of every finished record (RFC 4180: commas, doubled quotes, CRLF), oldest first; text cells that a
 // spreadsheet would read as a formula (= + - @ tab CR at the start) get a leading ' (OWASP CSV injection advice)
@@ -3478,6 +3487,15 @@ function oddsHTML(rc,c){
   if(!st||st.n<m)return `<p>Past win rate: not enough past ${esc(like)} yet (${st?st.n:0} of ${m} trades needed).</p>`;
   return `<p class="odds">In last night's backtest, past ${esc(like)} reached target 1 in <b>${fmtP(st.reach)}</b> of ${st.n.toLocaleString()} trades (range ${fmtP(st.lo)}–${fmtP(st.hi)}), average ${fmtR(st.avgR)}.</p>`;
 }
+// the same kind of setups in the live track record (recorded hourly before results were known), beside the backtest's number
+function trackOddsHTML(rc,c){
+  if(c.pending||!['1h','4h'].includes(state.tf))return '';
+  if(!tr.data){loadTrack();return ''}
+  const L=trackLike(tr.data.closed,state.tf,rc.dir,c.ok,BT_MIN_N),since=tr.data.start?' since '+dateStr(tr.data.start*1000):'';
+  if(!L.st)return `<p>Live track record: ${L.all} of ${BT_MIN_N} finished setups so far${esc(since)}; its win rate shows from ${BT_MIN_N}.</p>`;
+  const s=L.st;
+  return `<p class="odds">Live track record${esc(since)}: ${esc(L.label)} reached target 1 in <b>${fmtP(s.reach)}</b> of ${s.n.toLocaleString()} (range ${fmtP(s.lo)}–${fmtP(s.hi)}), average ${fmtR(s.avgR)}.${L.exact?'':` Fewer than ${BT_MIN_N} of this exact kind have finished, so a wider group is shown.`}</p>`;
+}
 function renderConfirm(){
   const el=document.getElementById('confirm');if(!el)return;const rc=current&&current.rc,g=state.gByKey.get(state.selected);
   if(!rc||(rc.rec!=='long'&&rc.rec!=='short')||!g){el.hidden=true;return}
@@ -3486,7 +3504,7 @@ function renderConfirm(){
   el.hidden=false;
   el.innerHTML=`<div class="cf ${c.pending?'':c.ok?'ok':'no'}"><div class="cf-h">${c.pending?'Checking the bigger picture…':c.ok?'Confirmed: the bigger picture backs this setup':c.why==='delisting'?'Not confirmed: this coin is being delisted':'Not confirmed: neither the 4H nor the 1D trend agrees'}</div>
     <ul class="checks">${c.checks.map(x=>`<li><span class="ic ${x.state}">${CHECK_IC[x.state]}</span><span>${x.html}</span></li>`).join('')}</ul>
-    ${oddsHTML(rc,c)}<p>${c.ok?'At least one of the 4H and 1D trends points the same way and no delisting is known. Confirmed setups can still fail.':c.pending?'':c.why==='delisting'?'Delistings bring thin trading and sudden spikes, so the chart reading is less reliable.':'In the backtest, setups going against both bigger trends did worst.'}</p></div>`;
+    ${oddsHTML(rc,c)}${trackOddsHTML(rc,c)}<p>${c.ok?'At least one of the 4H and 1D trends points the same way and no delisting is known. Confirmed setups can still fail.':c.pending?'':c.why==='delisting'?'Delistings bring thin trading and sudden spikes, so the chart reading is less reliable.':'In the backtest, setups going against both bigger trends did worst.'}</p></div>`;
 }
 function updateRow(key){
   const g=state.gByKey.get(key);if(!g)return;

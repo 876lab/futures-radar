@@ -2,6 +2,14 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-11-06 (nightly run): Live track record beside the past win rate
+- Track record follow-up (b): the hourly track record now has 257 finished setups (since 26 Oct), so on **1H and 4H** chart screens the confirmation box shows a second line under last night's backtest number: "Live track record since Oct 26, 2026: confirmed 1H short setups reached target 1 in 35% of 105 (range 27%–45%), average +0.03R."
+- It uses the narrowest group with at least 100 finished setups: same candle size, side and confirmation → same candle size and confirmation → same candle size → all 1H and 4H; when it widens, the line says so. Under 100 in total it shows "N of 100 finished setups so far". Setups the job couldn't score (no price data) are left out, as on the Track record card.
+- The track record loads when a 1H/4H setup is on screen (same 10-minute cache as the Simulator card) and the box refreshes when it arrives. Help → Last night's backtest explains the extra line.
+- New pure `trackLike` (5 engine tests: exact group, each fallback, unscored left out, minimum, no 15m); browser test checks the line under any 1H/4H setup on the sample markets (the sample market currently shows Wait on 1H/4H, so the line was checked visually with the real `track.json`).
+- Information only; no setup, score, trade-maths, login or data-source change.
+- Sources: the repo's own `track-data/track.json` (257 finished, 44 open on 6 Nov 2026); forward testing as a check on backtests (https://www.luxalgo.com/library/concept/forward-paper-trading-confirmation/, https://www.tradezella.com/blog/backtesting-vs-forward-testing); Bailey et al., Probability of Backtest Overfitting (https://papers.ssrn.com/abstract=2326253).
+
 ## 2026-11-05 (daytime, owner request): Back up your data
 - The owner asked for backup and restore in all three of his apps (he is replacing old Home Screen shortcuts; on iPhone and iPad a Home Screen web app keeps its own storage and loses it when the icon is removed).
 - Settings → **Back up your data** (new group before App health): **Save backup file** writes every `fradar:` item on the device to `futures-radar-backup-YYYY-MM-DD.json` (`{app: "Futures Radar", kind: "backup", version: 1, exportedAt, data}`): starred markets (`watch2`), price alerts, imported trades, Simulator and Picks choices, and settings. The error log (`errs`) and the backup's own bookkeeping are left out. On phones and tablets it opens the share sheet (Save to Files); elsewhere it downloads. A "Last backup" line is kept on the device (`bkLast`; amber when there is none or it is 7+ days old).

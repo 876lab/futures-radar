@@ -460,7 +460,18 @@ async def main():
                 for bad in ("undefined", "NaN"):
                     if bad in bs: problems.append(f"[{scheme}] chart {lbl}: shows '{bad}'")
                 if scheme == "light" and big == "1w": await pg.screenshot(path=os.path.join(OUT, "chart-1w.png"))
-            await pg.click('#tfSeg [data-tf="4h"]'); await pg.wait_for_timeout(1500)
+            # live track record beside the past win rate (1H and 4H setups only); sample track data has under 100 finished
+            seen_tr = False
+            for ttf in ("1h", "4h"):
+                await pg.click(f'#tfSeg [data-tf="{ttf}"]'); await pg.wait_for_timeout(1500)
+                s4 = await pg.inner_text("#sigCard")
+                for bad in ("undefined", "NaN"):
+                    if bad in s4: problems.append(f"[{scheme}] chart {ttf}: reading shows '{bad}'")
+                if ("Long setup" in s4 or "Short setup" in s4) and "Checking the bigger picture" not in s4:
+                    seen_tr = True
+                    if "Live track record:" not in s4 or "of 100 finished setups" not in s4: problems.append(f"[{scheme}] chart {ttf}: live track record line missing under a setup")
+                    if scheme == "light": await pg.locator("#confirm").screenshot(path=os.path.join(OUT, "track-odds.png"))
+            if not seen_tr: print(f"  note: [{scheme}] no 1H/4H setup on the test market, live track record line not checked")
             dv = await pg.inner_text("#divBox") if await pg.is_visible("#divBox") else ""
             if "4H candles" not in dv or ("divergence" not in dv.lower()) or "Switch to one of those" in dv: problems.append(f"[{scheme}] chart 4H: divergence card wrong: {dv[:120]!r}")
             for bad in ("undefined", "NaN"):

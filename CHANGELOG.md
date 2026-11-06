@@ -2,6 +2,14 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-11-06 (owner request): Visual refresh
+- **Calmer colours for long chart sessions:** dark theme moved to a deep blue-grey (not pure black, softer text contrast, quieter chart grid); light theme to a soft off-white. Green/red slightly retuned for comfort; meanings unchanged.
+- **One indigo "brand" colour (`--brand`, `--brand-bg`, `--brand-ink`)** for anything tapped or selected: bottom bar, tabs, candle-size buttons, primary buttons, links, search focus, chart crosshair. Amber (`--accent`) now only means caution / Wait / Calm, so it stands out when it matters.
+- **Modern surfaces:** frosted-glass top bar and bottom bar, a pill behind the active bottom-bar icon, soft shadows on cards, rounder corners (14px), filled search box, borderless tabs.
+- **Easier to read:** base text 13px (was 12.5), bigger price and section headings, tinted Long/Short tags instead of solid blocks on every row, and the chart reading's Long/Short header is a soft tinted gradient instead of a full green/red block.
+- CSS-only, plus the chart crosshair colour and theme-color; no change to signals, maths, data, features or login. All checks pass in both themes.
+- Sources: Material Design dark theme (https://m2.material.io/design/color/dark-theme): dark grey surfaces instead of black, elevation by lighter surfaces, desaturated colours; Lollypop, trading app design (https://lollypop.design/blog/2026/june/trading-app-design/); fintech dark-mode colours (https://color-archive.vercel.app/guides/fintech-dark-mode-colors/).
+
 ## 2026-11-06 (nightly run): Live track record beside the past win rate
 - Track record follow-up (b): the hourly track record now has 257 finished setups (since 26 Oct), so on **1H and 4H** chart screens the confirmation box shows a second line under last night's backtest number: "Live track record since Oct 26, 2026: confirmed 1H short setups reached target 1 in 35% of 105 (range 27%–45%), average +0.03R."
 - It uses the narrowest group with at least 100 finished setups: same candle size, side and confirmation → same candle size and confirmation → same candle size → all 1H and 4H; when it widens, the line says so. Under 100 in total it shows "N of 100 finished setups so far". Setups the job couldn't score (no price data) are left out, as on the Track record card.

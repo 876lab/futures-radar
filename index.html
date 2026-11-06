@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0B1017">
+<meta name="theme-color" content="#11161F">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Futures Radar">
@@ -20,25 +20,31 @@
 <style>
 /* Layout: sticky app bar; exchange switch + category tabs over one merged list; signal card + chart pane beside it on wide screens, full-screen sheet on phones */
 :root{
-  --bg:#EEF1F5; --surface:#FFFFFF; --surface-2:#E7EBF0; --line:#D6DCE4; --grid:#EEF1F5;
-  --fg:#0F1824; --muted:#56616F; --accent:#B4650A; --accent-ink:#FFFFFF; --accent-bg:#F8EBD9;
-  --up:#0B8A64; --down:#C9363F; --up-bg:#DCF1E8; --down-bg:#F8E0E2; --flat-bg:#E7EBF0;
-  --c1:#C27A12; --c2:#2F6FD8; --c3:#7A4FC4; --c4:#8592A3; --bb:#D9822B;
+  --bg:#F3F5F9; --surface:#FFFFFF; --surface-2:#EDF0F5; --line:#E0E5EC; --grid:#F1F3F7;
+  --fg:#0E1726; --muted:#5A6576; --accent:#B4650A; --accent-ink:#FFFFFF; --accent-bg:#F8EBD9;
+  --brand:#4B57D6; --brand-ink:#FFFFFF; --brand-bg:#E9EBFC; --glass:rgb(255 255 255 / .82);
+  --shadow:0 1px 2px rgb(16 24 40 / .04),0 2px 8px rgb(16 24 40 / .05);
+  --up:#0B946A; --down:#D23F48; --up-bg:#DDF3EA; --down-bg:#FBE4E6; --flat-bg:#EDF0F5;
+  --c1:#C27A12; --c2:#2F6FD8; --c3:#7A4FC4; --c4:#8B96A6; --bb:#D9822B;
   --f-display:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
   --f-body:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
   --f-mono:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
-  --r:12px; --hdr:56px;
+  --r:14px; --hdr:56px;
 }
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
-  --bg:#0B1017; --surface:#121923; --surface-2:#1A2330; --line:#243041; --grid:#18202B;
-  --fg:#E6ECF3; --muted:#8F9BAC; --accent:#F0A63E; --accent-ink:#1A1206; --accent-bg:#33240F;
-  --up:#2DBE87; --down:#EE5D66; --up-bg:#12322A; --down-bg:#3A1A1F; --flat-bg:#1E2733;
-  --c1:#F0A63E; --c2:#5B9BFF; --c3:#B48CFF; --c4:#7C8899; --bb:#E8954A; color-scheme:dark } }
+  --bg:#0A0E14; --surface:#11161F; --surface-2:#19202B; --line:#222B38; --grid:#161C26;
+  --fg:#E7ECF3; --muted:#8C98AA; --accent:#EFA43F; --accent-ink:#1A1206; --accent-bg:#2E2111;
+  --brand:#8B97FF; --brand-ink:#0B0E1F; --brand-bg:#1F2440; --glass:rgb(17 22 31 / .80);
+  --shadow:0 1px 0 rgb(255 255 255 / .03) inset,0 4px 14px rgb(0 0 0 / .25);
+  --up:#2EBD8A; --down:#EF5F69; --up-bg:#10302A; --down-bg:#38191E; --flat-bg:#1C2430;
+  --c1:#EFA43F; --c2:#5B9BFF; --c3:#B48CFF; --c4:#7A8698; --bb:#E8954A; color-scheme:dark } }
 :root[data-theme="dark"]{
-  --bg:#0B1017; --surface:#121923; --surface-2:#1A2330; --line:#243041; --grid:#18202B;
-  --fg:#E6ECF3; --muted:#8F9BAC; --accent:#F0A63E; --accent-ink:#1A1206; --accent-bg:#33240F;
-  --up:#2DBE87; --down:#EE5D66; --up-bg:#12322A; --down-bg:#3A1A1F; --flat-bg:#1E2733;
-  --c1:#F0A63E; --c2:#5B9BFF; --c3:#B48CFF; --c4:#7C8899; --bb:#E8954A; color-scheme:dark }
+  --bg:#0A0E14; --surface:#11161F; --surface-2:#19202B; --line:#222B38; --grid:#161C26;
+  --fg:#E7ECF3; --muted:#8C98AA; --accent:#EFA43F; --accent-ink:#1A1206; --accent-bg:#2E2111;
+  --brand:#8B97FF; --brand-ink:#0B0E1F; --brand-bg:#1F2440; --glass:rgb(17 22 31 / .80);
+  --shadow:0 1px 0 rgb(255 255 255 / .03) inset,0 4px 14px rgb(0 0 0 / .25);
+  --up:#2EBD8A; --down:#EF5F69; --up-bg:#10302A; --down-bg:#38191E; --flat-bg:#1C2430;
+  --c1:#EFA43F; --c2:#5B9BFF; --c3:#B48CFF; --c4:#7A8698; --bb:#E8954A; color-scheme:dark }
 
 *{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -596,6 +602,61 @@ html,body{overscroll-behavior-y:none}
 .ptr.back{transition:transform .25s ease,opacity .25s ease}
 .ptr.busy svg{animation:rot 1s linear infinite}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ---- 2026-11 visual refresh: calmer palette for long chart sessions, one indigo "brand" colour for anything you
+   tap or that is selected (amber now only means caution / Wait / Calm), glass bars, softer cards, larger type ---- */
+body{font-size:13px;letter-spacing:-.003em}
+:focus-visible{outline-color:var(--brand)}
+.top{background:var(--glass);-webkit-backdrop-filter:saturate(1.6) blur(16px);backdrop-filter:saturate(1.6) blur(16px);border-bottom-color:color-mix(in srgb,var(--line) 70%,transparent)}
+body::before{background:var(--glass);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
+.icon-btn{border-color:transparent;background:var(--surface-2);border-radius:12px}
+.icon-btn:hover{background:var(--brand-bg);color:var(--brand)}
+.card,.list,.banner,.cf{box-shadow:var(--shadow)}
+.list,.card{border-color:color-mix(in srgb,var(--line) 75%,transparent)}
+.banner{border-left-width:3px}
+.btn{border-radius:11px;padding:8px 14px}
+.btn.primary{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+.btn.primary:hover{filter:brightness(1.06)}
+.linkbtn,.legallinks a,.hpanel a,.more,.panesbtn,.sim-more>summary,.bt details summary,.cy details summary,.calc summary{color:var(--brand)}
+.search input{border-radius:14px;border-color:transparent;background:var(--surface-2);padding-block:10px}
+.search input:focus{outline:none;border-color:var(--brand);background:var(--surface);box-shadow:0 0 0 3px var(--brand-bg)}
+.venue-seg{border-radius:14px}
+.venue-seg button{border-radius:10px}
+.venue-seg button[aria-pressed="true"]{box-shadow:var(--shadow)}
+.tab{border-color:transparent;background:var(--surface-2);color:var(--muted)}
+.tab[aria-selected="true"]{background:var(--brand-bg);border-color:transparent;color:var(--brand)}
+.tab svg{color:var(--brand)}
+.opt[aria-pressed="true"],.seg button[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+.seg{border-radius:12px} .seg button{font-weight:600}
+.mtf button{border-radius:12px}
+.mtf button[aria-pressed="true"]{border-color:var(--brand);box-shadow:0 0 0 2px var(--brand-bg)}
+.chip{border-radius:999px}
+.row{padding-block:11px}
+.row.sel-on{box-shadow:inset 3px 0 0 var(--brand)}
+.row:hover{background:color-mix(in srgb,var(--surface-2) 70%,transparent)}
+.rec{border-radius:7px}
+.sec-h h2{font-size:17px;letter-spacing:-.015em}
+.card h3{font-size:16.5px;letter-spacing:-.015em}
+.lv{border-radius:12px} .lv .v{font-size:15px;font-weight:600}
+.prog i{background:var(--brand)}
+.switch:focus-visible,.filebtn:focus-within{outline-color:var(--brand)}
+.sheet{border-radius:22px 22px 0 0;box-shadow:0 -10px 40px rgb(0 0 0 / .25)}
+.sheet input:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-bg)}
+.nav button[aria-current="page"]{color:var(--brand)}
+.rec.long{background:var(--up-bg);color:var(--up)} .rec.short{background:var(--down-bg);color:var(--down)}
+.sc-band.long{background:linear-gradient(135deg,var(--up-bg),color-mix(in srgb,var(--up-bg) 35%,var(--surface)));color:var(--up)}
+.sc-band.short{background:linear-gradient(135deg,var(--down-bg),color-mix(in srgb,var(--down-bg) 35%,var(--surface)));color:var(--down)}
+.sc-band.long .cbar,.sc-band.short .cbar{background:color-mix(in srgb,currentColor 18%,transparent)}
+.sc-band{border-bottom:1px solid color-mix(in srgb,var(--line) 70%,transparent)}
+.sc-head{font-size:28px;letter-spacing:-.02em}
+.d-price .p{font-size:26px;font-weight:600;letter-spacing:-.02em}
+@media (max-width:979px){
+  .nav{background:var(--glass);-webkit-backdrop-filter:saturate(1.6) blur(18px);backdrop-filter:saturate(1.6) blur(18px);border-top-color:color-mix(in srgb,var(--line) 70%,transparent);padding-top:7px}
+  .nav button{gap:4px}
+  .nav button svg{box-sizing:content-box;padding:4px 18px;border-radius:999px;transition:background .2s}
+  .nav button[aria-current="page"]{color:var(--brand)}
+  .nav button[aria-current="page"] svg{background:var(--brand-bg)}
+}
 </style>
 </head>
 <body>
@@ -2227,7 +2288,7 @@ function applyTheme(t){
   if(t==='light'||t==='dark'){el.setAttribute('data-theme',t);el.dataset.frTheme='1'}
   else if(el.dataset.frTheme){el.removeAttribute('data-theme');delete el.dataset.frTheme}
   document.querySelectorAll('[data-theme-set]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.themeSet===t));
-  const m=document.querySelector('meta[name="theme-color"]');if(m)setTimeout(()=>m.setAttribute('content',css('--surface')||'#0B1017'),0);
+  const m=document.querySelector('meta[name="theme-color"]');if(m)setTimeout(()=>m.setAttribute('content',css('--surface')||'#11161F'),0);
 }
 function applyPanes(){
   const on=!!state.ind.panes;$('#panes').hidden=!on;$('#panesBtn').textContent=on?'Hide RSI and MACD':'Show RSI and MACD';
@@ -3087,7 +3148,7 @@ function chartOpts(extra){
   return Object.assign({autoSize:true,
     layout:{background:{type:'solid',color:css('--surface')},textColor:css('--muted'),fontFamily:"Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",fontSize:11},
     grid:{vertLines:{color:css('--grid')},horzLines:{color:css('--grid')}},
-    rightPriceScale:{borderColor:css('--line'),minimumWidth:80},crosshair:{mode:0},handleScroll:{vertTouchDrag:false}},extra);
+    rightPriceScale:{borderColor:css('--line'),minimumWidth:80},crosshair:{mode:0,vertLine:{color:hexA(css('--brand'),.55),labelBackgroundColor:css('--brand')},horzLine:{color:hexA(css('--brand'),.55),labelBackgroundColor:css('--brand')}},handleScroll:{vertTouchDrag:false}},extra);
 }
 function ensureCharts(){
   if(charts)return charts;const LC=window.LightweightCharts;if(!LC)return null;

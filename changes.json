@@ -1,4 +1,9 @@
 [
+  {"date": "2026-11-06", "title": "A fresh, calmer look", "items": [
+    "New colours made for long chart sessions: a deep blue-grey dark mode and a soft light mode, with a quieter chart grid.",
+    "Anything you can tap or have selected is now indigo; amber only means caution (Wait, Calm, big news), so warnings stand out.",
+    "Glass top and bottom bars, softer cards, slightly bigger text, and gentler Long/Short colours."
+  ]},
   {"date": "2026-11-06", "title": "Live track record on the chart", "items": [
     "On 1H and 4H setups, under last night's backtest number, you now also see how the same kind of setups did in the live track record (saved every hour before the result was known).",
     "If fewer than 100 of that exact kind have finished, it shows a wider group and says so.",

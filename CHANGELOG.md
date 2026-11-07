@@ -2,6 +2,11 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-11-07 (owner request): Dates and prices on the wave
+- The wave picture now has dates along the bottom (4 evenly spaced, year on the first), the +53 / 0 / −53 levels on the right, and each dot's closing price and date beside it (newest first; labels that would overlap are skipped). It keeps its proportions instead of stretching.
+- New list under it: the latest 4 dots with date, the close that day, today's price and the % move since (green when price went the dot's way).
+- Browser test checks the dates/levels and the dot labels.
+
 ## 2026-11-07 (owner request): Wave signals on daily charts
 - Based on a TradingView setup the owner saw: a "blue wave" oscillator with buy dots when the 20-day average touches or drops below the 200-day, and sell dots when price is stretched far above it.
 - **The wave** is WaveTrend (LazyBear, 10/21): ap = HLC/3, esa = EMA10(ap), d = EMA10(|ap − esa|), ci = (ap − esa)/(0.015·d), wave = EMA21(ci), signal = SMA4(wave); oversold −53, overheated +53.

@@ -603,7 +603,9 @@ html,body{overscroll-behavior-y:none}
 .ptr.busy svg{animation:rot 1s linear infinite}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 
-.wv{width:100%;height:96px;display:block;margin:6px 0 2px;border-radius:10px;background:var(--surface-2)}
+.wv{width:100%;height:auto;display:block;margin:6px 0 2px;border-radius:10px;background:var(--surface-2);overflow:visible}
+.wv .t{font-size:8.5px;fill:var(--muted);font-family:var(--f-body)} .wv .dl{font-size:9px;font-weight:700;font-family:var(--f-body)} .wv .dl.u{fill:var(--up)} .wv .dl.d{fill:var(--down)}
+.wv .gx{stroke:var(--line);stroke-width:.6;opacity:.7} .wv-list{margin-top:2px}
 .wv .a{fill:color-mix(in srgb,var(--c2) 30%,transparent)} .wv .l{fill:none;stroke:var(--c2);stroke-width:1.6;vector-effect:non-scaling-stroke}
 .wv .s{fill:none;stroke:var(--c1);stroke-width:1.1;vector-effect:non-scaling-stroke;opacity:.85} .wv .b{stroke:var(--muted);stroke-dasharray:3 3;stroke-width:1;vector-effect:non-scaling-stroke;opacity:.6}
 .wv .z{stroke:var(--line);stroke-width:1;vector-effect:non-scaling-stroke} .wv .u{fill:var(--up)} .wv .d{fill:var(--down)}
@@ -3547,11 +3549,28 @@ function huntHTML(){
       <li>It works best at clear levels (see Support and resistance) and on bigger candle sizes. It's a warning, not a guarantee; sometimes the next candle breaks through for real.</li>
       <li>Your own stop is safer a little further from obvious highs and lows than exactly on them. Switch the arrows off with the Stop-hunts chip.</li></ul></details>`;
 }
-function waveSVG(W,n){
-  const k=Math.min(140,n),s=n-k,v=W.w1.slice(s),g=W.w2.slice(s),Y=x=>(50-clamp(x,-100,100)*0.42).toFixed(1),X=i=>(i/(k-1)*300).toFixed(1);
+// the wave over the last 140 days, with dates along the bottom, the ±53 levels on the right, and each dot's date and price
+function waveSVG(W,cs){
+  const n=cs.length,k=Math.min(140,n),s=n-k,v=W.w1.slice(s),g=W.w2.slice(s),PW=290,T0=10,PH=104;
+  const Y=x=>(T0+PH/2-clamp(x,-100,100)*(PH/2)/100).toFixed(1),X=i=>(i/(k-1)*PW).toFixed(1);
   const pts=a=>a.map((x,i)=>x==null?null:X(i)+','+Y(x)).filter(Boolean).join(' '),first=v.findIndex(x=>x!=null);if(first<0)return '';
-  const area=`${X(first)},50 ${pts(v)} ${X(k-1)},50`,dots=W.sig.filter(w=>w.i>=s).map(w=>`<circle cx="${X(w.i-s)}" cy="${w.dir>0?94:6}" r="3.2" class="${w.dir>0?'u':'d'}"/>`).join('');
-  return `<svg class="wv" viewBox="0 0 300 100" preserveAspectRatio="none" role="img" aria-label="The wave over the last ${k} days"><line x1="0" x2="300" y1="${Y(WAVE_OB)}" y2="${Y(WAVE_OB)}" class="b"/><line x1="0" x2="300" y1="${Y(WAVE_OS)}" y2="${Y(WAVE_OS)}" class="b"/><line x1="0" x2="300" y1="50" y2="50" class="z"/><polygon points="${area}" class="a"/><polyline points="${pts(g)}" class="s"/><polyline points="${pts(v)}" class="l"/>${dots}</svg>`;
+  const mid=Y(0),area=`${X(first)},${mid} ${pts(v)} ${X(k-1)},${mid}`;
+  const day=t=>new Date(t*1000).toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'}),yr=t=>new Date(t*1000).getUTCFullYear();
+  const ticks=[0,Math.round((k-1)/3),Math.round(2*(k-1)/3),k-1].map((q,m)=>{const t=cs[s+q].time,lbl=day(t)+(m===0||yr(t)!==yr(cs[s].time)?' ’'+String(yr(t)).slice(2):'');
+    return `<line x1="${X(q)}" x2="${X(q)}" y1="${T0}" y2="${T0+PH}" class="gx"/><text x="${X(q)}" y="${T0+PH+14}" class="t" text-anchor="${m===0?'start':m===3?'end':'middle'}">${esc(lbl)}</text>`}).join('');
+  const lv=[[WAVE_OB,'+53'],[0,'0'],[WAVE_OS,'−53']].map(([x,l])=>`<line x1="0" x2="${PW}" y1="${Y(x)}" y2="${Y(x)}" class="${x?'b':'z'}"/><text x="${PW+4}" y="${(+Y(x)+3.5).toFixed(1)}" class="t">${l}</text>`).join('');
+  const sig=W.sig.filter(w=>w.i>=s),lab=[];for(const w of [...sig].reverse()){const x=+X(w.i-s);if(lab.length<4&&lab.every(o=>o.dir!==w.dir||Math.abs(+X(o.i-s)-x)>=60))lab.push(w)}   // newest first, labels never overlap
+  const dots=sig.map(w=>{const cx=+X(w.i-s),cy=+Y(W.w1[w.i]),up=w.dir>0,show=lab.includes(w);
+    const tx=clamp(cx,26,PW-26),ty=up?Math.min(cy+16,T0+PH-2):Math.max(cy-9,T0+8);
+    return `<circle cx="${cx}" cy="${cy}" r="3.6" class="${up?'u':'d'}"/>${show?`<text x="${tx}" y="${ty}" class="dl ${up?'u':'d'}" text-anchor="middle">${esc(fmtUsd(cs[w.i].close))}</text><text x="${tx}" y="${up?ty+10:ty-10}" class="t" text-anchor="middle">${esc(day(cs[w.i].time))}</text>`:''}`}).join('');
+  return `<svg class="wv" viewBox="0 0 320 136" role="img" aria-label="The wave over the last ${k} days">${ticks}${lv}<polygon points="${area}" class="a"/><polyline points="${pts(g)}" class="s"/><polyline points="${pts(v)}" class="l"/>${dots}</svg>`;
+}
+// the latest dots in words: date, price then, and how price has moved since
+function waveListHTML(W,cs){
+  const L=W.sig.slice(-4).reverse();if(!L.length)return '';const now=cs[cs.length-1].close;
+  return `<ul class="sim-trades wv-list">${L.map(w=>{const p=cs[w.i].close,ch=(now/p-1)*100,good=w.dir>0?ch>0:ch<0;
+    return `<li class="${good?'w':'l'}"><span><b class="${w.dir>0?'up':'down'}">${w.dir>0?'Low-wave':'High-wave'}</b> · ${esc(new Date(cs[w.i].time*1000).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',timeZone:'UTC'}))}<small>Close that day ${esc(fmtUsd(p))} · now ${esc(fmtUsd(now))}</small></span><b class="${ch>0?'up':ch<0?'down':''}">${fmtPct(ch)}</b></li>`}).join('')}</ul>
+    <p class="note">The % is how far price has moved since each dot's close (green when it went the dot's way).</p>`;
 }
 function waveHTML(){
   const h='<h3>Wave signals</h3>';
@@ -3567,9 +3586,10 @@ function waveHTML(){
   const L2=bt.data&&bt.data.lab,a=L2&&L2.waveUp&&L2.waveUp['1d'],b=L2&&L2.waveDn&&L2.waveDn['1d'],base=L2&&L2.base&&L2.base['1d'];
   const ev=[a&&a.n>=10?`low-wave signals were followed by a 1 ATR rise before a 1 ATR fall <b>${fmtP(a.turn)}</b> of ${a.n} times`:'',b&&b.n>=10?`high-wave signals by a 1 ATR fall first <b>${fmtP(b.turn)}</b> of ${b.n} times`:''].filter(Boolean);
   return h+`<p class="sub">1D candles · wave (WaveTrend 10, 21) with the 20-day and ${W.len}-day averages · information only</p>
-    ${waveSVG(W,n)}<p class="wv-key"><span><i class="l"></i>Wave</span><span><i class="s"></i>Signal line</span><span><i class="u"></i>Low-wave</span><span><i class="d"></i>High-wave</span></p>
+    ${waveSVG(W,cs)}<p class="wv-key"><span><i class="l"></i>Wave</span><span><i class="s"></i>Signal line</span><span><i class="u"></i>Low-wave</span><span><i class="d"></i>High-wave</span></p>
     <p class="big">The wave is ${mood}${x!=null?` (${x>0?'+':''}${Math.round(x)})`:''}. The 20-day average is ${gap==null?'—':`<b>${fmtPct(gap*100)}</b> from the ${esc(avg)}`}.</p>
     <p class="big">${lastTxt}</p>
+    ${waveListHTML(W,cs)}
     ${ev.length?`<p class="note">Nightly backtest (Gate, 1D, 30 busiest markets): ${ev.join('; ')} (50% would be a coin flip${base&&base.n?`; random days ${fmtP(base.turn)}`:''}).</p>`:'<p class="note">The nightly backtest is measuring how often these signals were right; the numbers appear here once there are at least 10 of each.</p>'}
     <details><summary>How the wave signals work</summary><ul class="sim-notes">
       <li>The <b>wave</b> is a momentum oscillator (WaveTrend): it measures how far the day's average price is from its recent average, smoothed. Below ${WAVE_OS} is oversold, above +${WAVE_OB} overheated.</li>

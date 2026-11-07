@@ -488,6 +488,8 @@ async def main():
             wv = await pg.inner_text("#waveBox") if await pg.is_visible("#waveBox") else ""
             if "Wave signals" not in wv or "1D candles" not in wv or "The wave is" not in wv or "How the wave signals work" not in wv or not await pg.locator('#toggles [data-ind="wave"]').count(): problems.append(f"[{scheme}] chart 1D: wave card or chip wrong: {wv[:160]!r}")
             if not await pg.locator("#waveBox svg.wv polyline").count(): problems.append(f"[{scheme}] chart 1D: wave picture missing")
+            if await pg.locator("#waveBox svg.wv text.t").count() < 7: problems.append(f"[{scheme}] chart 1D: wave picture is missing its dates or levels")
+            if await pg.locator("#waveBox svg.wv circle").count() and not await pg.locator("#waveBox svg.wv text.dl").count(): problems.append(f"[{scheme}] chart 1D: wave dots have no price labels")
             for bad in ("undefined", "NaN", "Infinity", "null"):
                 if bad in wv: problems.append(f"[{scheme}] wave card shows '{bad}'")
             await pg.locator("#waveBox").screenshot(path=os.path.join(OUT, f"wave-{scheme}.png"))

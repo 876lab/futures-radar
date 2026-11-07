@@ -2,6 +2,11 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-11-07 (owner request): Break down this chart (1D)
+- New **Break down this chart** button on 1D charts (under the chart reading). It opens a plain-language read built from the app's own numbers, in the same order as the owner's chat breakdown: **Trend** (20/50/long averages, 30-day move, distance from the 60-day high and low), **Latest move** (5 days, heaviest-volume day of the last 20 if recent, today's candle shape), **Signals on this chart** (wave dots in the last 60 days with whether each has worked so far, divergence and stop-hunt in the last 20), **How stretched** (distance from the 20-day in % and ATR, wave reading, ATR), **Key levels** (Supertrend flip level, 20-day and long average, nearest support/resistance), **The two sides** (the app's reading; what would improve the long side; whether a short is with the trend or late; waiting as an option) and a **Sizing example** from the account size and risk % (stop 2 ATR away) plus the max-loss setting.
+- Not an AI model: an AI service would need a paid API key, which the rules don't allow without the owner's approval. Wording is descriptive only (tested: no "you should", "buy now", etc.).
+- New pure `chartBrief` (4 engine tests); browser test opens it on 1D and checks it is hidden on 4H.
+
 ## 2026-11-07 (owner report): Oversold tab fixes
 - The row note (green dot date, price, wave) overlapped the tag and text in Compact mode; it is now its own line under the row in both modes. Browser test checks the note never overlaps the row, normal and compact.
 - Green dots stay at the last **30 days** (owner briefly asked for 10, then confirmed 30).

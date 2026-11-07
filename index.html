@@ -613,6 +613,10 @@ html,body{overscroll-behavior-y:none}
 .wv .z{stroke:var(--line);stroke-width:1;vector-effect:non-scaling-stroke} .wv .u{fill:var(--up)} .wv .d{fill:var(--down)}
 .wv-key{display:flex;gap:12px;flex-wrap:wrap;margin:0;font-size:12px;color:var(--muted)} .wv-key i{display:inline-block;width:10px;height:3px;border-radius:2px;margin-right:5px;vertical-align:middle}
 .wv-key i.l{background:var(--c2)} .wv-key i.s{background:var(--c1)} .wv-key i.u,.wv-key i.d{width:7px;height:7px;border-radius:50%} .wv-key i.u{background:var(--up)} .wv-key i.d{background:var(--down)}
+.brief-btn{display:flex;align-items:center;gap:12px;width:100%;border:0;background:linear-gradient(135deg,var(--brand-bg),transparent);border-radius:var(--r);padding:12px 14px;text-align:left;color:var(--fg)}
+.brief-btn svg{width:22px;height:22px;color:var(--brand);flex:none} .brief-btn span{display:grid;gap:2px} .brief-btn small{color:var(--muted);font-size:12px}
+.brief-body{display:grid;gap:12px;padding:4px 14px 14px} .brief-sec h4{margin:0 0 4px;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.brief-sec ul{margin:0;padding-left:18px;display:grid;gap:5px;font-size:13.5px;line-height:1.45} .brief .note{padding:0}
 /* ---- 2026-11 visual refresh: calmer palette for long chart sessions, one indigo "brand" colour for anything you
    tap or that is selected (amber now only means caution / Wait / Calm), glass bars, softer cards, larger type ---- */
 body{font-size:13px;letter-spacing:-.003em}
@@ -811,6 +815,7 @@ body::before{background:var(--glass);-webkit-backdrop-filter:blur(16px);backdrop
           </div>
           <div id="mtfBox"><div class="mtf" id="mtf" role="group" aria-label="Chart reading on each candle size"></div><p class="mtf-cap" id="mtfCap"></p></div>
           <div class="card sigcard" id="sigCard"></div>
+          <div class="card book brief" id="briefBox" hidden></div>
           <div class="card chartbox">
             <div class="toggles" id="toggles" style="padding:12px 12px 0"></div>
             <div class="legend" id="legend"></div>
@@ -2330,6 +2335,67 @@ function waveRank(items,max){
   const near=items.filter(x=>x.st&&x.st.near).sort((a,b)=>a.st.w-b.st.w).slice(0,max);
   return{dots,near};
 }
+// Chart breakdown on 1D (owner request, 7 Nov 2026): a plain-language read of the daily chart built from the app's own
+// numbers (no AI service). Descriptive only: what the chart shows and what would change the picture, never what to do.
+function chartBrief(cs,S,o){
+  o=o||{};const n=cs.length,i=n-1;if(n<60||!S)return null;
+  const P=v=>fmtUsd(v),pc=v=>fmtPct(v*100),c=cs[i].close,A=S.at[i],W=o.wave||null,e20=S.e20[i],e50=S.e50[i],eL=W&&W.len?W.eL[i]:null,Lt=W&&W.len?W.len+'-day':null;
+  const day=t=>new Date(t*1000).toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'}),out=[];
+  // 1. trend
+  const t=[],slope=e20!=null&&S.e20[i-5]!=null?e20/S.e20[i-5]-1:0,ch30=c/cs[Math.max(0,i-30)].close-1;
+  let hi=0,hiI=i,lo=Infinity,loI=i;for(let j=Math.max(0,n-60);j<n;j++){if(cs[j].high>hi){hi=cs[j].high;hiI=j}if(cs[j].low<lo){lo=cs[j].low;loI=j}}
+  const down=e20!=null&&e50!=null&&e20<e50&&(eL==null||e50<eL)&&slope<0,up=e20!=null&&e50!=null&&e20>e50&&(eL==null||e50>eL)&&slope>0;
+  const trend=down?'down':up?'up':'mixed';
+  t.push(down?`<b class="down">Strong downtrend.</b> The 20-day average is under the 50-day${eL!=null?` and the 50-day under the ${Lt}`:''}, and the 20-day is still falling.`:
+    up?`<b class="up">Strong uptrend.</b> The 20-day average is above the 50-day${eL!=null?` and the 50-day above the ${Lt}`:''}, and the 20-day is still rising.`:
+    `<b>Mixed trend.</b> The averages are not lined up in one direction, so neither side is clearly in control.`);
+  t.push(`Over 30 days price moved <b class="${ch30>0?'up':'down'}">${pc(ch30)}</b>. The 60-day high was ${P(hi)} (${day(cs[hiI].time)}); price is ${pc(c/hi-1)} from it${loI!==i?` and ${pc(c/lo-1)} from the 60-day low of ${P(lo)}`:', at the 60-day low'}.`);
+  out.push({h:'Trend',lines:t});
+  // 2. latest move
+  const m=[],ch5=c/cs[Math.max(0,i-5)].close-1;let vI=i;for(let j=Math.max(0,n-20);j<n;j++)if((cs[j].volume||0)>(cs[vI].volume||0))vI=j;
+  m.push(`Last 5 days: <b class="${ch5>0?'up':'down'}">${pc(ch5)}</b>.`);
+  if(cs[vI].volume>0&&i-vI<=5){const dn=cs[vI].close<cs[vI].open,mv=cs[vI].close/cs[vI].open-1;
+    m.push(`The heaviest trading of the last 20 days came on ${day(cs[vI].time)}, a ${dn?'<b class="down">down':'<b class="up">up'}</b> day of ${pc(mv)}: ${dn?'heavy selling, often a sign of panic or forced exits':'heavy buying'}.`)}
+  const k=cs[i],rng=k.high-k.low,body=Math.abs(k.close-k.open),uw=k.high-Math.max(k.open,k.close),lw=Math.min(k.open,k.close)-k.low;
+  if(rng>0)m.push(uw>=0.5*rng&&uw>2*body?'Today\'s candle has a long upper wick: a push higher was sold back.':lw>=0.5*rng&&lw>2*body?'Today\'s candle has a long lower wick: a dip was bought back.':body>=0.7*rng?`Today's candle is a solid ${k.close>=k.open?'up':'down'} candle with little wick.`:'Today\'s candle is small and undecided.');
+  out.push({h:'Latest move',lines:m});
+  // 3. signals
+  const g=[],ok=(d,x)=>d>0?x>0:x<0;
+  for(const w of (W?W.sig:[]).filter(w=>i-w.i<=60).slice(-3)){const x=c/cs[w.i].close-1;
+    g.push(`${w.dir>0?'<b class="up">Green':'<b class="down">Red'} wave dot</b> ${day(cs[w.i].time)} at ${P(cs[w.i].close)}: price is ${pc(x)} since, so it has ${ok(w.dir,x)?'worked so far':'<b>failed so far</b>'}.`)}
+  const dv=divAt(o.divs||[],i,20);if(dv){const x=c/cs[dv.at].close-1;g.push(`${dv.dir>0?'Bullish':'Bearish'} RSI divergence ${i-dv.at} days ago: price ${pc(x)} since (${ok(dv.dir,x)?'going its way':'not going its way'}).`)}
+  const hu=(o.hunts||[]).filter(h=>i-h.at<=20).pop();if(hu){const x=c/cs[hu.at].close-1;g.push(`Stop-hunt ${hu.dir>0?'below a low':'above a high'} ${i-hu.at} days ago: price ${pc(x)} since (${ok(hu.dir,x)?'going its way':'not going its way'}).`)}
+  if(!g.length)g.push('No wave dots in the last 60 days and no divergence or stop-hunt in the last 20.');
+  out.push({h:'Signals on this chart',lines:g});
+  // 4. stretch
+  const st=[],dA=e20!=null&&A>0?(c-e20)/A:null,wv=W&&W.len?W.w1[i]:null;
+  if(dA!=null)st.push(`Price is ${pc(c/e20-1)} from its 20-day average (${Math.abs(dA).toFixed(1)} ATR ${dA<0?'below':'above'}). ${Math.abs(dA)>=3?'That is <b>very stretched</b>; moves this far often snap back part of the way, even inside a strong trend.':Math.abs(dA)>=1.5?'Somewhat stretched.':'Close to normal.'}`);
+  if(wv!=null)st.push(`The wave reads ${Math.round(wv)}: ${wv<=WAVE_OS?'<b class="up">oversold</b>':wv>=WAVE_OB?'<b class="down">overheated</b>':'in the normal range'}.${wv<=WAVE_OS&&!(W.sig.length&&W.sig[W.sig.length-1].dir>0&&i-W.sig[W.sig.length-1].i<=3)?' No upturn yet, so no new green dot.':''}`);
+  if(A>0)st.push(`A typical day moves about ${P(A)} (${(A/c*100).toFixed(1)}%), the ATR.`);
+  out.push({h:'How stretched',lines:st});
+  // 5. levels
+  const lv=[],stl=S.st.line[i],sd=S.st.dir[i],sr=o.sr;
+  if(stl!=null)lv.push(sd<0?`The daily trend (Supertrend) flips up only on a close above <b>${P(stl)}</b> (${pc(stl/c-1)} away).`:`The daily trend (Supertrend) flips down on a close below <b>${P(stl)}</b> (${pc(stl/c-1)} away).`);
+  if(e20!=null)lv.push(`20-day average: ${P(e20)}.${eL!=null?` ${Lt} average: ${P(eL)}.`:''}`);
+  if(sr){const r=sr.res[0],u=sr.sup[0];if(r)lv.push(`Nearest resistance: ${P(r.p)} (${pc(r.dist)}, tested ${r.tests}×).`);if(u)lv.push(`Nearest support: ${P(u.p)} (${pc(u.dist)}, tested ${u.tests}×).`);else lv.push('No support from past swing lows below price in the chart\'s history.')}
+  out.push({h:'Key levels',lines:lv});
+  // 6. the two sides (descriptive)
+  const sides=[],rec=o.rc&&o.rc.headline;
+  if(rec)sides.push(`The app's daily reading: <b>${rec}</b>.`);
+  const need=[];if(e20!=null&&c<e20)need.push(`a close back above the 20-day (${P(e20)})`);if(stl!=null&&sd<0)need.push(`a close above ${P(stl)}, where the trend flips`);if(wv!=null&&wv<=WAVE_OS)need.push('a fresh green wave dot');
+  sides.push(trend==='down'?`<b>Long side:</b> going against a falling trend; recent dip signals ${g.some(x=>x.includes('failed so far'))?'have failed':'are no guarantee'}. The picture would improve with ${need.length?need.join(', or '):'a higher low and a close above the 20-day'}.`:
+    trend==='up'?`<b>Long side:</b> with the trend.${dA!=null&&dA>=2?' Price is stretched above the 20-day, so a pullback toward it is common.':''}`:`<b>Long side:</b> no clear trend to lean on; ${need.length?need.join(' or '):'a break of the recent range'} would add clarity.`);
+  sides.push(trend==='down'?`<b>Short side:</b> with the trend${dA!=null&&dA<=-2?`, but late: price is already ${Math.abs(dA).toFixed(1)} ATR under the 20-day, so a stop above the last bounce is far away and sharp bounces are common`:''}.`:
+    trend==='up'?`<b>Short side:</b> against a rising trend.${dA!=null&&dA>=3?' The stretch can mean a pullback, but shorting strength is the harder trade.':''}`:'<b>Short side:</b> no clear trend to lean on either.');
+  sides.push('Waiting is also a choice: after a big move, a few days of sideways candles often show where buyers or sellers step in.');
+  out.push({h:'The two sides',lines:sides});
+  // 7. sizing example
+  const acct=o.acct>0?o.acct:0,rk=o.risk>0?o.risk:2;
+  if(acct&&A>0){const risk=acct*rk/100,stopPct=Math.min(0.5,2*A/c),pos=risk/stopPct;
+    out.push({h:'Sizing example',lines:[`With your ${fmtMoney(acct)} account and ${rk}% risk, one trade risks ${fmtMoney(risk)}. A stop 2 ATR away (${(stopPct*100).toFixed(1)}%) means a position of about <b>${fmtMoney(pos)}</b>; anything bigger loses more than ${fmtMoney(risk)} if the stop is hit.`,
+      o.maxLoss>0?`Your max-loss limit is ${fmtMoney(o.maxLoss)} per trade.`:'Tip: set a max loss per trade in Settings so the app warns before a trade could lose more than that.']})}
+  return{trend,sections:out};
+}
 // which part of the last move price is in (used for wording and for the backtest's buckets)
 
 function fibZone(retr){
@@ -3267,7 +3333,7 @@ function draw(keep){
   let hunts=null;try{const A_=current.an;if(DIV_TF&&A_&&A_.series){divs=rsiDivergences(current.cs,A_.series.r12,Math.max(0,current.cs.length-300),A_.series.e50);hunts=stopHunts(current.cs,A_.series.at,Math.max(0,current.cs.length-300))}}catch(e){recordErr('RSI divergence',e)}
   current.divs=divs;current.hunts=hunts;current.divTf=DIV_TF;renderDiv();renderHunt();
   let wave=null;try{if(ctf()==='1d'&&current.an&&current.an.series)wave=waveSignals(current.cs,current.an.series.at,Math.max(1,current.cs.length-300))}catch(e){recordErr('wave signals',e)}
-  current.wave=wave;renderWave();
+  current.wave=wave;renderWave();current.briefOpen=current.briefOpen&&current.briefKey===current.p.id;current.briefKey=current.p.id;renderBrief();
   if(!ch){msg.hidden=false;msg.textContent="The chart library didn't load. Check your connection and refresh.";return}
   const {cs,an,rc}=current;if(keep){try{current.range=ch.main.timeScale().getVisibleLogicalRange()}catch(e){}}
   const T=cs.map(k=>k.time+tzOff);current.tIndex=new Map(T.map((t,i)=>[t,i]));
@@ -3658,6 +3724,15 @@ function waveHTML(){
       <li>When a market has under 220 days of history, the 100-day average (or 50-day under 120 days) stands in for the 200-day, and this card says so.</li>
       <li>A signal is only final once the day closes. It's a sign, not a guarantee; switch the dots off with the Wave signals chip.</li></ul></details>`;
 }
+const SPARK='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>';
+function renderBrief(){
+  const el=$('#briefBox');if(!el)return;const ok=current&&current.cs&&ctf()==='1d'&&current.an&&current.an.series;el.hidden=!ok;if(!ok){el.innerHTML='';return}
+  const head=`<button type="button" class="brief-btn" id="briefBtn" aria-expanded="${!!current.briefOpen}">${SPARK}<span><b>Break down this chart</b><small>Trend, latest move, signals, levels and sizing in plain words</small></span></button>`;
+  if(!current.briefOpen){el.innerHTML=head;return}
+  let B=null;try{B=chartBrief(current.cs,current.an.series,{wave:current.wave,divs:current.divs,hunts:current.hunts,sr:current.sr,rc:current.rc,acct:state.acct,risk:state.risk,maxLoss:state.maxLoss})}catch(e){recordErr('chart breakdown',e)}
+  el.innerHTML=head+(B?`<div class="brief-body">${B.sections.map(x=>`<div class="brief-sec"><h4>${x.h}</h4><ul>${x.lines.map(l=>`<li>${l}</li>`).join('')}</ul></div>`).join('')}
+    <p class="note">Written by the app's rules from this chart's numbers, the same each time for everyone; not an AI model and not financial advice. Futures are high risk.</p></div>`:'<p class="note">Needs at least 60 daily candles.</p>');
+}
 function renderWave(){const el=$('#waveBox');if(!el)return;const ok=current&&state.ind.wave&&current.cs;el.hidden=!ok;el.innerHTML=ok?waveHTML():''}
 function renderHunt(){const el=$('#huntBox');if(!el)return;const ok=current&&state.ind.hunt&&current.cs;el.hidden=!ok;el.innerHTML=ok?huntHTML():''}
 function renderDiv(){const el=$('#divBox');if(!el)return;const ok=current&&state.ind.div&&current.cs;el.hidden=!ok;el.innerHTML=ok?divHTML():''}
@@ -3805,6 +3880,7 @@ $('#tabs').addEventListener('click',e=>{const b=e.target.closest('[data-cat]');i
 $('#sort').addEventListener('change',e=>{state.sort=e.target.value;LS.set('sort',state.sort);renderList();if(/^trend/.test(state.sort))scan(40)});
 let qT;$('#q').addEventListener('input',e=>{clearTimeout(qT);qT=setTimeout(()=>{state.q=e.target.value.trim().toUpperCase();state.limit=120;renderTabs();renderList(state.cat==='news')},120)});
 $('#tfSeg').addEventListener('click',e=>{const b=e.target.closest('[data-tf]');if(!b)return;if(BIG_TF[b.dataset.tf])setBig(b.dataset.tf);else setTf(b.dataset.tf)});
+$('#briefBox').addEventListener('click',e=>{if(!e.target.closest('#briefBtn')||!current)return;current.briefOpen=!current.briefOpen;renderBrief()});
 $('#toggles').addEventListener('click',e=>{const b=e.target.closest('[data-ind]');if(!b)return;const k=b.dataset.ind;state.ind[k]=!state.ind[k];LS.set('ind3',state.ind);renderToggles();if((k==='fib'||k==='sr'||k==='div'||k==='hunt'||k==='wave')&&current)draw(true);else applyToggles();renderLegend(null)});
 $('#venueBox').addEventListener('click',e=>{const r=e.target.closest('[data-cid]');if(r&&state.selected)openGroup(state.selected,true,r.dataset.cid)});
 $('#venueBox').addEventListener('keydown',e=>{const r=e.target.closest('[data-cid]');if(r&&(e.key==='Enter'||e.key===' ')){e.preventDefault();openGroup(state.selected,true,r.dataset.cid)}});

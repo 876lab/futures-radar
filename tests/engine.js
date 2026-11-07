@@ -197,6 +197,14 @@ ok(s2&&(!s2.dot||s2.dot.ago<=14),'oversold tab: dots older than 14 days drop off
 ok(waveStatus(cs.slice(0,60),14)===null&&waveStatus(null,14)===null,'oversold tab: no status without enough history');
 const it=[{g:'a',st:{dot:{w:-60,ago:2}}},{g:'b',st:{dot:{w:-75,ago:9}}},{g:'c',st:{near:true,w:-58}},{g:'d',st:{near:true,w:-70}},{g:'e',st:null},{g:'f',st:{dot:null,near:false,w:10}}];
 const rk=waveRank(it,10);ok(rk.dots.map(x=>x.g).join()==='b,a'&&rk.near.map(x=>x.g).join()==='d,c'&&waveRank(it,1).dots.length===1,'oversold tab: deepest dot first, lowest wave first, capped');}
+// chart breakdown (1D): sections, neutral wording, falling-market reading
+{const dc=[];let q=1800;for(let j=0;j<260;j++){q=j<200?q*1.002:j<255?q*0.985:q*0.93;dc.push({time:j*86400,open:q*1.01,high:q*1.02,low:q*0.97,close:q,volume:j===257?9e6:1e6})}
+const Sb=computeSeries(dc),Wb=waveSignals(dc,Sb.at,1),B=chartBrief(dc,Sb,{wave:Wb,divs:[],hunts:[],sr:srLevels(dc,Sb.at[259]),rc:{headline:'No setup'},acct:1000,risk:2});
+const txt=B?B.sections.map(x=>x.h+' '+x.lines.join(' ')).join(' '):'';
+ok(B&&B.trend==='down'&&B.sections.map(x=>x.h).join('|')==='Trend|Latest move|Signals on this chart|How stretched|Key levels|The two sides|Sizing example','chart brief: sections in order, downtrend ('+(B&&B.trend)+')');
+ok(/Strong downtrend/.test(txt)&&/heavy selling/.test(txt)&&/very stretched/.test(txt)&&txt.includes('risks $20.00'),'chart brief: reads the crash, the volume, the stretch and the $20 risk');
+ok(!/\b(you should|buy now|sell now|go long|go short|enter)\b/i.test(txt)&&!/undefined|NaN|Infinity/.test(txt),'chart brief: descriptive wording, no broken numbers');
+ok(chartBrief(dc.slice(0,40),computeSeries(dc.slice(0,40)),{})===null,'chart brief: needs 60 days');}
 {const c5=[100,110,90,120,80].map((x,i)=>({time:i,close:x}));ok(Math.abs(holdReturn(c5,0,3)-0.2)<1e-12&&holdReturn(c5,2,3)===null,'wave hold: return after h days, none past the end');
 const hs=holdStat([0.1,-0.2,0.3,0.05],1),hd=holdStat([0.1,-0.2,0.3,0.05],-1);ok(hs.n===4&&hs.pos===0.75&&Math.abs(hs.med-0.075)<1e-9&&hd.pos===0.25&&Math.abs(hd.med+0.075)<1e-9&&holdStat([],1)===null,'wave hold: share going the dot way and median, both directions');}
 ok(same,'wave: no look-ahead ('+Wd.sig.length+' signals on sample data)');

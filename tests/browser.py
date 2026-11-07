@@ -499,6 +499,7 @@ async def main():
                 if bad in hb: problems.append(f"[{scheme}] stop-hunt card shows '{bad}'")
             if scheme == "light": await pg.locator("#huntBox").screenshot(path=os.path.join(OUT, "stop-hunt.png"))
             wv = await pg.inner_text("#waveBox") if await pg.is_visible("#waveBox") else ""
+            if await pg.is_visible("#briefBox"): problems.append(f"[{scheme}] chart 4H: breakdown button should only show on 1D")
             if "Wave signals" not in wv or "Switch to 1D" not in wv: problems.append(f"[{scheme}] chart 4H: wave card should point to 1D: {wv[:120]!r}")
             await pg.click('#tfSeg [data-tf="1d"]'); await pg.wait_for_timeout(1500)
             wv = await pg.inner_text("#waveBox") if await pg.is_visible("#waveBox") else ""
@@ -510,6 +511,17 @@ async def main():
             for bad in ("undefined", "NaN", "Infinity", "null"):
                 if bad in wv: problems.append(f"[{scheme}] wave card shows '{bad}'")
             await pg.locator("#waveBox").screenshot(path=os.path.join(OUT, f"wave-{scheme}.png"))
+            # chart breakdown button (1D only): closed by default, opens with every section, no broken numbers
+            if not await pg.is_visible("#briefBtn"): problems.append(f"[{scheme}] chart 1D: 'Break down this chart' button missing")
+            else:
+                await pg.evaluate("document.querySelector('#briefBtn').click()"); await pg.wait_for_timeout(300)
+                bf = await pg.inner_text("#briefBox")
+                for want in ("TREND", "LATEST MOVE", "HOW STRETCHED", "KEY LEVELS", "THE TWO SIDES", "not financial advice"):
+                    if want.lower() not in bf.lower(): problems.append(f"[{scheme}] chart breakdown: missing '{want}'")
+                for bad in ("undefined", "NaN", "Infinity", "null", "you should"):
+                    if bad in bf: problems.append(f"[{scheme}] chart breakdown shows '{bad}'")
+                await pg.evaluate("document.querySelector('#briefBox').scrollIntoView()"); await pg.locator("#briefBox").screenshot(path=os.path.join(OUT, f"brief-{scheme}.png"))
+                await pg.evaluate("document.querySelector('#briefBtn').click()"); await pg.wait_for_timeout(200)
             await pg.evaluate("document.querySelector('#toggles [data-ind=\"wave\"]').click()"); await pg.wait_for_timeout(300)
             if await pg.is_visible("#waveBox"): problems.append(f"[{scheme}] chart 1D: wave chip did not hide the card")
             await pg.evaluate("document.querySelector('#toggles [data-ind=\"wave\"]').click()"); await pg.wait_for_timeout(300)

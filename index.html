@@ -617,6 +617,7 @@ html,body{overscroll-behavior-y:none}
 .brief-btn svg{width:22px;height:22px;color:var(--brand);flex:none} .brief-btn span{display:grid;gap:2px} .brief-btn small{color:var(--muted);font-size:12px}
 .brief-body{display:grid;gap:12px;padding:4px 14px 14px} .brief-sec h4{margin:0 0 4px;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
 .brief-sec ul{margin:0;padding-left:18px;display:grid;gap:5px;font-size:13.5px;line-height:1.45} .brief .note{padding:0}
+.set-top{display:flex;align-items:center;gap:12px;margin:0 0 12px} .set-top b{font-size:17px;letter-spacing:-.015em}
 /* ---- 2026-11 visual refresh: calmer palette for long chart sessions, one indigo "brand" colour for anything you
    tap or that is selected (amber now only means caution / Wait / Calm), glass bars, softer cards, larger type ---- */
 body{font-size:13px;letter-spacing:-.003em}
@@ -726,6 +727,7 @@ body::before{background:var(--glass);-webkit-backdrop-filter:blur(16px);backdrop
       <div id="listArea"><div class="list"><div class="empty">Loading markets from Binance, Gate and Bybit…</div></div></div>
       <p class="footnote" id="footnote"></p>
       <div id="settings" hidden>
+        <div class="set-top"><button type="button" class="back" id="setBack" aria-label="Back to the app"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M15 18 9 12l6-6"/></svg>Back</button><b>Settings</b></div>
         <form class="sheet setpage" id="settingsForm" autocomplete="off">
           <div class="sgrp">
             <h3>Look</h3>
@@ -1818,7 +1820,7 @@ function applyChrome(){
   $('#tabs').hidden=pg!=='markets';
   $('#bar2').hidden=pg==='sim'||pg==='news'||pg==='settings';
   $('#settings').hidden=pg!=='settings';$('#listArea').hidden=$('#footnote').hidden=pg==='settings';
-  $('#sortWrap').hidden=!((pg==='markets'&&state.cat!=='hot'&&state.cat!=='delist'&&state.cat!=='wave')||pg==='watch');
+  $('#sortWrap').hidden=!((pg==='markets'&&state.cat!=='delist'&&state.cat!=='wave')||pg==='watch');
   $('#q').placeholder=pg==='news'?'Search headlines, e.g. ETF, Solana, Fed':'Search, e.g. bitcoin, gold, TSLA';
 }
 function goPage(k){
@@ -3877,7 +3879,7 @@ $('#venues').addEventListener('click',e=>{const b=e.target.closest('[data-view]'
   scan(SETUP_POOL)});
 $('#nav').addEventListener('click',e=>{const b=e.target.closest('[data-nav]');if(!b)return;if(document.body.classList.contains('d-open'))closeDetail();goPage(b.dataset.nav)});
 $('#tabs').addEventListener('click',e=>{const b=e.target.closest('[data-cat]');if(!b)return;state.cat=b.dataset.cat;state.mcat=state.cat;LS.set('mcat',state.mcat);LS.set('cat3',state.cat);state.limit=120;seenBump(state.cat);renderNav();renderTabs();renderList(true);scan(state.cat==='setups'?SETUP_POOL:30)});
-$('#sort').addEventListener('change',e=>{state.sort=e.target.value;LS.set('sort',state.sort);renderList();if(/^trend/.test(state.sort))scan(40)});
+$('#sort').addEventListener('change',e=>{state.sort=e.target.value;LS.set('sort',state.sort);if(state.cat==='hot'){const t=document.querySelector('#tabs [data-cat="all"]');if(t){t.click();return}}renderList();if(/^trend/.test(state.sort))scan(40)});
 let qT;$('#q').addEventListener('input',e=>{clearTimeout(qT);qT=setTimeout(()=>{state.q=e.target.value.trim().toUpperCase();state.limit=120;renderTabs();renderList(state.cat==='news')},120)});
 $('#tfSeg').addEventListener('click',e=>{const b=e.target.closest('[data-tf]');if(!b)return;if(BIG_TF[b.dataset.tf])setBig(b.dataset.tf);else setTf(b.dataset.tf)});
 $('#briefBox').addEventListener('click',e=>{if(!e.target.closest('#briefBtn')||!current)return;current.briefOpen=!current.briefOpen;renderBrief()});
@@ -3998,8 +4000,9 @@ $('#backupGrp').addEventListener('click',e=>{const b=e.target.closest('button');
   else if(b.id==='bkUndo')undoBackup();else if(b.id==='bkKeep'){try{localStorage.removeItem('fradar:bkUndo')}catch(e){}renderBackup();showToast('Kept the restored data')}});
 function setCompact(on){state.compact=on;LS.set('compact',on);document.body.classList.toggle('compact',on);$('#compactBtn').setAttribute('aria-pressed',on)}
 function refreshCalc(){if($('#calcOut')&&$('#acct')){$('#acct').value=state.acct;$('#riskPct').value=state.risk;$('#acct').dispatchEvent(new Event('input'))}}
-function openSettingsPage(){if(document.body.classList.contains('d-open'))closeDetail();goPage('settings')}
+function openSettingsPage(){if(document.body.classList.contains('d-open'))closeDetail();if(state.cat!=='settings')state.preSet=pageOf(state.cat);goPage('settings')}
 $('#openSettings').addEventListener('click',openSettingsPage);
+$('#setBack').addEventListener('click',()=>goPage(state.preSet&&state.preSet!=='settings'?state.preSet:'markets'));
 $('#settingsForm').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
   const sw=b.closest('[data-sw]');
   if(sw){const k=sw.dataset.sw,on=!state[k];if(k==='compact')setCompact(on);else{state[k]=on;LS.set(k,on)}if(k==='evOn'||k==='evAll')renderEvGuard();if(k==='navHide')document.body.classList.remove('nav-away');renderSettings()}

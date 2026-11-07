@@ -2,6 +2,11 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-11-07 (owner report): Settings Back button, sort on Hot
+- Settings page now has a **Back** button at the top (returns to the page it was opened from).
+- The **Sort** menu now also shows on Hot (it was hidden there because Hot's three lists have their own order); picking a sort opens All, sorted that way.
+- Browser test checks both.
+
 ## 2026-11-07 (owner request): Break down this chart (1D)
 - New **Break down this chart** button on 1D charts (under the chart reading). It opens a plain-language read built from the app's own numbers, in the same order as the owner's chat breakdown: **Trend** (20/50/long averages, 30-day move, distance from the 60-day high and low), **Latest move** (5 days, heaviest-volume day of the last 20 if recent, today's candle shape), **Signals on this chart** (wave dots in the last 60 days with whether each has worked so far, divergence and stop-hunt in the last 20), **How stretched** (distance from the 20-day in % and ATR, wave reading, ATR), **Key levels** (Supertrend flip level, 20-day and long average, nearest support/resistance), **The two sides** (the app's reading; what would improve the long side; whether a short is with the trend or late; waiting as an option) and a **Sizing example** from the account size and risk % (stop 2 ATR away) plus the max-loss setting.
 - Not an AI model: an AI service would need a paid API key, which the rules don't allow without the owner's approval. Wording is descriptive only (tested: no "you should", "buy now", etc.).

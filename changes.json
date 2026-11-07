@@ -1,4 +1,8 @@
 [
+  {"date": "2026-11-07", "title": "Back button and sort", "items": [
+    "Settings now has a Back button at the top.",
+    "The Sort menu is back beside Compact on the Hot tab; choosing a sort opens All, sorted your way."
+  ]},
   {"date": "2026-11-07", "title": "Break down this chart", "items": [
     "On any 1D chart, tap \"Break down this chart\" for a plain-language read: trend, latest move, how past signals did, how stretched price is, key levels, the long and short sides, and a sizing example for your account.",
     "It is written by the app's rules from the chart's numbers, not an AI model, and describes the chart rather than telling you what to do."

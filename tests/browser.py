@@ -412,8 +412,21 @@ async def main():
             for bad in ("undefined", "NaN"):
                 if bad in st: problems.append(f"[{scheme}] settings: shows '{bad}'")
             if scheme == "dark": await pg.screenshot(path=os.path.join(OUT, "settings.png"), full_page=True)
+            if not await pg.is_visible("#setBack"): problems.append(f"[{scheme}] settings: Back button missing")
+            else:
+                await pg.click("#setBack"); await pg.wait_for_timeout(400)
+                if await pg.is_visible("#settings"): problems.append(f"[{scheme}] settings: Back did not leave the page")
+                await pg.click("#openSettings"); await pg.wait_for_timeout(400)
             await pg.click('[data-nav="markets"]'); await pg.wait_for_timeout(500)
             if await pg.is_visible("#settings"): problems.append(f"[{scheme}] settings page did not close")
+            # sort menu also on Hot; picking a sort opens All sorted that way (owner report, 7 Nov 2026)
+            await pg.click('[data-cat="hot"]'); await pg.wait_for_timeout(300)
+            if not await pg.is_visible("#sortWrap"): problems.append(f"[{scheme}] hot: sort menu missing")
+            else:
+                await pg.select_option("#sort", "gain"); await pg.wait_for_timeout(500)
+                if await pg.get_attribute('[data-cat="all"]', "aria-selected") != "true": problems.append(f"[{scheme}] hot: sorting did not open All")
+                await pg.select_option("#sort", "vol"); await pg.wait_for_timeout(300)
+                await pg.click('[data-cat="hot"]'); await pg.wait_for_timeout(300)
             await pg.evaluate("window.scrollBy(0, 300)"); await pg.wait_for_timeout(100)
             if not await pg.evaluate("document.body.classList.contains('nav-away')"): problems.append(f"[{scheme}] bottom bar did not hide while scrolling")
             await pg.wait_for_timeout(800)

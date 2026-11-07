@@ -547,6 +547,10 @@ details.more[open]>summary::after{content:"−"}
 .fng-bar{position:relative;height:8px;border-radius:4px;background:linear-gradient(90deg,var(--down),var(--accent) 50%,var(--up));margin:4px 0}
 .fng-bar i{position:absolute;top:50%;width:14px;height:14px;border-radius:50%;background:var(--surface);border:3px solid var(--fg);transform:translate(-50%,-50%)}
 .fng p,.cal p{margin:0;font-size:12.5px;color:var(--muted)}
+.vix .v small{font-size:12.5px;font-weight:600} .vix-bar{background:linear-gradient(90deg,var(--up) 0%,var(--up) 12%,var(--c2) 21%,var(--c2) 29%,var(--accent) 38%,var(--accent) 60%,var(--down) 72%)}
+.vix-k{position:relative;height:14px;font-size:10.5px;color:var(--muted);margin-top:-4px} .vix-k span{position:absolute;transform:translateX(-50%);white-space:nowrap} .vix-k span:first-child{transform:none} .vix-k span:last-child{transform:translateX(-100%)}
+.vix-sp{width:100%;height:40px;display:block} .vix-sp polyline{fill:none;stroke:var(--c2);stroke-width:1.6;vector-effect:non-scaling-stroke} .vix-sp line{stroke:var(--line);stroke-dasharray:3 3;vector-effect:non-scaling-stroke}
+.vix .vix-src{font-size:11.5px}
 .cal{padding:12px 14px;display:grid;gap:8px;align-content:start}
 .cal ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}
 .cal li{display:grid;grid-template-columns:86px minmax(0,1fr);gap:10px;font-size:13px}
@@ -1085,7 +1089,9 @@ function cleanNews(j){
     .slice(0,60).map(e=>({t:str(e.t,120),c:str(e.c,8),d:e.d,i:str(e.i,10),f:str(e.f,20),p:str(e.p,20)}));
   const f=j.fng,fng=f&&typeof f==='object'&&fin(f.v)&&f.v>=0&&f.v<=100?{v:Math.round(f.v),l:str(f.l,40),d:fin(f.d)?f.d:0,prev:fin(f.prev)?f.prev:null}:null;
   const sources=(Array.isArray(j.sources)?j.sources:[]).filter(x=>x&&typeof x==='object').slice(0,30).map(x=>({name:str(x.name,60),ok:x.ok===true,n:fin(x.n)?x.n:0,err:str(x.err,60)}));
-  return {v:j.v,updated:fin(j.updated)?j.updated:0,items,fng,calendar,sources,delist};
+  const x=j.vix,vok=v=>fin(v)&&v>0&&v<200,vix=x&&typeof x==='object'&&vok(x.v)?{v:x.v,d:fin(x.d)?x.d:0,prev:vok(x.prev)?x.prev:null,w:vok(x.w)?x.w:null,src:str(x.src,20),
+    hist:(Array.isArray(x.hist)?x.hist:[]).slice(-60).filter(h=>Array.isArray(h)&&fin(h[0])&&vok(h[1])).map(h=>[h[0],h[1]])}:null;
+  return {v:j.v,updated:fin(j.updated)?j.updated:0,items,fng,vix,calendar,sources,delist};
 }
 function fmtDur(sec){if(!(sec>0))return 'under a minute';const h=sec/3600;return h<1?Math.max(1,Math.round(sec/60))+' min':h<48?(h<10?+h.toFixed(1):Math.round(h))+' hour'+(h===1?'':'s'):Math.round(h/24)+' days'}
 function fmtMoney(v){return (v<0?'−$':'$')+Math.abs(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
@@ -2650,6 +2656,19 @@ function fngHTML(f){
     <div class="fng-bar" role="img" aria-label="Fear and Greed ${f.v} of 100"><i style="left:${clamp(f.v,0,100)}%"></i></div>
     <p>${f.prev!=null?`Yesterday ${f.prev}. `:''}0 is extreme fear, 100 is extreme greed. Extreme fear often shows up near lows, extreme greed near highs.</p></div>`;
 }
+// Cboe VIX (owner request, 7 Nov 2026): the stock market's 30-day expected volatility from S&P 500 options. Daily closes.
+// Zones as commonly read: under 15 calm, 15–20 normal, 20–30 nervous, 30+ fear. Information only.
+function vixZone(v){return v<15?['Calm','var(--up)']:v<20?['Normal','var(--c2)']:v<30?['Nervous','var(--accent)']:['Fear','var(--down)']}
+function vixHTML(x){
+  if(!x)return '';const [z,col]=vixZone(x.v),ch=x.prev?x.v-x.prev:null,day=t=>new Date(t*1000).toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'});
+  const pos=clamp((x.v-10)/30*100,0,100),H=x.hist.length>1?x.hist:null;
+  let sp='';if(H){const vs=H.map(h=>h[1]),mn=Math.min(...vs,12),mx=Math.max(...vs,32),Y=v=>(40-(v-mn)/(mx-mn)*36-2).toFixed(1),X=k=>(k/(H.length-1)*200).toFixed(1);
+    sp=`<svg class="vix-sp" viewBox="0 0 200 40" preserveAspectRatio="none" role="img" aria-label="VIX over the last ${H.length} trading days">${[20,30].filter(v=>v>mn&&v<mx).map(v=>`<line x1="0" x2="200" y1="${Y(v)}" y2="${Y(v)}"/>`).join('')}<polyline points="${H.map((h,k)=>X(k)+','+Y(h[1])).join(' ')}"/></svg>`}
+  return `<div class="card fng vix"><span class="lab">VIX · Cboe volatility index</span><div class="v"><b style="color:${col}">${x.v.toFixed(2)}</b><span>${z}</span>${ch!=null?`<small class="${ch>0?'down':ch<0?'up':''}">${ch>0?'+':''}${ch.toFixed(2)} on the day</small>`:''}</div>
+    <div class="fng-bar vix-bar" role="img" aria-label="VIX ${x.v.toFixed(1)}"><i style="left:${pos.toFixed(1)}%"></i></div><div class="vix-k">${[[10,0],[15,16.7],[20,33.3],[30,66.7],[40,100]].map(([v,l])=>`<span style="left:${l}%">${v}${v===40?"+":""}</span>`).join("")}</div>
+    ${sp}<p>Close on ${esc(day(x.d))}${x.w!=null?`; a week earlier ${x.w.toFixed(2)}`:''}. The stock market's "fear gauge": how much movement traders expect in the S&amp;P 500 over the next 30 days. Under 15 calm, 20–30 nervous, 30+ fear. When it jumps, stocks and crypto often fall together.</p>
+    <p class="vix-src">Daily close from ${x.src==='FRED'?'Cboe via FRED':'Cboe'}; updated after the US close.</p></div>`;
+}
 function calHTML(cal){
   const now=NOW()/1000,up=(cal||[]).filter(e=>e.d>=now-3600).slice(0,6);
   const when=d=>new Date(d*1000).toLocaleString([],{weekday:'short',hour:'numeric',minute:'2-digit'});
@@ -2708,7 +2727,7 @@ function renderNews(force){
   area.innerHTML=`<div class="news" id="newsRoot">
     <div class="card cy" id="cyCard">${cycleCardHTML()}</div>
     <div class="card cy fil" id="filCard">${filCardHTML()}</div>
-    <div class="ntop">${fngHTML(d.fng)}${calHTML(d.calendar)}</div>
+    <div class="ntop">${fngHTML(d.fng)}${vixHTML(d.vix)}${calHTML(d.calendar)}</div>
     <div class="opts">${NTOPICS.map(([k,l])=>`<button type="button" class="opt sm" data-ntopic="${k}" aria-pressed="${tp===k}">${l}</button>`).join('')}</div>
     <div class="nlist">${items.length?items.map(newsItemHTML).join(''):`<div class="empty">No headlines match${q?' your search':''}.</div>`}</div>
     ${xCard()}

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Builds news.json for Futures Radar: headlines, Fear & Greed, and upcoming economic events.
+"""Builds news.json for Futures Radar: headlines, Fear & Greed, the VIX, and upcoming economic events.
 
 Runs on GitHub Actions every 15 minutes. Uses only the standard library.
 Every source is optional; failures are recorded in the output instead of stopping the run.
@@ -211,6 +211,36 @@ def tags_in(text):
     return [name for name, rx in TAGS if re.search(rx, text, re.I if name not in ("Regulation", "Macro", "ETF") else 0)]
 
 
+def parse_vix_csv(text):
+    """Daily VIX closes, oldest first, as (UTC midnight epoch, close). Reads Cboe's VIX_History.csv
+    (DATE,OPEN,HIGH,LOW,CLOSE with MM/DD/YYYY dates) and FRED's VIXCLS (observation_date,VIXCLS; '.' = no value)."""
+    out = []
+    for line in text.splitlines()[1:]:
+        p = [x.strip() for x in line.split(",")]
+        if len(p) < 2:
+            continue
+        try:
+            if "/" in p[0]:
+                m, d, y = (int(x) for x in p[0].split("/"))
+            else:
+                y, m, d = (int(x) for x in p[0].split("-"))
+            v = float(p[4] if len(p) >= 5 else p[1])
+        except (ValueError, IndexError):
+            continue
+        if 0 < v < 200:
+            out.append((int(dt.datetime(y, m, d, tzinfo=dt.timezone.utc).timestamp()), round(v, 2)))
+    out.sort()
+    return out
+
+
+def vix_summary(rows, src):
+    """Last close, previous close, close 5 trading days ago and the last 60 closes for the News page."""
+    if len(rows) < 2:
+        return None
+    return {"v": rows[-1][1], "d": rows[-1][0], "prev": rows[-2][1], "w": rows[-6][1] if len(rows) >= 6 else None,
+            "hist": [[d, v] for d, v in rows[-60:]], "src": src}
+
+
 def build():
     now = int(dt.datetime.now(dt.timezone.utc).timestamp())
     items, sources, seen = [], [], set()
@@ -255,6 +285,18 @@ def build():
     except Exception as e:
         sources.append({"name": "Fear & Greed", "ok": False, "err": type(e).__name__})
 
+    # VIX: Cboe's own daily history file (official), with FRED's copy as a fallback; daily closes only
+    vix = None
+    for name, url in (("Cboe", "https://cdn.cboe.com/api/global/us_indices/daily_prices/VIX_History.csv"),
+                      ("FRED", "https://fred.stlouisfed.org/graph/fredgraph.csv?id=VIXCLS")):
+        try:
+            vix = vix_summary(parse_vix_csv(fetch(url).decode("utf-8", "replace")), name)
+            if vix:
+                break
+        except Exception:
+            continue
+    sources.append({"name": "VIX", "ok": vix is not None})
+
     cal = []
     try:
         rows = json.loads(fetch("https://nfs.faireconomy.media/ff_calendar_thisweek.json"))
@@ -276,7 +318,7 @@ def build():
     except Exception as e:
         sources.append({"name": "Economic calendar", "ok": False, "err": type(e).__name__})
 
-    return {"v": 1, "updated": now, "items": items, "fng": fng, "calendar": cal[:30], "sources": sources, "delist": delist}
+    return {"v": 1, "updated": now, "items": items, "fng": fng, "vix": vix, "calendar": cal[:30], "sources": sources, "delist": delist}
 
 
 if __name__ == "__main__":

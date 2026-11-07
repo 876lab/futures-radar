@@ -351,6 +351,9 @@ async def main():
                         except Exception as e: problems.append(f"simulator: track CSV download failed: {e}")
                     await pg.locator("#trCard").screenshot(path=os.path.join(OUT, f"track-{scheme}.png"))
                 if nav == "news":
+                    vx = await pg.inner_text(".card.vix") if await pg.locator(".card.vix").count() else ""
+                    if "VIX" not in vx or "20.10" not in vx or "Nervous" not in vx or "fear gauge" not in vx or not await pg.locator(".card.vix svg polyline").count(): problems.append(f"[{scheme}] news: VIX card missing or wrong: {vx[:120]!r}")
+                    if scheme == "dark" and vx: await pg.locator(".ntop").screenshot(path=os.path.join(OUT, "vix.png"))
                     ft = await pg.inner_text("#filCard") if await pg.locator("#filCard").count() else ""
                     if "Company earnings filings" not in ft or "SOFI" not in ft or "GOOGL" not in ft or "Quarterly report (10-Q)" not in ft: problems.append(f"[{scheme}] news: company filings card missing")
                     await pg.fill("#filIn", "nvda"); await pg.click("#filAdd button"); await pg.wait_for_timeout(150)

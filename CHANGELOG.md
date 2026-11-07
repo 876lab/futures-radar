@@ -2,6 +2,11 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-11-07 (owner request): VIX on the News page
+- New **VIX · Cboe volatility index** card under Fear & Greed: latest daily close, zone (under 15 Calm, 15–20 Normal, 20–30 Nervous, 30+ Fear), change on the day, a 10–40+ scale, the last 60 trading days as a line (20 and 30 marked), the close a week earlier, and one plain line on what it measures and why it matters for crypto.
+- Data: the news job (every 15 minutes) reads Cboe's official daily history file (https://cdn.cboe.com/api/global/us_indices/daily_prices/VIX_History.csv, linked from Cboe's VIX historical data page), with FRED's VIXCLS series as a fallback; stored as `vix` in news.json (v, d, prev, w, hist, src). Daily closes only; no intraday quotes. Recorded in the job's sources list.
+- New `parse_vix_csv`, `vix_summary` with tests in tests/news_delist.py (both formats, junk lines, summary); browser test checks the card. Information only.
+
 ## 2026-11-07 (owner request): Chart breakdown on every candle size
 - **Break down this chart** now shows on every candle size (5m to 1M), not only 1D. Wording follows the candle size: "30 candles (30 hours)", "20-candle average", "The latest candle … is still forming", "The 4H trend (Supertrend)", "The app's 4H reading"; times shown on intraday dates. The long average is the 200-candle EMA off 1D (the wave's 200/100/50-day on 1D). Wave dots stay 1D only and the signals line says where divergences and stop-hunts are read. The sizing example notes when tight intraday stops make the position several times the account.
 - Engine tests for 1H wording and weekly candles; browser test opens it on 4H.

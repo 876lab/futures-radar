@@ -21,6 +21,14 @@ m = f.merge_delist([{"t": "Binance will delist EPIC and QUICK on October 28", "u
                     {"t": "kept", "u": "https://a.example/k", "s": "X", "d": now - 10 * 86400, "x": ["KEEP"]}], now)
 check([e["u"] for e in m] == ["https://a.example/1", "https://a.example/k"], "merge keeps new + recent, drops 45+ days and non-delist")
 check(m[0]["e"] == ["Binance"] and m[0]["x"] == ["EPIC", "QUICK"], "merge fields")
+# VIX parsing: Cboe and FRED formats, junk lines skipped, summary
+cb = f.parse_vix_csv("DATE,OPEN,HIGH,LOW,CLOSE\n11/04/2026,18.1,19.0,17.5,18.40\n11/05/2026,18.4,22.1,18.0,21.75\nbad,line\n11/06/2026,21.0,21.5,19.8,20.10\n")
+check([v for _, v in cb] == [18.4, 21.75, 20.1] and cb[0][0] == 1793750400, "cboe vix csv")
+fr = f.parse_vix_csv("observation_date,VIXCLS\n2026-11-04,18.40\n2026-11-05,.\n2026-11-06,20.10\n")
+check([v for _, v in fr] == [18.4, 20.1], "fred vix csv, '.' skipped")
+s = f.vix_summary(cb, "Cboe")
+check(s["v"] == 20.1 and s["prev"] == 21.75 and s["w"] is None and len(s["hist"]) == 3 and s["src"] == "Cboe", "vix summary")
+check(f.vix_summary(cb[:1], "Cboe") is None, "vix summary needs two closes")
 if bad:
     print("news delist test FAILED:"); [print("  - " + b) for b in bad]; sys.exit(1)
 print("news delist test passed")

@@ -2273,6 +2273,12 @@ function waveTrend(cs){
   const ci=ap.map((v,i)=>esa[i]==null||d[i]==null?null:d[i]>0?(v-esa[i])/(0.015*d[i]):0),w1=ema(ci,21),w2=w1.map((_,i)=>{if(i<3)return null;let s=0;for(let j=i-3;j<=i;j++){if(w1[j]==null)return null;s+=w1[j]}return s/4});
   return{w1,w2};
 }
+// longer holds for the wave dots (nightly backtest): close h days later vs the signal day's close
+const WAVE_HOLD=[30,60,90];
+function holdReturn(cs,i,h){return i+h<cs.length&&cs[i].close>0?cs[i+h].close/cs[i].close-1:null}
+// share that went the dot's way (dir 1: rose, -1: fell), median and average move the dot's way; null under 1
+function holdStat(r,dir){const v=r.map(x=>x*dir).sort((a,b)=>a-b),n=v.length;if(!n)return null;const m=n%2?v[(n-1)/2]:(v[n/2-1]+v[n/2])/2;
+  return{n,pos:v.filter(x=>x>0).length/n,med:+m.toFixed(4),avg:+(v.reduce((a,b)=>a+b,0)/n).toFixed(4)}}
 function waveLen(n){return n>=220?200:n>=120?100:n>=70?50:0}   // the longest average the history supports
 function waveSignals(cs,atr,from){
   const len=waveLen(cs.length),{w1,w2}=waveTrend(cs),c=cs.map(k=>k.close),e20=ema(c,20),eL=len?ema(c,len):c.map(()=>null),sig=[],last={'1':-99,'-1':-99};
@@ -2341,7 +2347,9 @@ function cleanLab(L){
   const sig=o=>{const out={};if(o&&typeof o==='object')for(const tf of ['1h','4h','1d']){const x=o[tf];if(x&&fin(x.n)&&x.n>0&&fin(x.turn))out[tf]={n:Math.round(x.n),turn:clamp(x.turn,0,1)}}return out};
   const dg=(Array.isArray(L.divGroup)?L.divGroup:[]).slice(0,3).filter(g=>g&&typeof g.k==='string'&&fin(g.n)&&fin(g.avgR)).map(g=>({k:g.k.slice(0,40),n:Math.round(g.n),avgR:g.avgR,reach:fin(g.reach)?g.reach:0}));
   const hdiv=sig(L.hdiv),hunt=sig(L.hunt),divlvl=sig(L.divlvl),combo=sig(L.combo),wave=sig(L.wave),waveUp=sig(L.waveUp),waveDn=sig(L.waveDn);
-  return rows.length?{hdiv,hunt,divlvl,combo,wave,waveUp,waveDn,pbFill:fin(L.pbFill)?clamp(L.pbFill,0,1):null,rows,div:sig(L.div),flip:sig(L.flip),base:sig(L.base),divGroup:dg}:null;
+  const hs=o=>{const out={};if(o&&typeof o==='object')for(const h of WAVE_HOLD){const x=o[h];if(x&&fin(x.n)&&x.n>0&&fin(x.pos)&&fin(x.med))out[h]={n:Math.round(x.n),pos:clamp(x.pos,0,1),med:clamp(x.med,-1,20)}}return out};
+  const wh=L.waveHold&&typeof L.waveHold==='object'?L.waveHold:{},waveHold={up:hs(wh.up),dn:hs(wh.dn),base:hs(wh.base)};
+  return rows.length?{hdiv,hunt,divlvl,combo,wave,waveUp,waveDn,waveHold,pbFill:fin(L.pbFill)?clamp(L.pbFill,0,1):null,rows,div:sig(L.div),flip:sig(L.flip),base:sig(L.base),divGroup:dg}:null;
 }
 // ideas that held up: at least `minN` trades and better than today's rules on BOTH the older and the newer half
 function labPicks(lab,minN){
@@ -3572,6 +3580,15 @@ function waveListHTML(W,cs){
     return `<li class="${good?'w':'l'}"><span><b class="${w.dir>0?'up':'down'}">${w.dir>0?'Low-wave':'High-wave'}</b> · ${esc(new Date(cs[w.i].time*1000).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',timeZone:'UTC'}))}<small>Close that day ${esc(fmtUsd(p))} · now ${esc(fmtUsd(now))}</small></span><b class="${ch>0?'up':ch<0?'down':''}">${fmtPct(ch)}</b></li>`}).join('')}</ul>
     <p class="note">The % is how far price has moved since each dot's close (green when it went the dot's way).</p>`;
 }
+// longer holds: how price did 30 / 60 / 90 days after each kind of dot, beside random days
+function waveHoldHTML(H){
+  if(!H||!H.up||!WAVE_HOLD.some(h=>H.up[h]||(H.dn&&H.dn[h])))return '';
+  const c=(x,w)=>x&&x.n>=10?`<td>${fmtP(x.pos)} <small class="muted">of ${x.n}</small><br><b class="${x.med>0?'up':x.med<0?'down':''}">${x.med>0?'+':''}${(x.med*100).toFixed(1)}%</b></td>`:`<td class="muted">${x?`only ${x.n}`:'—'}</td>`;
+  const B=H.base||{};
+  return `<div class="sim-sec"><h4>Holding longer (nightly backtest, 1D)</h4><table class="feedtbl wv-hold"><thead><tr><th>After</th><th>Low-wave: rose</th><th>High-wave: fell</th><th>Random days: rose</th></tr></thead><tbody>
+    ${WAVE_HOLD.map(h=>`<tr><td><b>${h} days</b></td>${c(H.up[h])}${c(H.dn&&H.dn[h])}${c(B[h])}</tr>`).join('')}</tbody></table>
+    <p class="note">Each cell: how often price went the dot's way after that many days, and the typical (median) move the dot's way. Compare with random days (they fell the rest of the time): a dot only helps if it beats them. Under 10 cases shows "only N".</p></div>`;
+}
 function waveHTML(){
   const h='<h3>Wave signals</h3>';
   if(ctf()!=='1d')return h+`<p class="note">Shown on 1D candles only, where they are less noisy. Switch to 1D to see them.</p>`;
@@ -3590,6 +3607,7 @@ function waveHTML(){
     <p class="big">The wave is ${mood}${x!=null?` (${x>0?'+':''}${Math.round(x)})`:''}. The 20-day average is ${gap==null?'—':`<b>${fmtPct(gap*100)}</b> from the ${esc(avg)}`}.</p>
     <p class="big">${lastTxt}</p>
     ${waveListHTML(W,cs)}
+    ${waveHoldHTML(L2&&L2.waveHold)}
     ${ev.length?`<p class="note">Nightly backtest (Gate, 1D, 30 busiest markets): ${ev.join('; ')} (50% would be a coin flip${base&&base.n?`; random days ${fmtP(base.turn)}`:''}).</p>`:'<p class="note">The nightly backtest is measuring how often these signals were right; the numbers appear here once there are at least 10 of each.</p>'}
     <details><summary>How the wave signals work</summary><ul class="sim-notes">
       <li>The <b>wave</b> is a momentum oscillator (WaveTrend): it measures how far the day's average price is from its recent average, smoothed. Below ${WAVE_OS} is oversold, above +${WAVE_OB} overheated.</li>

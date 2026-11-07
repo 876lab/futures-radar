@@ -191,6 +191,8 @@ const hi=W.sig.filter(w=>w.dir<0);ok(hi.every(w=>cs[w.i].close>=W.eL[w.i]+3*at[w
 const sp=W.sig.filter(w=>w.dir>0).map(w=>w.i);ok(sp.every((v,k)=>!k||v-sp[k-1]>5),'wave: same-side dots at least 6 days apart');
 const d=demoCandles(state.pairs[0],'1d',400),Sd=computeSeries(d),Wd=waveSignals(d,Sd.at,1);let same=true;
 for(const L of [250,300,350,399]){const a=waveSignals(d.slice(0,L+1),Sd.at.slice(0,L+1),1).sig,b=Wd.sig.filter(w=>w.i<=L);if(JSON.stringify(a)!==JSON.stringify(b))same=false}
+{const c5=[100,110,90,120,80].map((x,i)=>({time:i,close:x}));ok(Math.abs(holdReturn(c5,0,3)-0.2)<1e-12&&holdReturn(c5,2,3)===null,'wave hold: return after h days, none past the end');
+const hs=holdStat([0.1,-0.2,0.3,0.05],1),hd=holdStat([0.1,-0.2,0.3,0.05],-1);ok(hs.n===4&&hs.pos===0.75&&Math.abs(hs.med-0.075)<1e-9&&hd.pos===0.25&&Math.abs(hd.med+0.075)<1e-9&&holdStat([],1)===null,'wave hold: share going the dot way and median, both directions');}
 ok(same,'wave: no look-ahead ('+Wd.sig.length+' signals on sample data)');
 ok(waveSignals(d.slice(0,60),Sd.at.slice(0,60),1).len===0&&waveSignals(d.slice(0,60),Sd.at.slice(0,60),1).sig.length===0,'wave: no dots without a long average');}
 // public track record: cleaning and stats (losses and unscored records kept, junk dropped)

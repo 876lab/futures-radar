@@ -2,6 +2,12 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-11-07 (owner request): Wave dots over longer holds
+- First real wave results (Gate top 30, 1D, short 1 ATR test): low-wave dots 44% of 63, high-wave 54% of 48, random days 49.5%. The owner asked to check longer holds, closer to how the weekly-chart trader uses them.
+- Nightly backtest now records the price change **30, 60 and 90 days** after each low-wave and high-wave dot's close, and after every 7th day as the random baseline (`lab.waveHold`: n, share going the dot's way, median and average move).
+- Wave card: **Holding longer** table (low-wave rose / high-wave fell / random days rose, with counts and median moves; under 10 cases shows "only N").
+- New pure `holdReturn`, `holdStat` (2 engine tests); browser test checks the table. Information only.
+
 ## 2026-11-07 (owner request): Dates and prices on the wave
 - The wave picture now has dates along the bottom (4 evenly spaced, year on the first), the +53 / 0 / −53 levels on the right, and each dot's closing price and date beside it (newest first; labels that would overlap are skipped). It keeps its proportions instead of stretching.
 - New list under it: the latest 4 dots with date, the close that day, today's price and the % move since (green when price went the dot's way).

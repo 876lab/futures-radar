@@ -65,7 +65,10 @@ function runMarket(m, c) {
     const g = SIG['1d'] = SIG['1d'] || { div: [0, 0], flip: [0, 0], base: [0, 0], hdiv: [0, 0], hunt: [0, 0], divlvl: [0, 0], combo: [0, 0], wave: [0, 0], waveUp: [0, 0], waveDn: [0, 0] };
     const add = (k, v) => { if (v == null) return; g[k][0] += v; g[k][1]++; };
     for (const w of W.sig) { const A = S.at[w.at]; if (!(A > 0)) continue; const v = firstTouch(cs, w.at, w.dir, A); add('wave', v); add(w.dir > 0 ? 'waveUp' : 'waveDn', v); }
-    for (let i = SIM_WARM; i < cs.length - 1; i += 7) { const A = S.at[i]; if (A > 0) { add('base', firstTouch(cs, i, 1, A)); add('base', firstTouch(cs, i, -1, A)); } } }
+    for (let i = SIM_WARM; i < cs.length - 1; i += 7) { const A = S.at[i]; if (A > 0) { add('base', firstTouch(cs, i, 1, A)); add('base', firstTouch(cs, i, -1, A)); } }
+    // longer holds (owner request): price change 30 / 60 / 90 days after each dot's close, and after random days (every 7th)
+    for (const w of W.sig) for (const h of WAVE_HOLD) { const r = holdReturn(cs, w.i, h); if (r != null) WAVE_H[w.dir > 0 ? 'up' : 'dn'][h].push(r); }
+    for (let i = SIM_WARM; i < cs.length; i += 7) for (const h of WAVE_HOLD) { const r = holdReturn(cs, i, h); if (r != null) WAVE_H.base[h].push(r); } }
   for (const tf of TFS_RUN) {
     const cs = c[tf], hcs = c[HTF[tf]]; if (!cs || cs.length < SIM_WARM + 20) continue;
     const S = computeSeries(cs), step = TFS[tf];
@@ -139,7 +142,8 @@ function limitEntry(cs, S, i, rc, A, o) {
 // do RSI divergences and Supertrend flips (the chart's B/S marks) on their own point the right way? From the candle where
 // each is known: does price move 1 ATR its way before 1 ATR against within 30 candles (a candle touching both counts as
 // against)? Baseline: the same test from every 7th candle in both directions.
-const SIG = {}, DAY_TR = [];
+const SIG = {}, DAY_TR = [], WAVE_H = { up: {}, dn: {}, base: {} };
+for (const k in WAVE_H) for (const h of WAVE_HOLD) WAVE_H[k][h] = [];
 function firstTouch(cs, c, dir, A) {
   const p = cs[c].close;
   for (let k = c + 1; k < Math.min(cs.length, c + 31); k++) { const b = cs[k], fav = dir > 0 ? b.high - p : p - b.low, adv = dir > 0 ? p - b.low : b.high - p;
@@ -191,7 +195,8 @@ function labReport(trades, mid) {
     older: null, newer: null } : null;
   if (day) { const md = D[Math.floor(D.length / 2)].t0, a = D.filter(t => t.t0 < md), b = D.filter(t => t.t0 >= md), av = x => x.length ? +(x.reduce((s, t) => s + t.r, 0) / x.length).toFixed(4) : null;
     day.older = av(a); day.newer = av(b); rows.push({ f: '1D setups (separate run)', e: "Today's stop and targets", n: day.n, avgR: day.avgR, win: day.win, older: day.older, newer: day.newer, nOld: a.length, nNew: b.length }); }
-  return { pbFill, rows, div, flip, base, hdiv, hunt, divlvl, combo, wave, waveUp, waveDn, divGroup: group(trades.filter(t => t.tf !== '15m'), t => ({ with: 'Divergence agrees', against: 'Divergence against', none: 'No recent divergence' })[t.div], ['Divergence agrees', 'No recent divergence', 'Divergence against']) };
+  const waveHold = {}; for (const k in WAVE_H) { waveHold[k] = {}; for (const h of WAVE_HOLD) waveHold[k][h] = holdStat(WAVE_H[k][h], k === 'dn' ? -1 : 1); }
+  return { pbFill, rows, div, flip, base, hdiv, hunt, divlvl, combo, wave, waveUp, waveDn, waveHold, divGroup: group(trades.filter(t => t.tf !== '15m'), t => ({ with: 'Divergence agrees', against: 'Divergence against', none: 'No recent divergence' })[t.div], ['Divergence agrees', 'No recent divergence', 'Divergence against']) };
 }
 const SESSION = h => h < 8 ? 'Asia (0–8 UTC)' : h < 13 ? 'London (8–13 UTC)' : h < 21 ? 'New York (13–21 UTC)' : 'Late (21–24 UTC)';
 const WDAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -252,6 +257,7 @@ async function main() {
   console.log('lab signals: ' + Object.keys(L.div).map(tf => tf + ': ' + ['div', 'divlvl', 'hdiv', 'hunt', 'combo', 'flip', 'base'].map(k => k + ' ' + (L[k][tf] ? Math.round(L[k][tf].turn * 1000) / 10 + '% of ' + L[k][tf].n : '—')).join(', ')).join(' | '));
   console.log('lab at entry: ' + L.rows.filter(r => /hidden|stop-hunt/.test(r.f) && r.e === "Today's stop and targets").map(r => r.f + ': n ' + r.n + ', ' + r.avgR + 'R (' + r.older + ' / ' + r.newer + ')').join(' | '));
   console.log('lab wave (1D): ' + ['wave', 'waveUp', 'waveDn', 'base'].map(k => k + ' ' + (L[k] && L[k]['1d'] ? Math.round(L[k]['1d'].turn * 1000) / 10 + '% of ' + L[k]['1d'].n : '—')).join(', '));
+  console.log('lab wave holds: ' + ['up', 'dn', 'base'].map(k => k + ' ' + WAVE_HOLD.map(h => { const x = L.waveHold[k][h]; return h + 'd ' + (x ? Math.round(x.pos * 1000) / 10 + '% n' + x.n + ' med ' + (x.med * 100).toFixed(1) + '%' : '—'); }).join(', ')).join(' | '));
   console.log('lab divergence at entry: ' + L.divGroup.map(g => g.k + ' ' + g.n + ' avg ' + g.avgR.toFixed(3) + 'R').join(', '));
 }
 main().catch(e => { console.error('backtest failed: ' + (e && e.stack || e)); process.exit(1); });

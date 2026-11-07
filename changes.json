@@ -1,4 +1,8 @@
 [
+  {"date": "2026-11-07", "title": "Wave dots: holding longer", "items": [
+    "The Wave signals card now shows how price did 30, 60 and 90 days after past green and red dots, next to random days, from the nightly backtest.",
+    "A dot only helps if it beats random days, so that column is there to compare."
+  ]},
   {"date": "2026-11-07", "title": "Dates and prices on the wave", "items": [
     "The wave picture on 1D charts now shows dates along the bottom and the price at each dot.",
     "Under it, the latest dots are listed with their date, the price that day, and how far price has moved since."

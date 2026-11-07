@@ -482,6 +482,18 @@ async def main():
             for bad in ("undefined", "NaN", "Infinity"):
                 if bad in hb: problems.append(f"[{scheme}] stop-hunt card shows '{bad}'")
             if scheme == "light": await pg.locator("#huntBox").screenshot(path=os.path.join(OUT, "stop-hunt.png"))
+            wv = await pg.inner_text("#waveBox") if await pg.is_visible("#waveBox") else ""
+            if "Wave signals" not in wv or "Switch to 1D" not in wv: problems.append(f"[{scheme}] chart 4H: wave card should point to 1D: {wv[:120]!r}")
+            await pg.click('#tfSeg [data-tf="1d"]'); await pg.wait_for_timeout(1500)
+            wv = await pg.inner_text("#waveBox") if await pg.is_visible("#waveBox") else ""
+            if "Wave signals" not in wv or "1D candles" not in wv or "The wave is" not in wv or "How the wave signals work" not in wv or not await pg.locator('#toggles [data-ind="wave"]').count(): problems.append(f"[{scheme}] chart 1D: wave card or chip wrong: {wv[:160]!r}")
+            if not await pg.locator("#waveBox svg.wv polyline").count(): problems.append(f"[{scheme}] chart 1D: wave picture missing")
+            for bad in ("undefined", "NaN", "Infinity", "null"):
+                if bad in wv: problems.append(f"[{scheme}] wave card shows '{bad}'")
+            await pg.locator("#waveBox").screenshot(path=os.path.join(OUT, f"wave-{scheme}.png"))
+            await pg.evaluate("document.querySelector('#toggles [data-ind=\"wave\"]').click()"); await pg.wait_for_timeout(300)
+            if await pg.is_visible("#waveBox"): problems.append(f"[{scheme}] chart 1D: wave chip did not hide the card")
+            await pg.evaluate("document.querySelector('#toggles [data-ind=\"wave\"]').click()"); await pg.wait_for_timeout(300)
             await pg.click(f'#tfSeg [data-tf="{was}"]'); await pg.wait_for_timeout(1200)
             if "chart reading ·" not in (await pg.inner_text("#sigCard")).lower(): problems.append(f"[{scheme}] chart: going back from 1M to {was} did not bring the chart reading back")
             if scheme == "dark":

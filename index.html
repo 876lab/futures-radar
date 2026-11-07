@@ -603,6 +603,12 @@ html,body{overscroll-behavior-y:none}
 .ptr.busy svg{animation:rot 1s linear infinite}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 
+.wv{width:100%;height:96px;display:block;margin:6px 0 2px;border-radius:10px;background:var(--surface-2)}
+.wv .a{fill:color-mix(in srgb,var(--c2) 30%,transparent)} .wv .l{fill:none;stroke:var(--c2);stroke-width:1.6;vector-effect:non-scaling-stroke}
+.wv .s{fill:none;stroke:var(--c1);stroke-width:1.1;vector-effect:non-scaling-stroke;opacity:.85} .wv .b{stroke:var(--muted);stroke-dasharray:3 3;stroke-width:1;vector-effect:non-scaling-stroke;opacity:.6}
+.wv .z{stroke:var(--line);stroke-width:1;vector-effect:non-scaling-stroke} .wv .u{fill:var(--up)} .wv .d{fill:var(--down)}
+.wv-key{display:flex;gap:12px;flex-wrap:wrap;margin:0;font-size:12px;color:var(--muted)} .wv-key i{display:inline-block;width:10px;height:3px;border-radius:2px;margin-right:5px;vertical-align:middle}
+.wv-key i.l{background:var(--c2)} .wv-key i.s{background:var(--c1)} .wv-key i.u,.wv-key i.d{width:7px;height:7px;border-radius:50%} .wv-key i.u{background:var(--up)} .wv-key i.d{background:var(--down)}
 /* ---- 2026-11 visual refresh: calmer palette for long chart sessions, one indigo "brand" colour for anything you
    tap or that is selected (amber now only means caution / Wait / Calm), glass bars, softer cards, larger type ---- */
 body{font-size:13px;letter-spacing:-.003em}
@@ -816,6 +822,7 @@ body::before{background:var(--glass);-webkit-backdrop-filter:blur(16px);backdrop
           </div>
           <div class="card book divb" id="divBox" hidden></div>
           <div class="card book divb" id="huntBox" hidden></div>
+          <div class="card book divb" id="waveBox" hidden></div>
           <div class="card book srl" id="srBox" hidden></div>
           <div class="card book fib" id="fibBox" hidden></div>
           <div class="card book" id="bookBox" hidden></div>
@@ -920,6 +927,7 @@ body::before{background:var(--glass);-webkit-backdrop-filter:blur(16px);backdrop
       <dt>Volume</dt><dd>Dollar value traded. A move on rising volume is more trustworthy.</dd>
       <dt>RSI divergence</dt><dd>When price makes a new high but RSI 12 peaks lower (bearish), or price makes a new low but RSI bottoms higher (bullish): a sign the move is losing strength. Purple "Div" marks on 1H, 4H and 1D charts; it's a warning, not a reversal signal, and it appears a few candles after the swing. The nightly backtest measures how often it pointed the right way.</dd>
       <dt>Stop-hunts</dt><dd>Amber "Hunt" arrows (1H, 4H, 1D): a candle pokes past a recent swing high or low, where many traders keep their stops, then closes back on the other side, so the breakout failed. Often comes before a move the other way; a warning, not a guarantee. Measured nightly by the backtest.</dd>
+      <dt>Wave signals (1D only)</dt><dd>Green "Wave" dot under a daily candle: the wave (a momentum oscillator, WaveTrend) turns up while oversold and the 20-day average is at or below the 200-day. Red dot above: the wave turns down while overheated and price is stretched 3+ daily ranges above the 200-day. With under 220 days of history the 100-day (or 50-day) average stands in. Rare by design; the nightly backtest measures how often they were right. Information only.</dd>
       <dt>200W EMA</dt><dd>The 200-week exponential moving average: Bitcoin's long-term trend line, watched at cycle lows. The dashed purple line shows it on every candle size (on smaller sizes it uses the last finished week), and the legend shows how far price is above or below it. It needs 200 weeks of history, so newer coins don't have one. Switch it off with the 200W EMA chip.</dd>
       <dt>Company card</dt><dd>On stock futures, a short description of the company, the exchange where the stock is listed (Nasdaq or NYSE), whether the US stock market is open now, and links to the exchange's quote page and SEC filings.</dd>
       <dt>Price alerts</dt><dd>Tap the bell next to the star on any chart and set a price. While the app is open it rings, shows a banner and buzzes on phones that allow it when the price is reached; when you open the app again it also tells you if the price was reached while it was closed. All alerts are on the Starred page.</dd>
@@ -1016,7 +1024,8 @@ if(typeof state.ind.fib!=='boolean')state.ind.fib=true;   // Fibonacci levels (a
 if(typeof state.ind.sr!=='boolean')state.ind.sr=true;
 if(typeof state.ind.w200!=='boolean')state.ind.w200=true;
 if(typeof state.ind.div!=='boolean')state.ind.div=true;
-if(typeof state.ind.hunt!=='boolean')state.ind.hunt=true;   // stop-hunt marks (added 5 Nov 2026) start switched on     // RSI divergence marks (added 5 Nov 2026) start switched on   // 200-week EMA (added 4 Nov 2026) starts switched on     // support and resistance (added 2 Nov 2026) start switched on
+if(typeof state.ind.hunt!=='boolean')state.ind.hunt=true;
+if(typeof state.ind.wave!=='boolean')state.ind.wave=true;   // wave signals on 1D (added 7 Nov 2026) start switched on   // stop-hunt marks (added 5 Nov 2026) start switched on     // RSI divergence marks (added 5 Nov 2026) start switched on   // 200-week EMA (added 4 Nov 2026) starts switched on     // support and resistance (added 2 Nov 2026) start switched on
 if(state.view!=='all'&&!EX[state.view])state.view='all';
 if(!(MKT_CATS.includes(state.cat)||PAGES.includes(state.cat)))state.cat='setups';
 state.mcat=LS.get('mcat','hot');if(!MKT_CATS.includes(state.mcat))state.mcat='hot';
@@ -2251,6 +2260,26 @@ function stopHunts(cs,atr,from){
       if(best){used.add(dir+':'+best.i);last[dir]=i;out.push({dir,i,at:i,level:best.p,j:best.i,ext:dir<0?k.high:k.low})}}}
   return out;
 }
+// "Wave" signals on daily candles (owner request, 7 Nov 2026; information only). The wave is WaveTrend (LazyBear):
+// ap = (high+low+close)/3, esa = EMA10(ap), d = EMA10(|ap-esa|), ci = (ap-esa)/(0.015*d), wave = EMA21(ci), signal = SMA4(wave).
+// Low-wave dot: the wave turns up through its signal line while at -53 or lower (oversold) AND the 20-day average is at or
+// below the long average (within 1%). High-wave dot: the wave turns down through its signal while at +53 or higher AND price
+// is 3+ ATR above the long average. Long average = 200-day, or 100/50-day when there isn't enough history.
+const WAVE_OS=-53,WAVE_OB=53;
+function waveTrend(cs){
+  const ap=cs.map(k=>(k.high+k.low+k.close)/3),esa=ema(ap,10),d=ema(ap.map((v,i)=>esa[i]==null?null:Math.abs(v-esa[i])),10);
+  const ci=ap.map((v,i)=>esa[i]==null||d[i]==null?null:d[i]>0?(v-esa[i])/(0.015*d[i]):0),w1=ema(ci,21),w2=w1.map((_,i)=>{if(i<3)return null;let s=0;for(let j=i-3;j<=i;j++){if(w1[j]==null)return null;s+=w1[j]}return s/4});
+  return{w1,w2};
+}
+function waveLen(n){return n>=220?200:n>=120?100:n>=70?50:0}   // the longest average the history supports
+function waveSignals(cs,atr,from){
+  const len=waveLen(cs.length),{w1,w2}=waveTrend(cs),c=cs.map(k=>k.close),e20=ema(c,20),eL=len?ema(c,len):c.map(()=>null),sig=[],last={'1':-99,'-1':-99};
+  if(len)for(let i=Math.max(1,from||0);i<cs.length;i++){
+    const a=w1[i-1],b=w2[i-1],x=w1[i],y=w2[i];if(a==null||b==null||x==null||y==null||eL[i]==null||e20[i]==null)continue;
+    if(a<=b&&x>y&&x<=WAVE_OS&&e20[i]<=eL[i]*1.01&&i-last[1]>5){last[1]=i;sig.push({dir:1,i,at:i,w:x,gap:e20[i]/eL[i]-1})}
+    else if(a>=b&&x<y&&x>=WAVE_OB&&atr[i]>0&&cs[i].close>=eL[i]+3*atr[i]&&i-last[-1]>5){last[-1]=i;sig.push({dir:-1,i,at:i,w:x,gap:(cs[i].close-eL[i])/atr[i]})}}
+  return{len,sig,w1,w2,e20,eL};
+}
 // which part of the last move price is in (used for wording and for the backtest's buckets)
 
 function fibZone(retr){
@@ -2309,8 +2338,8 @@ function cleanLab(L){
     older:fin(r.older)?clamp(r.older,-5,5):null,newer:fin(r.newer)?clamp(r.newer,-5,5):null,nOld:fin(r.nOld)?r.nOld:0,nNew:fin(r.nNew)?r.nNew:0}));
   const sig=o=>{const out={};if(o&&typeof o==='object')for(const tf of ['1h','4h','1d']){const x=o[tf];if(x&&fin(x.n)&&x.n>0&&fin(x.turn))out[tf]={n:Math.round(x.n),turn:clamp(x.turn,0,1)}}return out};
   const dg=(Array.isArray(L.divGroup)?L.divGroup:[]).slice(0,3).filter(g=>g&&typeof g.k==='string'&&fin(g.n)&&fin(g.avgR)).map(g=>({k:g.k.slice(0,40),n:Math.round(g.n),avgR:g.avgR,reach:fin(g.reach)?g.reach:0}));
-  const hdiv=sig(L.hdiv),hunt=sig(L.hunt),divlvl=sig(L.divlvl),combo=sig(L.combo);
-  return rows.length?{hdiv,hunt,divlvl,combo,pbFill:fin(L.pbFill)?clamp(L.pbFill,0,1):null,rows,div:sig(L.div),flip:sig(L.flip),base:sig(L.base),divGroup:dg}:null;
+  const hdiv=sig(L.hdiv),hunt=sig(L.hunt),divlvl=sig(L.divlvl),combo=sig(L.combo),wave=sig(L.wave),waveUp=sig(L.waveUp),waveDn=sig(L.waveDn);
+  return rows.length?{hdiv,hunt,divlvl,combo,wave,waveUp,waveDn,pbFill:fin(L.pbFill)?clamp(L.pbFill,0,1):null,rows,div:sig(L.div),flip:sig(L.flip),base:sig(L.base),divGroup:dg}:null;
 }
 // ideas that held up: at least `minN` trades and better than today's rules on BOTH the older and the newer half
 function labPicks(lab,minN){
@@ -2335,7 +2364,7 @@ async function loadBT(){
   if(bt.loading||(bt.data&&NOW()-bt.at<30*60000)||(bt.err&&NOW()-bt.at<5*60000))return;bt.loading=true;
   try{const r=await fetch(BT_URL+'?t='+Math.floor(NOW()/600000));if(!r.ok)throw new Error('HTTP '+r.status);const j=cleanBT(await r.json());if(!j)throw new Error('bad data');bt.data=j;bt.err=null}
   catch(e){bt.err=String(e&&e.message||e)}
-  bt.at=NOW();bt.loading=false;const c=document.getElementById('btCard');if(c)c.innerHTML=btCardHTML();const lc=document.getElementById('labCard');if(lc)lc.innerHTML=labCardHTML();renderConfirm();if(current){renderDiv();renderHunt()}
+  bt.at=NOW();bt.loading=false;const c=document.getElementById('btCard');if(c)c.innerHTML=btCardHTML();const lc=document.getElementById('labCard');if(lc)lc.innerHTML=labCardHTML();renderConfirm();if(current){renderDiv();renderHunt();renderWave()}
 }
 // public track record (scripts/track.js, published hourly to the track-data branch, which is only ever added to)
 const TR_URL=NEWS_URL.replace('/news-data/news.json','/track-data/track.json');
@@ -3185,6 +3214,8 @@ function draw(keep){
   const DIV_TF=['1h','4h','1d'].includes(ctf());let divs=null;
   let hunts=null;try{const A_=current.an;if(DIV_TF&&A_&&A_.series){divs=rsiDivergences(current.cs,A_.series.r12,Math.max(0,current.cs.length-300),A_.series.e50);hunts=stopHunts(current.cs,A_.series.at,Math.max(0,current.cs.length-300))}}catch(e){recordErr('RSI divergence',e)}
   current.divs=divs;current.hunts=hunts;current.divTf=DIV_TF;renderDiv();renderHunt();
+  let wave=null;try{if(ctf()==='1d'&&current.an&&current.an.series)wave=waveSignals(current.cs,current.an.series.at,Math.max(1,current.cs.length-300))}catch(e){recordErr('wave signals',e)}
+  current.wave=wave;renderWave();
   if(!ch){msg.hidden=false;msg.textContent="The chart library didn't load. Check your connection and refresh.";return}
   const {cs,an,rc}=current;if(keep){try{current.range=ch.main.timeScale().getVisibleLogicalRange()}catch(e){}}
   const T=cs.map(k=>k.time+tzOff);current.tIndex=new Map(T.map((t,i)=>[t,i]));
@@ -3211,6 +3242,7 @@ function draw(keep){
   current.marks=marks;
   current.divMarks=(divs||[]).map(d=>({time:T[d.b.i],position:d.dir<0?'aboveBar':'belowBar',color:css(d.kind==='hidden'?'--c2':'--c3'),shape:'circle',text:d.kind==='hidden'?'HDiv':'Div'})).filter(m=>m.time!=null);
   current.huntMarks=(hunts||[]).map(h=>({time:T[h.i],position:h.dir<0?'aboveBar':'belowBar',color:css('--accent'),shape:h.dir<0?'arrowDown':'arrowUp',text:'Hunt'})).filter(m=>m.time!=null);
+  current.waveMarks=(wave?wave.sig:[]).map(w=>({time:T[w.i],position:w.dir>0?'belowBar':'aboveBar',color:w.dir>0?up:dn,shape:'circle',text:'Wave'})).filter(m=>m.time!=null);
   const sm=[];const ss=state.simShow;
   if(ss&&ss.id===current.p.id&&ss.tf===state.tf){
     for(const t of ss.trades){const a=t.t0+tzOff,b=t.t1+tzOff;
@@ -3248,7 +3280,7 @@ function applyToggles(){
   [charts.stU,charts.stD].forEach(s=>s.applyOptions({visible:!!i.st}));
   charts.vol.applyOptions({visible:!!i.vol});
   charts.w200.applyOptions({visible:!!i.w200});
-  const mk=(i.marks&&current&&current.marks?current.marks:[]).concat(current&&current.simMarks?current.simMarks:[],i.div&&current&&current.divMarks?current.divMarks:[],i.hunt&&current&&current.huntMarks?current.huntMarks:[]).sort((a,b)=>a.time-b.time);
+  const mk=(i.marks&&current&&current.marks?current.marks:[]).concat(current&&current.simMarks?current.simMarks:[],i.div&&current&&current.divMarks?current.divMarks:[],i.hunt&&current&&current.huntMarks?current.huntMarks:[],i.wave&&current&&current.waveMarks?current.waveMarks:[]).sort((a,b)=>a.time-b.time);
   charts.candle.setMarkers(mk);
 }
 function renderLegend(idx){
@@ -3267,7 +3299,7 @@ function renderLegend(idx){
   }else{$('#rsiLegend').innerHTML='<span>RSI 6 / 12 / 24</span>';$('#macdLegend').innerHTML='<span>MACD(12,26,9)</span>'}
 }
 function renderToggles(){
-  const T=[['bb','Bollinger','--bb'],['st','Supertrend','--up'],['marks','B/S marks','--accent'],['sr','Support/Resistance','--up'],['w200','200W EMA','--c3'],['div','RSI divergence','--c3'],['hunt','Stop-hunts','--accent'],['fib','Fibonacci','--c4'],['ema','EMA 20/50/200','--c2'],['vol','Volume','--muted']];
+  const T=[['bb','Bollinger','--bb'],['st','Supertrend','--up'],['marks','B/S marks','--accent'],['sr','Support/Resistance','--up'],['w200','200W EMA','--c3'],['div','RSI divergence','--c3'],['hunt','Stop-hunts','--accent'],['wave','Wave signals (1D)','--c2'],['fib','Fibonacci','--c4'],['ema','EMA 20/50/200','--c2'],['vol','Volume','--muted']];
   $('#toggles').innerHTML=T.map(([k,l,c])=>`<button class="chip" data-ind="${k}" aria-pressed="${!!state.ind[k]}"><i style="background:var(${c})"></i>${l}</button>`).join('');
 }
 
@@ -3515,6 +3547,38 @@ function huntHTML(){
       <li>It works best at clear levels (see Support and resistance) and on bigger candle sizes. It's a warning, not a guarantee; sometimes the next candle breaks through for real.</li>
       <li>Your own stop is safer a little further from obvious highs and lows than exactly on them. Switch the arrows off with the Stop-hunts chip.</li></ul></details>`;
 }
+function waveSVG(W,n){
+  const k=Math.min(140,n),s=n-k,v=W.w1.slice(s),g=W.w2.slice(s),Y=x=>(50-clamp(x,-100,100)*0.42).toFixed(1),X=i=>(i/(k-1)*300).toFixed(1);
+  const pts=a=>a.map((x,i)=>x==null?null:X(i)+','+Y(x)).filter(Boolean).join(' '),first=v.findIndex(x=>x!=null);if(first<0)return '';
+  const area=`${X(first)},50 ${pts(v)} ${X(k-1)},50`,dots=W.sig.filter(w=>w.i>=s).map(w=>`<circle cx="${X(w.i-s)}" cy="${w.dir>0?94:6}" r="3.2" class="${w.dir>0?'u':'d'}"/>`).join('');
+  return `<svg class="wv" viewBox="0 0 300 100" preserveAspectRatio="none" role="img" aria-label="The wave over the last ${k} days"><line x1="0" x2="300" y1="${Y(WAVE_OB)}" y2="${Y(WAVE_OB)}" class="b"/><line x1="0" x2="300" y1="${Y(WAVE_OS)}" y2="${Y(WAVE_OS)}" class="b"/><line x1="0" x2="300" y1="50" y2="50" class="z"/><polygon points="${area}" class="a"/><polyline points="${pts(g)}" class="s"/><polyline points="${pts(v)}" class="l"/>${dots}</svg>`;
+}
+function waveHTML(){
+  const h='<h3>Wave signals</h3>';
+  if(ctf()!=='1d')return h+`<p class="note">Shown on 1D candles only, where they are less noisy. Switch to 1D to see them.</p>`;
+  const W=current.wave,cs=current.cs,n=cs.length;
+  if(!W||!W.len)return h+`<p class="note">Needs at least 70 days of history for a long average (${n} so far).</p>`;
+  const i=n-1,x=W.w1[i],when=j=>esc(new Date(cs[j].time*1000).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',timeZone:'UTC'}));
+  const mood=x==null?'not ready yet':x<=WAVE_OS?'<b class="up">low (oversold)</b>':x>=WAVE_OB?'<b class="down">high (overheated)</b>':x<0?'below the middle':'above the middle';
+  const avg=`${W.len}-day average`+(W.len<200?` (only ${n} days of history, so the ${W.len}-day stands in for the 200-day)`:'');
+  const gap=W.e20[i]!=null&&W.eL[i]!=null?W.e20[i]/W.eL[i]-1:null;
+  const last=W.sig[W.sig.length-1],ago=last?n-1-last.at:0;
+  const lastTxt=last?(last.dir>0?`<b class="up">Low-wave signal</b> on ${when(last.i)}: the wave turned up from ${Math.round(last.w)} while the 20-day average was at or under the ${W.len}-day.`:`<b class="down">High-wave signal</b> on ${when(last.i)}: the wave turned down from +${Math.round(last.w)} with price ${last.gap.toFixed(1)} ATR above the ${W.len}-day average.`)+` ${ago?plural(ago,'day')+' ago':'Today (the day is not finished yet)'}.`:'No signal in the history on screen; they are rare by design.';
+  const L2=bt.data&&bt.data.lab,a=L2&&L2.waveUp&&L2.waveUp['1d'],b=L2&&L2.waveDn&&L2.waveDn['1d'],base=L2&&L2.base&&L2.base['1d'];
+  const ev=[a&&a.n>=10?`low-wave signals were followed by a 1 ATR rise before a 1 ATR fall <b>${fmtP(a.turn)}</b> of ${a.n} times`:'',b&&b.n>=10?`high-wave signals by a 1 ATR fall first <b>${fmtP(b.turn)}</b> of ${b.n} times`:''].filter(Boolean);
+  return h+`<p class="sub">1D candles · wave (WaveTrend 10, 21) with the 20-day and ${W.len}-day averages · information only</p>
+    ${waveSVG(W,n)}<p class="wv-key"><span><i class="l"></i>Wave</span><span><i class="s"></i>Signal line</span><span><i class="u"></i>Low-wave</span><span><i class="d"></i>High-wave</span></p>
+    <p class="big">The wave is ${mood}${x!=null?` (${x>0?'+':''}${Math.round(x)})`:''}. The 20-day average is ${gap==null?'—':`<b>${fmtPct(gap*100)}</b> from the ${esc(avg)}`}.</p>
+    <p class="big">${lastTxt}</p>
+    ${ev.length?`<p class="note">Nightly backtest (Gate, 1D, 30 busiest markets): ${ev.join('; ')} (50% would be a coin flip${base&&base.n?`; random days ${fmtP(base.turn)}`:''}).</p>`:'<p class="note">The nightly backtest is measuring how often these signals were right; the numbers appear here once there are at least 10 of each.</p>'}
+    <details><summary>How the wave signals work</summary><ul class="sim-notes">
+      <li>The <b>wave</b> is a momentum oscillator (WaveTrend): it measures how far the day's average price is from its recent average, smoothed. Below ${WAVE_OS} is oversold, above +${WAVE_OB} overheated.</li>
+      <li><b>Low-wave (green dot under the candle):</b> the wave turns up while oversold <i>and</i> the 20-day average has fallen to or below the ${W.len}-day. A deep pullback in a market whose short trend has dropped back to its long-term average. Rare, so expect only a few a year.</li>
+      <li><b>High-wave (red dot above the candle):</b> the wave turns down while overheated <i>and</i> price is stretched at least 3 ATR (3 typical daily ranges) above the ${W.len}-day average. A sign the run is overextended.</li>
+      <li>When a market has under 220 days of history, the 100-day average (or 50-day under 120 days) stands in for the 200-day, and this card says so.</li>
+      <li>A signal is only final once the day closes. It's a sign, not a guarantee; switch the dots off with the Wave signals chip.</li></ul></details>`;
+}
+function renderWave(){const el=$('#waveBox');if(!el)return;const ok=current&&state.ind.wave&&current.cs;el.hidden=!ok;el.innerHTML=ok?waveHTML():''}
 function renderHunt(){const el=$('#huntBox');if(!el)return;const ok=current&&state.ind.hunt&&current.cs;el.hidden=!ok;el.innerHTML=ok?huntHTML():''}
 function renderDiv(){const el=$('#divBox');if(!el)return;const ok=current&&state.ind.div&&current.cs;el.hidden=!ok;el.innerHTML=ok?divHTML():''}
 function renderSR(){
@@ -3661,7 +3725,7 @@ $('#tabs').addEventListener('click',e=>{const b=e.target.closest('[data-cat]');i
 $('#sort').addEventListener('change',e=>{state.sort=e.target.value;LS.set('sort',state.sort);renderList();if(/^trend/.test(state.sort))scan(40)});
 let qT;$('#q').addEventListener('input',e=>{clearTimeout(qT);qT=setTimeout(()=>{state.q=e.target.value.trim().toUpperCase();state.limit=120;renderTabs();renderList(state.cat==='news')},120)});
 $('#tfSeg').addEventListener('click',e=>{const b=e.target.closest('[data-tf]');if(!b)return;if(BIG_TF[b.dataset.tf])setBig(b.dataset.tf);else setTf(b.dataset.tf)});
-$('#toggles').addEventListener('click',e=>{const b=e.target.closest('[data-ind]');if(!b)return;const k=b.dataset.ind;state.ind[k]=!state.ind[k];LS.set('ind3',state.ind);renderToggles();if((k==='fib'||k==='sr'||k==='div'||k==='hunt')&&current)draw(true);else applyToggles();renderLegend(null)});
+$('#toggles').addEventListener('click',e=>{const b=e.target.closest('[data-ind]');if(!b)return;const k=b.dataset.ind;state.ind[k]=!state.ind[k];LS.set('ind3',state.ind);renderToggles();if((k==='fib'||k==='sr'||k==='div'||k==='hunt'||k==='wave')&&current)draw(true);else applyToggles();renderLegend(null)});
 $('#venueBox').addEventListener('click',e=>{const r=e.target.closest('[data-cid]');if(r&&state.selected)openGroup(state.selected,true,r.dataset.cid)});
 $('#venueBox').addEventListener('keydown',e=>{const r=e.target.closest('[data-cid]');if(r&&(e.key==='Enter'||e.key===' ')){e.preventDefault();openGroup(state.selected,true,r.dataset.cid)}});
 $('#themeOpts').addEventListener('click',e=>{const b=e.target.closest('[data-theme-set]');if(!b)return;state.theme=b.dataset.themeSet;LS.set('theme',state.theme);applyTheme(state.theme)});

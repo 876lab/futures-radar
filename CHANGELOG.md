@@ -2,6 +2,16 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-11-07 (owner request): Wave signals on daily charts
+- Based on a TradingView setup the owner saw: a "blue wave" oscillator with buy dots when the 20-day average touches or drops below the 200-day, and sell dots when price is stretched far above it.
+- **The wave** is WaveTrend (LazyBear, 10/21): ap = HLC/3, esa = EMA10(ap), d = EMA10(|ap − esa|), ci = (ap − esa)/(0.015·d), wave = EMA21(ci), signal = SMA4(wave); oversold −53, overheated +53.
+- **Green "Wave" dot under the candle (low-wave):** the wave crosses up through its signal line at −53 or lower AND the 20-day EMA is at or below the long average (within 1%). **Red dot above (high-wave):** the wave crosses down at +53 or higher AND the close is at least 3 ATR above the long average (ATR keeps it fair between calm stocks and wild coins). Same side at least 6 days apart.
+- **Short histories:** the long average is the 200-day with 220+ days of candles, the 100-day with 120+, the 50-day with 70+, otherwise no dots; the card says which one is used.
+- **1D only:** marks on the chart, a **Wave signals (1D)** chip (on by default), and a card with a picture of the wave over the last 140 days (±53 bands, signal line, dots), where it is now, the 20-day's distance from the long average, the latest signal, and the nightly backtest's hit rates. On other candle sizes the card points to 1D. Help sheet entry added.
+- **Nightly backtest** measures low-wave and high-wave dots on 1D (1 ATR their way before 1 ATR against within 30 days, against random days), shown on the card once there are 10+ of each.
+- New pure `waveTrend`, `waveLen`, `waveSignals` (8 engine tests incl. no look-ahead and the fallback); browser test checks the card, picture and chip on 1D and the pointer on 4H. Information only; no setup, score or trade-maths change.
+- Sources: WaveTrend formula (https://www.luxalgo.com/library/concept/wave-trend-oscillator.md, https://www.prorealcode.com/prorealtime-indicators/wave-trend-oscillator/, https://medium.com/@samuel.mcculloch/lets-take-a-look-at-wavetrend-with-crosses-lazybear-s-indicator-2ece1737f72f).
+
 ## 2026-11-06 (owner request): Visual refresh
 - **Calmer colours for long chart sessions:** dark theme moved to a deep blue-grey (not pure black, softer text contrast, quieter chart grid); light theme to a soft off-white. Green/red slightly retuned for comfort; meanings unchanged.
 - **One indigo "brand" colour (`--brand`, `--brand-bg`, `--brand-ink`)** for anything tapped or selected: bottom bar, tabs, candle-size buttons, primary buttons, links, search focus, chart crosshair. Amber (`--accent`) now only means caution / Wait / Calm, so it stands out when it matters.

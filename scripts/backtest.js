@@ -60,6 +60,12 @@ function runMarket(m, c) {
     backtestSeries(cs, null, m, '1d', Object.assign({}, OPTS, { onEntry: (t, x) => { const dirs = { '4h': null, '1d': null };
       const cf = confirmSetup({ dir: t.dir, tf: '1d', dirs: { '4h': t.dir, '1d': t.dir }, range: 0, vol: 1e12, delisting: false });
       DAY_TR.push({ m: m.root, t0: t.t0, r: +t.r.toFixed(3), confirmed: cf.ok }); } })); }
+  // wave signals (1D only, owner request 7 Nov 2026): same 1 ATR test as the other signals, against random days
+  if (c['1d'] && c['1d'].length >= 120) { const cs = c['1d'], S = computeSeries(cs), W = waveSignals(cs, S.at, SIM_WARM);
+    const g = SIG['1d'] = SIG['1d'] || { div: [0, 0], flip: [0, 0], base: [0, 0], hdiv: [0, 0], hunt: [0, 0], divlvl: [0, 0], combo: [0, 0], wave: [0, 0], waveUp: [0, 0], waveDn: [0, 0] };
+    const add = (k, v) => { if (v == null) return; g[k][0] += v; g[k][1]++; };
+    for (const w of W.sig) { const A = S.at[w.at]; if (!(A > 0)) continue; const v = firstTouch(cs, w.at, w.dir, A); add('wave', v); add(w.dir > 0 ? 'waveUp' : 'waveDn', v); }
+    for (let i = SIM_WARM; i < cs.length - 1; i += 7) { const A = S.at[i]; if (A > 0) { add('base', firstTouch(cs, i, 1, A)); add('base', firstTouch(cs, i, -1, A)); } } }
   for (const tf of TFS_RUN) {
     const cs = c[tf], hcs = c[HTF[tf]]; if (!cs || cs.length < SIM_WARM + 20) continue;
     const S = computeSeries(cs), step = TFS[tf];
@@ -177,15 +183,15 @@ function labReport(trades, mid) {
     for (const ek of Object.keys(LAB_EXITS)) { if (ek !== 'base' && !(ek === 'mk' || ek === 'pb' || (['trail', 'h48'].includes(ek) && fk === 'Confirmed, skip weekends') || ['All setups', 'Confirmed setups (what Setups shows)', '1H and 4H, confirmed', '4H only, confirmed'].includes(fk))) continue;
       const a = st(tr, ek), o = st(older, ek), w = st(newer, ek); if (!a) continue;
       rows.push({ f: fk, e: LAB_EXITS[ek], n: a.n, avgR: a.avgR, win: a.win, older: o && o.avgR, newer: w && w.avgR, nOld: o ? o.n : 0, nNew: w ? w.n : 0 }); } }
-  const div = {}, flip = {}, base = {}, hdiv = {}, hunt = {}, divlvl = {}, combo = {};
+  const div = {}, flip = {}, base = {}, hdiv = {}, hunt = {}, divlvl = {}, combo = {}, wave = {}, waveUp = {}, waveDn = {};
   for (const tf in SIG) { const g = SIG[tf], r = x => x[1] ? { n: x[1], turn: +(x[0] / x[1]).toFixed(4) } : null; div[tf] = r(g.div); flip[tf] = r(g.flip); base[tf] = r(g.base);
-    hdiv[tf] = r(g.hdiv); hunt[tf] = r(g.hunt); divlvl[tf] = r(g.divlvl); combo[tf] = r(g.combo); }
+    hdiv[tf] = r(g.hdiv); hunt[tf] = r(g.hunt); divlvl[tf] = r(g.divlvl); combo[tf] = r(g.combo); if (g.wave) { wave[tf] = r(g.wave); waveUp[tf] = r(g.waveUp); waveDn[tf] = r(g.waveDn); } }
   const conf = trades.filter(t => t.confirmed), pbFill = conf.length ? +(conf.filter(t => t.lab.pb != null).length / conf.length).toFixed(4) : null;
   const D = DAY_TR.filter(t => t.confirmed).sort((a, b) => a.t0 - b.t0), day = D.length ? { n: D.length, avgR: +(D.reduce((a, t) => a + t.r, 0) / D.length).toFixed(4), win: +(D.filter(t => t.r > 0).length / D.length).toFixed(4),
     older: null, newer: null } : null;
   if (day) { const md = D[Math.floor(D.length / 2)].t0, a = D.filter(t => t.t0 < md), b = D.filter(t => t.t0 >= md), av = x => x.length ? +(x.reduce((s, t) => s + t.r, 0) / x.length).toFixed(4) : null;
     day.older = av(a); day.newer = av(b); rows.push({ f: '1D setups (separate run)', e: "Today's stop and targets", n: day.n, avgR: day.avgR, win: day.win, older: day.older, newer: day.newer, nOld: a.length, nNew: b.length }); }
-  return { pbFill, rows, div, flip, base, hdiv, hunt, divlvl, combo, divGroup: group(trades.filter(t => t.tf !== '15m'), t => ({ with: 'Divergence agrees', against: 'Divergence against', none: 'No recent divergence' })[t.div], ['Divergence agrees', 'No recent divergence', 'Divergence against']) };
+  return { pbFill, rows, div, flip, base, hdiv, hunt, divlvl, combo, wave, waveUp, waveDn, divGroup: group(trades.filter(t => t.tf !== '15m'), t => ({ with: 'Divergence agrees', against: 'Divergence against', none: 'No recent divergence' })[t.div], ['Divergence agrees', 'No recent divergence', 'Divergence against']) };
 }
 const SESSION = h => h < 8 ? 'Asia (0–8 UTC)' : h < 13 ? 'London (8–13 UTC)' : h < 21 ? 'New York (13–21 UTC)' : 'Late (21–24 UTC)';
 const WDAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -245,6 +251,7 @@ async function main() {
   console.log('lab round 2: pullback fill rate ' + L.pbFill + '; ' + L.rows.filter(r => /Pullback|Trail|48 candles|1D|light|1D trend/.test(r.e + r.f)).map(r => r.f + ' + ' + r.e + ': n ' + r.n + ', ' + r.avgR + 'R (' + r.older + ' / ' + r.newer + ')').join(' | '));
   console.log('lab signals: ' + Object.keys(L.div).map(tf => tf + ': ' + ['div', 'divlvl', 'hdiv', 'hunt', 'combo', 'flip', 'base'].map(k => k + ' ' + (L[k][tf] ? Math.round(L[k][tf].turn * 1000) / 10 + '% of ' + L[k][tf].n : '—')).join(', ')).join(' | '));
   console.log('lab at entry: ' + L.rows.filter(r => /hidden|stop-hunt/.test(r.f) && r.e === "Today's stop and targets").map(r => r.f + ': n ' + r.n + ', ' + r.avgR + 'R (' + r.older + ' / ' + r.newer + ')').join(' | '));
+  console.log('lab wave (1D): ' + ['wave', 'waveUp', 'waveDn', 'base'].map(k => k + ' ' + (L[k] && L[k]['1d'] ? Math.round(L[k]['1d'].turn * 1000) / 10 + '% of ' + L[k]['1d'].n : '—')).join(', '));
   console.log('lab divergence at entry: ' + L.divGroup.map(g => g.k + ' ' + g.n + ' avg ' + g.avgR.toFixed(3) + 'R').join(', '));
 }
 main().catch(e => { console.error('backtest failed: ' + (e && e.stack || e)); process.exit(1); });

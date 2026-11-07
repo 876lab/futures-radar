@@ -1,4 +1,9 @@
 [
+  {"date": "2026-11-07", "title": "Wave signals on 1D charts", "items": [
+    "Green dots under daily candles: the wave (a momentum oscillator) turns up from oversold while the 20-day average is at or below the 200-day. Red dots above: it turns down from overheated while price is stretched far above the 200-day.",
+    "Coins with a short history use the 100-day or 50-day average instead, and the card tells you which.",
+    "A card under the chart draws the wave, explains the latest dot, and will show how often they were right once the nightly backtest has enough."
+  ]},
   {"date": "2026-11-06", "title": "A fresh, calmer look", "items": [
     "New colours made for long chart sessions: a deep blue-grey dark mode and a soft light mode, with a quieter chart grid.",
     "Anything you can tap or have selected is now indigo; amber only means caution (Wait, Calm, big news), so warnings stand out.",

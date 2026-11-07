@@ -178,6 +178,21 @@ const c3=c.map(k=>({...k}));c3[20]={...c3[20],close:110.2,high:110.4};{const h3=
 const c4=c.map(k=>({...k}));c4[30]={...c4[30],high:110.2};ok(stopHunts(c4,atr,0).filter(x=>x.dir<0).length===0,'stop-hunt: needs a wick at least 0.15 ATR past the level');
 let same=true;for(const L of [29,30,35]){const a=stopHunts(c.slice(0,L+1),atr.slice(0,L+1),0),b=h.filter(x=>x.at<=L);if(JSON.stringify(a)!==JSON.stringify(b))same=false}
 ok(same,'stop-hunt: no look-ahead');}
+// wave signals (1D, owner request 7 Nov 2026): WaveTrend maths, long-average fallback, rules, no look-ahead
+{ok(waveLen(400)===200&&waveLen(220)===200&&waveLen(219)===100&&waveLen(120)===100&&waveLen(119)===50&&waveLen(70)===50&&waveLen(69)===0,'wave: long average 200 → 100 → 50 → none by history');
+const flat=Array.from({length:80},(_,i)=>({time:i*86400,open:100,high:101,low:99,close:100})),wf=waveTrend(flat);
+ok(wf.w1[79]!=null&&Math.abs(wf.w1[79])<1e-9&&Math.abs(wf.w2[79])<1e-9,'wave: flat prices give a zero wave');
+const rise=Array.from({length:80},(_,i)=>({time:i*86400,open:100+i,high:101+i,low:99+i,close:100+i})),wr=waveTrend(rise);ok(wr.w1[79]>WAVE_OB,'wave: a steady rise reads overheated ('+wr.w1[79].toFixed(1)+')');
+// a long rise, a slide back to the long average, then a sharp drop and bounce: a low-wave dot, and none while above the average
+const cs=[];let p=100;for(let i=0;i<300;i++){p=i<200?p*1.004:i<285?p*0.994:i<290?p*0.97:p*1.02;cs.push({time:i*86400,open:p,high:p*1.01,low:p*0.99,close:p})}
+const at=computeSeries(cs).at,W=waveSignals(cs,at,1),up=W.sig.filter(w=>w.dir>0);
+ok(W.len===200&&up.length>=1&&up.every(w=>w.i>=285&&w.w<=WAVE_OS&&W.e20[w.i]<=W.eL[w.i]*1.01),'wave: low-wave dot after the drop, with the 20-day at the 200-day ('+JSON.stringify(up.map(w=>w.i))+')');
+const hi=W.sig.filter(w=>w.dir<0);ok(hi.every(w=>cs[w.i].close>=W.eL[w.i]+3*at[w.i]&&w.w>=WAVE_OB),'wave: high-wave dots only when stretched 3 ATR above the average');
+const sp=W.sig.filter(w=>w.dir>0).map(w=>w.i);ok(sp.every((v,k)=>!k||v-sp[k-1]>5),'wave: same-side dots at least 6 days apart');
+const d=demoCandles(state.pairs[0],'1d',400),Sd=computeSeries(d),Wd=waveSignals(d,Sd.at,1);let same=true;
+for(const L of [250,300,350,399]){const a=waveSignals(d.slice(0,L+1),Sd.at.slice(0,L+1),1).sig,b=Wd.sig.filter(w=>w.i<=L);if(JSON.stringify(a)!==JSON.stringify(b))same=false}
+ok(same,'wave: no look-ahead ('+Wd.sig.length+' signals on sample data)');
+ok(waveSignals(d.slice(0,60),Sd.at.slice(0,60),1).len===0&&waveSignals(d.slice(0,60),Sd.at.slice(0,60),1).sig.length===0,'wave: no dots without a long average');}
 // public track record: cleaning and stats (losses and unscored records kept, junk dropped)
 {const rec=(o)=>Object.assign({m:'BTC',tf:'1h',dir:1,conf:72,confirmed:true,t0:Date.UTC(2026,9,27)/1000,entry:100,stop:98,how:'stop',r:-1.02,reach:false,t1:Date.UTC(2026,9,27,5)/1000},o);
 const raw={start:1,updated:2,source:'Gate',markets:['BTC'],open:[rec({how:undefined}),{m:'X'}],closed:[rec(),rec({how:'target',r:2.1,reach:true,dir:-1,stop:102,confirmed:false}),

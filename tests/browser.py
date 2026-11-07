@@ -387,6 +387,17 @@ async def main():
             await pg.go_back(); await pg.wait_for_timeout(500)
             await pg.click('[data-cat="all"]'); await pg.wait_for_timeout(400)
             if not await pg.locator(".row .tag.dl").count(): problems.append(f"[{scheme}] markets: Delisting tag missing on rows")
+            # Oversold tab: green wave dots in the last 14 days and oversold-now markets, from daily candles
+            await pg.click('[data-cat="wave"]'); await pg.wait_for_timeout(2500)
+            txt = await pg.inner_text("#listArea")
+            if "Green wave dots" not in txt or "Oversold now" not in txt: problems.append(f"[{scheme}] oversold tab: sections missing: {txt[:120]!r}")
+            if "Reading daily charts" in txt: problems.append(f"[{scheme}] oversold tab: never finished reading")
+            nd = await pg.locator("#listArea .r-note").count()
+            if nd > 20: problems.append(f"[{scheme}] oversold tab: more than 10 per list ({nd})")
+            for bad in ("undefined", "NaN", "Infinity", "null"):
+                if bad in txt: problems.append(f"[{scheme}] oversold tab: shows '{bad}'")
+            print(f"  note: [{scheme}] oversold tab shows {nd} markets on sample data")
+            if scheme == "dark": await pg.screenshot(path=os.path.join(OUT, "oversold.png"))
             await pg.click('[data-cat="hot"]'); await pg.wait_for_timeout(300)
             await pg.click("#openSettings"); await pg.wait_for_timeout(500)
             st = await pg.inner_text("#settings")

@@ -2,6 +2,13 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-11-07 (owner request): Oversold tab
+- New **Oversold** tab on Markets (after Hot). Reads daily candles for the 120 most traded markets (at least $2M a day, stocks included, delisting markets left out), refreshed every 30 minutes while the tab is used.
+- **Green wave dots:** markets with a low-wave dot in the last 30 days, deepest wave at the dot first, up to 10. Each row adds the dot's date, price that day, wave value, move since, and notes a short-history long average.
+- **Oversold now, no turn yet:** wave at −53 or lower with the 20-day at or under the long average, but no dot yet; lowest wave first, up to 10.
+- Tab count = number of green-dot markets. Footnote points to the 30/60/90-day backtest results. Information only.
+- New pure `waveStatus`, `waveRank` (4 engine tests); browser test checks both sections and the 10-per-list cap.
+
 ## 2026-11-07 (owner request): Wave dots over longer holds
 - First real wave results (Gate top 30, 1D, short 1 ATR test): low-wave dots 44% of 63, high-wave 54% of 48, random days 49.5%. The owner asked to check longer holds, closer to how the weekly-chart trader uses them.
 - Nightly backtest now records the price change **30, 60 and 90 days** after each low-wave and high-wave dot's close, and after every 7th day as the random baseline (`lab.waveHold`: n, share going the dot's way, median and average move).

@@ -603,6 +603,8 @@ html,body{overscroll-behavior-y:none}
 .ptr.busy svg{animation:rot 1s linear infinite}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 
+.r-note{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.4} .r-note .wdot{margin-right:6px;vertical-align:1px}
+.wdot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none} .wdot.u{background:var(--up)} .wdot.n{background:var(--c2)}
 .wv{width:100%;height:auto;display:block;margin:6px 0 2px;border-radius:10px;background:var(--surface-2);overflow:visible}
 .wv .t{font-size:8.5px;fill:var(--muted);font-family:var(--f-body)} .wv .dl{font-size:9px;font-weight:700;font-family:var(--f-body)} .wv .dl.u{fill:var(--up)} .wv .dl.d{fill:var(--down)}
 .wv .gx{stroke:var(--line);stroke-width:.6;opacity:.7} .wv-list{margin-top:2px}
@@ -974,9 +976,9 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 
 const EX={binance:{name:'Binance'},gate:{name:'Gate'},bybit:{name:'Bybit'}};
 const EXK=Object.keys(EX);
-const CATS=[['hot','Hot'],['all','All'],['new','New'],['crypto','Crypto'],['meme','Meme'],['ai','AI'],['stocks','Stocks'],['tradfi','TradFi'],['dated','Expiring'],['delist','Delisting']];
+const CATS=[['hot','Hot'],['wave','Oversold'],['all','All'],['new','New'],['crypto','Crypto'],['meme','Meme'],['ai','AI'],['stocks','Stocks'],['tradfi','TradFi'],['dated','Expiring'],['delist','Delisting']];
 const MKT_CATS=CATS.map(c=>c[0]),PAGES=['setups','sim','news','watch','settings'];
-const CAT_DESC={settings:'Your preferences. Changes save on this device straight away.',news:'Headlines that can move markets, refreshed every 15 minutes, plus market mood and upcoming economic events.',hot:'The biggest movers and most traded markets over the last 24 hours.',
+const CAT_DESC={wave:'Daily charts with a green wave dot in the last 30 days (oversold and turning up while the 20-day average is at or under the 200-day), most oversold first. Below: oversold now, still waiting for the turn.',settings:'Your preferences. Changes save on this device straight away.',news:'Headlines that can move markets, refreshed every 15 minutes, plus market mood and upcoming economic events.',hot:'The biggest movers and most traded markets over the last 24 hours.',
   sim:'See how the app\'s long and short setups would have played out on past prices.',
   setups:'Markets where the chart currently shows a long or short setup, checked against the bigger timeframe.',
   watch:'Markets you starred. They stay on this device.',
@@ -1013,7 +1015,7 @@ const NAMES={BTC:'Bitcoin',ETH:'Ethereum',SOL:'Solana',XRP:'XRP',BNB:'BNB',DOGE:
 const state={
   pairs:[],groups:[],gByKey:new Map(),byId:new Map(),mode:'loading',status:{binance:'load',gate:'load',bybit:'load'},errors:{},updated:0,
   view:LS.get('view','all'),cat:LS.get('cat3','setups'),sort:LS.get('sort','vol'),q:'',
-  watch:new Set(LS.get('watch2',[])),tf:LS.get('tf2','15m'),selected:null,selContract:null,trend:new Map(),scanning:null,
+  watch:new Set(LS.get('watch2',[])),tf:LS.get('tf2','15m'),selected:null,selContract:null,trend:new Map(),scanning:null,waveMap:new Map(),waveAt:0,waveScan:null,
   proxy:LS.get('proxy',''),ind:LS.get('ind3',{ema:false,bb:true,st:true,vol:true,marks:true,fib:true}),limit:120,loading:false,
   acct:LS.get('acct',100),evOn:LS.get('evOn',true),evAll:LS.get('evAll',false),confOnly:LS.get('confOnly',true),conf:new Map(),ann:{bybit:[],at:0,loading:false},navHide:LS.get('navHide',true),risk:LS.get('risk',2),maxLoss:LS.get('maxLoss',0),stream:{},lastTick:{},lastSeen:{}
 };
@@ -1669,7 +1671,7 @@ function annRowHTML(a){
     <div class="r-sub"><a class="dlann" href="${esc(a.url)}" target="_blank" rel="noopener noreferrer">${esc(a.title)}</a></div></div><span></span><div class="r-right">${g?'<span class="tag">Chart</span>':''}</div></div>`;
 }
 function listTargets(){
-  if(state.cat==='delist')return [];
+  if(state.cat==='delist'||state.cat==='wave')return [];
   if(state.cat==='hot'){const h=hotSets();const seen=new Set(),out=[];[...h.gain,...h.lose,...h.active].forEach(g=>{if(!seen.has(g.key)){seen.add(g.key);out.push(g)}});return out}
   if(state.cat==='setups'){const s=setupSets();return s.longs.length||s.shorts.length?[...s.longs,...s.shorts]:setupPool()}
   if(state.cat==='sim'||state.cat==='news'||state.cat==='settings')return setupPool();
@@ -1791,7 +1793,7 @@ function renderVenues(){
 }
 function renderTabs(){
   const base=state.groups.filter(matchesQ);
-  const count=c=>{if(c==='hot'||c==='sim')return '';if(c==='delist')return delistSets().length+annSets().length;if(c==='setups'){const s=setupSets();return s.checked?s.longs.length+s.shorts.length:''}
+  const count=c=>{if(c==='hot'||c==='sim')return '';if(c==='wave'){const r=waveRank(liquid().filter(g=>!isDelisting(g)).map(g=>({g,st:state.waveMap.get(g.key)})),10);return state.waveAt?r.dots.length:''}if(c==='delist')return delistSets().length+annSets().length;if(c==='setups'){const s=setupSets();return s.checked?s.longs.length+s.shorts.length:''}
     return c==='watch'?base.filter(g=>state.watch.has(g.key)).length:c==='all'?base.length:base.filter(g=>g.cats.has(c)).length};
   $('#tabs').innerHTML=CATS.map(([k,l])=>{const n=count(k);return `<button class="tab" role="tab" data-cat="${k}" aria-selected="${state.cat===k}">${k==='hot'?FLAME:''}${l}${n!==''?`<span class="ct">${n}</span>`:''}</button>`}).join('');
   const d=$('#tabdesc');d.textContent=(CAT_DESC[state.cat]||'')+(state.cat==='setups'?` Using ${TF_LABEL[state.tf]} candles; change it on any chart.`:'');
@@ -1811,7 +1813,7 @@ function applyChrome(){
   $('#tabs').hidden=pg!=='markets';
   $('#bar2').hidden=pg==='sim'||pg==='news'||pg==='settings';
   $('#settings').hidden=pg!=='settings';$('#listArea').hidden=$('#footnote').hidden=pg==='settings';
-  $('#sortWrap').hidden=!((pg==='markets'&&state.cat!=='hot'&&state.cat!=='delist')||pg==='watch');
+  $('#sortWrap').hidden=!((pg==='markets'&&state.cat!=='hot'&&state.cat!=='delist'&&state.cat!=='wave')||pg==='watch');
   $('#q').placeholder=pg==='news'?'Search headlines, e.g. ETF, Solana, Fed':'Search, e.g. bitcoin, gold, TSLA';
 }
 function goPage(k){
@@ -1835,7 +1837,7 @@ function rowHTML(g,opt){
   const sel=state.selected===g.key?' sel-on':'';
   return `<div class="row${sel}" data-key="${esc(g.key)}" ${opt.max?`data-max="${opt.max}"`:''} role="button" tabindex="0">
     <button class="star" data-star="${esc(g.key)}" aria-pressed="${state.watch.has(g.key)}" aria-label="Star ${esc(g.root)}">${STAR}</button>
-    <div class="r-main"><div class="r-top"><span class="tk" title="${esc(g.root)}">${esc(g.root)}</span><span class="fn">${esc(groupSub(g))}</span></div><div class="r-sub">${sub.join('')}</div></div>
+    <div class="r-main"><div class="r-top"><span class="tk" title="${esc(g.root)}">${esc(g.root)}</span><span class="fn">${esc(groupSub(g))}</span></div><div class="r-sub">${sub.join('')}</div>${opt.note?`<div class="r-note">${opt.note}</div>`:''}</div>
     <span class="spark" data-sid="${esc(g.primary.id)}">${sparkSVG(sparkFor(g.primary))}</span>
     <div class="r-right"><span class="r-price">${fmtUsd(g.price)}</span><span class="pill ${c}">${fmtPct(g.chg)}</span></div>${bar}</div>`;
 }
@@ -1861,6 +1863,20 @@ function renderListInner(force){
     area.innerHTML=section('Biggest gainers','var(--up)','Last 24 hours',rows(h.gain,max))+section('Biggest losers','var(--down)','Last 24 hours',rows(h.lose,max))+section('Most traded','var(--accent)','By 24h volume',rows(h.active,amax));
     renderMood(liquid());
     $('#footnote').textContent=`Only markets with at least ${fmtVol(HOT_MIN_VOL)} traded in 24 hours. Tags show the chart reading on ${TF_LABEL[state.tf]} candles.`;
+    return;
+  }
+  if(state.cat==='wave'){
+    waveScanRun();const r=waveRank(liquid().filter(g=>!isDelisting(g)).map(g=>({g,st:state.waveMap.get(g.key)})),10),d=t=>new Date(t*1000).toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'});
+    const avg=st=>st.len<200?` · ${st.len}-day avg (short history)`:'';
+    const dotNote=x=>{const o=x.st.dot;return `<span class="wdot u"></span>Green dot ${o.ago?d(o.time)+` (${plural(o.ago,'day')} ago)`:'today'} at ${esc(fmtUsd(o.price))} · wave ${Math.round(o.w)}${o.ago?` · since <b class="${o.since>0?'up':o.since<0?'down':''}">${fmtPct(o.since*100)}</b>`:''}${avg(x.st)}`};
+    const nearNote=x=>`<span class="wdot n"></span>Wave ${Math.round(x.st.w)} · 20-day ${fmtPct(x.st.gap*100)} vs the ${x.st.len}-day${x.st.len<200?' (short history)':''}`;
+    const busy=state.waveScan&&!state.waveAt;
+    const sec=(arr,note,empty)=>arr.length?arr.map(x=>rowHTML(x.g,{note:note(x)})).join(''):`<div class="empty">${busy?'Reading daily charts…':empty}</div>`;
+    area.innerHTML=section('Green wave dots','var(--up)','Last 30 days · most oversold first',sec(r.dots,dotNote,'No green dot in the last 30 days among the busiest markets. They are rare by design.'))+
+      section('Oversold now, no turn yet','var(--c2)','Lowest wave first',sec(r.near,nearNote,'No busy market is oversold with its 20-day at or under the 200-day right now.'));
+    renderMood([]);
+    $('#footnote').innerHTML=state.waveScan?`Reading daily charts… <span class="num">${state.waveScan.done}/${state.waveScan.total}</span>`:
+      `Checked the ${state.waveMap.size} most traded markets (at least ${fmtVol(HOT_MIN_VOL)} a day) on daily candles, up to 10 in each list. In the nightly backtest, green dots did poorly over 30 days but better over 90; see the Wave signals card on any 1D chart. Information only.`;
     return;
   }
   if(state.cat==='delist'){
@@ -1919,6 +1935,18 @@ async function scan(max){
   state.scanning=null;renderTabs();renderList();confirmScan();
 }
 
+// Oversold tab: daily candles for the busiest markets (stocks included), refreshed every 30 minutes
+const WAVE_POOL=120,WAVE_DAYS=30;
+function wavePool(){return liquid().filter(g=>!isDelisting(g)).sort((a,b)=>b.vol-a.vol).slice(0,state.mode==='demo'?400:WAVE_POOL)}
+async function waveScanRun(force){
+  if(state.waveScan||!state.groups.length||(!force&&state.waveAt&&NOW()-state.waveAt<30*60000))return;
+  const list=wavePool();if(!list.length)return;state.waveScan={done:0,total:list.length};let i=0;
+  const worker=async()=>{while(i<list.length){const g=list[i++];
+    try{state.waveMap.set(g.key,waveStatus(await getCandles(g.primary,'1d'),WAVE_DAYS))}catch(e){}
+    state.waveScan.done++;if(state.cat==='wave'&&state.waveScan.done%10===0){const f=$('#footnote');if(f)f.innerHTML=`Reading daily charts… <span class="num">${state.waveScan.done}/${state.waveScan.total}</span>`}}};
+  await Promise.all([worker(),worker(),worker(),worker()]);
+  state.waveScan=null;state.waveAt=NOW();if(state.cat==='wave'){renderTabs();renderList()}
+}
 /* ---------- indicators ---------- */
 function ema(v,n){const o=new Array(v.length).fill(null);const k=2/(n+1);let s=0,c=0,prev=null;for(let i=0;i<v.length;i++){const x=v[i];if(x==null)continue;if(prev==null){s+=x;c++;if(c===n){prev=s/n;o[i]=prev}}else{prev=x*k+prev*(1-k);o[i]=prev}}return o}
 function rsi(c,n){const o=new Array(c.length).fill(null);let g=0,l=0;for(let i=1;i<c.length;i++){const d=c[i]-c[i-1],up=Math.max(d,0),dn=Math.max(-d,0);if(i<=n){g+=up;l+=dn;if(i===n){g/=n;l/=n;o[i]=l===0?100:100-100/(1+g/l)}}else{g=(g*(n-1)+up)/n;l=(l*(n-1)+dn)/n;o[i]=l===0?100:100-100/(1+g/l)}}return o}
@@ -2287,6 +2315,20 @@ function waveSignals(cs,atr,from){
     if(a<=b&&x>y&&x<=WAVE_OS&&e20[i]<=eL[i]*1.01&&i-last[1]>5){last[1]=i;sig.push({dir:1,i,at:i,w:x,gap:e20[i]/eL[i]-1})}
     else if(a>=b&&x<y&&x>=WAVE_OB&&atr[i]>0&&cs[i].close>=eL[i]+3*atr[i]&&i-last[-1]>5){last[-1]=i;sig.push({dir:-1,i,at:i,w:x,gap:(cs[i].close-eL[i])/atr[i]})}}
   return{len,sig,w1,w2,e20,eL};
+}
+// one market's wave on daily candles for the Oversold tab: latest green dot in the last `days` days, and whether it is oversold now
+function waveStatus(cs,days){
+  if(!cs||cs.length<70)return null;const W=waveSignals(cs,atr(cs,14),Math.max(1,cs.length-days-1)),n=cs.length,i=n-1;if(!W.len)return null;
+  const g=W.sig.filter(w=>w.dir>0&&n-1-w.i<=days).pop()||null;
+  return{len:W.len,w:W.w1[i],gap:W.e20[i]!=null&&W.eL[i]!=null?W.e20[i]/W.eL[i]-1:null,
+    dot:g?{ago:n-1-g.i,w:g.w,price:cs[g.i].close,time:cs[g.i].time,since:cs[i].close/cs[g.i].close-1}:null,
+    near:!g&&W.w1[i]!=null&&W.w1[i]<=WAVE_OS&&W.e20[i]!=null&&W.eL[i]!=null&&W.e20[i]<=W.eL[i]*1.01};
+}
+// the two Oversold lists: green dots (deepest first) and oversold-now markets still waiting for the turn (lowest wave first)
+function waveRank(items,max){
+  const dots=items.filter(x=>x.st&&x.st.dot).sort((a,b)=>a.st.dot.w-b.st.dot.w||a.st.dot.ago-b.st.dot.ago).slice(0,max);
+  const near=items.filter(x=>x.st&&x.st.near).sort((a,b)=>a.st.w-b.st.w).slice(0,max);
+  return{dots,near};
 }
 // which part of the last move price is in (used for wording and for the backtest's buckets)
 

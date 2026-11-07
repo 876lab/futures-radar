@@ -191,6 +191,12 @@ const hi=W.sig.filter(w=>w.dir<0);ok(hi.every(w=>cs[w.i].close>=W.eL[w.i]+3*at[w
 const sp=W.sig.filter(w=>w.dir>0).map(w=>w.i);ok(sp.every((v,k)=>!k||v-sp[k-1]>5),'wave: same-side dots at least 6 days apart');
 const d=demoCandles(state.pairs[0],'1d',400),Sd=computeSeries(d),Wd=waveSignals(d,Sd.at,1);let same=true;
 for(const L of [250,300,350,399]){const a=waveSignals(d.slice(0,L+1),Sd.at.slice(0,L+1),1).sig,b=Wd.sig.filter(w=>w.i<=L);if(JSON.stringify(a)!==JSON.stringify(b))same=false}
+{const g0=up[0].i,s1=waveStatus(cs.slice(0,g0+4),14),s2=waveStatus(cs.slice(0,g0+30),14);
+ok(s1&&s1.dot&&s1.dot.ago===3&&s1.dot.price===cs[g0].close&&Math.abs(s1.dot.since-(cs[g0+3].close/cs[g0].close-1))<1e-12&&!s1.near,'oversold tab: green dot 3 days ago, price and move since');
+ok(s2&&(!s2.dot||s2.dot.ago<=14),'oversold tab: dots older than 14 days drop off');
+ok(waveStatus(cs.slice(0,60),14)===null&&waveStatus(null,14)===null,'oversold tab: no status without enough history');
+const it=[{g:'a',st:{dot:{w:-60,ago:2}}},{g:'b',st:{dot:{w:-75,ago:9}}},{g:'c',st:{near:true,w:-58}},{g:'d',st:{near:true,w:-70}},{g:'e',st:null},{g:'f',st:{dot:null,near:false,w:10}}];
+const rk=waveRank(it,10);ok(rk.dots.map(x=>x.g).join()==='b,a'&&rk.near.map(x=>x.g).join()==='d,c'&&waveRank(it,1).dots.length===1,'oversold tab: deepest dot first, lowest wave first, capped');}
 {const c5=[100,110,90,120,80].map((x,i)=>({time:i,close:x}));ok(Math.abs(holdReturn(c5,0,3)-0.2)<1e-12&&holdReturn(c5,2,3)===null,'wave hold: return after h days, none past the end');
 const hs=holdStat([0.1,-0.2,0.3,0.05],1),hd=holdStat([0.1,-0.2,0.3,0.05],-1);ok(hs.n===4&&hs.pos===0.75&&Math.abs(hs.med-0.075)<1e-9&&hd.pos===0.25&&Math.abs(hd.med+0.075)<1e-9&&holdStat([],1)===null,'wave hold: share going the dot way and median, both directions');}
 ok(same,'wave: no look-ahead ('+Wd.sig.length+' signals on sample data)');

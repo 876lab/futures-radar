@@ -1,4 +1,9 @@
 [
+  {"date": "2026-11-07", "title": "New Oversold tab", "items": [
+    "Markets → Oversold lists up to 10 markets with a green wave dot on the daily chart in the last 30 days, most oversold first, with the dot's date and price and the move since.",
+    "Below it, up to 10 markets that are oversold right now but haven't turned up yet, to keep an eye on.",
+    "It checks the 120 most traded markets, coins and stocks, every 30 minutes."
+  ]},
   {"date": "2026-11-07", "title": "Wave dots: holding longer", "items": [
     "The Wave signals card now shows how price did 30, 60 and 90 days after past green and red dots, next to random days, from the nightly backtest.",
     "A dot only helps if it beats random days, so that column is there to compare."

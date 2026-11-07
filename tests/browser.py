@@ -512,7 +512,15 @@ async def main():
                 if bad in hb: problems.append(f"[{scheme}] stop-hunt card shows '{bad}'")
             if scheme == "light": await pg.locator("#huntBox").screenshot(path=os.path.join(OUT, "stop-hunt.png"))
             wv = await pg.inner_text("#waveBox") if await pg.is_visible("#waveBox") else ""
-            if await pg.is_visible("#briefBox"): problems.append(f"[{scheme}] chart 4H: breakdown button should only show on 1D")
+            if not await pg.is_visible("#briefBtn"): problems.append(f"[{scheme}] chart 4H: breakdown button missing")
+            else:
+                await pg.evaluate("document.querySelector('#briefBtn').click()"); await pg.wait_for_timeout(300)
+                b4 = await pg.inner_text("#briefBox")
+                if "candles (" not in b4 or "4H reading" not in b4: problems.append(f"[{scheme}] chart 4H: breakdown not worded for 4H candles: {b4[:200]!r}")
+                for bad in ("undefined", "NaN", "Infinity", "null", "20-day", "Today's candle"):
+                    if bad in b4: problems.append(f"[{scheme}] chart 4H breakdown shows '{bad}'")
+                if scheme == "light": await pg.locator("#briefBox").screenshot(path=os.path.join(OUT, "brief-4h.png"))
+                await pg.evaluate("document.querySelector('#briefBtn').click()"); await pg.wait_for_timeout(200)
             if "Wave signals" not in wv or "Switch to 1D" not in wv: problems.append(f"[{scheme}] chart 4H: wave card should point to 1D: {wv[:120]!r}")
             await pg.click('#tfSeg [data-tf="1d"]'); await pg.wait_for_timeout(1500)
             wv = await pg.inner_text("#waveBox") if await pg.is_visible("#waveBox") else ""

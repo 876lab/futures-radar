@@ -2,6 +2,10 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-11-07 (owner request): Chart breakdown on every candle size
+- **Break down this chart** now shows on every candle size (5m to 1M), not only 1D. Wording follows the candle size: "30 candles (30 hours)", "20-candle average", "The latest candle … is still forming", "The 4H trend (Supertrend)", "The app's 4H reading"; times shown on intraday dates. The long average is the 200-candle EMA off 1D (the wave's 200/100/50-day on 1D). Wave dots stay 1D only and the signals line says where divergences and stop-hunts are read. The sizing example notes when tight intraday stops make the position several times the account.
+- Engine tests for 1H wording and weekly candles; browser test opens it on 4H.
+
 ## 2026-11-07 (owner report): Settings Back button, sort on Hot
 - Settings page now has a **Back** button at the top (returns to the page it was opened from).
 - The **Sort** menu now also shows on Hot (it was hidden there because Hot's three lists have their own order); picking a sort opens All, sorted that way.

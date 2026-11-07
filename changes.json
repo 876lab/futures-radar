@@ -1,4 +1,7 @@
 [
+  {"date": "2026-11-07", "title": "Chart breakdown on every candle size", "items": [
+    "\"Break down this chart\" now works on 5m, 15m, 1H, 4H, 1D, 1W and 1M, worded for that candle size (for example \"the last 30 candles (30 hours)\")."
+  ]},
   {"date": "2026-11-07", "title": "Back button and sort", "items": [
     "Settings now has a Back button at the top.",
     "The Sort menu is back beside Compact on the Hot tab; choosing a sort opens All, sorted your way."

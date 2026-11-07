@@ -1,4 +1,8 @@
 [
+  {"date": "2026-11-07", "title": "Wave and divergence on weekly charts", "items": [
+    "On 1W charts you now get the wave dots and RSI divergences too, like on 1D, worded in weeks (20-week vs 200-week average).",
+    "Weekly dots are rare, so they are for the big picture (which side to lean), not entry timing. Monthly charts stay trend only."
+  ]},
   {"date": "2026-11-07", "title": "VIX on the News page", "items": [
     "Under Fear & Greed you now see the VIX, the stock market's \"fear gauge\" from Cboe: today's level, whether it is calm, normal, nervous or fearful, and the last 60 days.",
     "When the VIX jumps, stocks and crypto often fall together, so it's a quick check of the wider mood. It updates after the US close."

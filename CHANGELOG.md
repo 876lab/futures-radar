@@ -2,6 +2,11 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-11-07 (owner request): Wave and divergence on weekly charts
+- **Wave signals** now also on **1W** charts (dots, card with the picture, list and explanation worded in weeks: 20-week vs 200-week, with 100/50-week fallback). The card says weekly dots are too rare for the nightly backtest to measure and points to the 1D numbers. Chip renamed "Wave signals (1D/1W)".
+- **RSI divergence** (regular and hidden) now also on **1W**. Stop-hunts stay on 1H/4H/1D. Monthly charts stay trend only (owner agreed: too few candles).
+- Chart breakdown reads weekly wave dots and divergences. Browser test checks 1W shows both cards (no "day" wording) and 1M shows neither.
+
 ## 2026-11-07 (owner request): VIX on the News page
 - New **VIX · Cboe volatility index** card under Fear & Greed: latest daily close, zone (under 15 Calm, 15–20 Normal, 20–30 Nervous, 30+ Fear), change on the day, a 10–40+ scale, the last 60 trading days as a line (20 and 30 marked), the close a week earlier, and one plain line on what it measures and why it matters for crypto.
 - Data: the news job (every 15 minutes) reads Cboe's official daily history file (https://cdn.cboe.com/api/global/us_indices/daily_prices/VIX_History.csv, linked from Cboe's VIX historical data page), with FRED's VIXCLS series as a fallback; stored as `vix` in news.json (v, d, prev, w, hist, src). Daily closes only; no intraday quotes. Recorded in the job's sources list.

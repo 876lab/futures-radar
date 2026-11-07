@@ -2376,7 +2376,7 @@ function chartBrief(cs,S,o){
     g.push(`${w.dir>0?'<b class="up">Green':'<b class="down">Red'} wave dot</b> ${day(cs[w.i].time)} at ${P(cs[w.i].close)}: price is ${pc(x)} since, so it has ${ok(w.dir,x)?'worked so far':'<b>failed so far</b>'}.`)}
   const dv=divAt(o.divs||[],i,20);if(dv){const x=c/cs[dv.at].close-1;g.push(`${dv.dir>0?'Bullish':'Bearish'} RSI divergence ${plural(i-dv.at,D?'day':'candle')} ago: price ${pc(x)} since (${ok(dv.dir,x)?'going its way':'not going its way'}).`)}
   const hu=(o.hunts||[]).filter(h=>i-h.at<=20).pop();if(hu){const x=c/cs[hu.at].close-1;g.push(`Stop-hunt ${hu.dir>0?'below a low':'above a high'} ${plural(i-hu.at,D?'day':'candle')} ago: price ${pc(x)} since (${ok(hu.dir,x)?'going its way':'not going its way'}).`)}
-  if(!g.length)g.push(D?'No wave dots in the last 60 days and no divergence or stop-hunt in the last 20.':['1h','4h'].includes(tf)?'No divergence or stop-hunt in the last 20 candles. Wave dots are on 1D only.':'Divergences and stop-hunts are read on 1H, 4H and 1D, and wave dots on 1D; switch candle size to see them.');
+  if(!g.length)g.push(D?'No wave dots in the last 60 days and no divergence or stop-hunt in the last 20.':tf==='1w'?'No wave dots in the last 60 weeks and no divergence in the last 20.':['1h','4h'].includes(tf)?'No divergence or stop-hunt in the last 20 candles. Wave dots are on 1D and 1W.':'Divergences are read on 1H, 4H, 1D and 1W, stop-hunts on 1H, 4H and 1D, and wave dots on 1D and 1W; switch candle size to see them.');
   out.push({h:'Signals on this chart',lines:g});
   // 4. stretch
   const st=[],dA=e20!=null&&A>0?(c-e20)/A:null,wv=W&&W.len?W.w1[i]:null;
@@ -3353,10 +3353,10 @@ function draw(keep){
   current.fib=fib;renderFib();
   let sr=null;try{sr=srLevels(current.cs,current.an&&current.an.atr)}catch(e){recordErr('support and resistance',e)}
   current.sr=sr;renderSR();
-  const DIV_TF=['1h','4h','1d'].includes(ctf());let divs=null;
-  let hunts=null;try{const A_=current.an;if(DIV_TF&&A_&&A_.series){divs=rsiDivergences(current.cs,A_.series.r12,Math.max(0,current.cs.length-300),A_.series.e50);hunts=stopHunts(current.cs,A_.series.at,Math.max(0,current.cs.length-300))}}catch(e){recordErr('RSI divergence',e)}
-  current.divs=divs;current.hunts=hunts;current.divTf=DIV_TF;renderDiv();renderHunt();
-  let wave=null;try{if(ctf()==='1d'&&current.an&&current.an.series)wave=waveSignals(current.cs,current.an.series.at,Math.max(1,current.cs.length-300))}catch(e){recordErr('wave signals',e)}
+  const DIV_TF=['1h','4h','1d','1w'].includes(ctf()),HUNT_TF=['1h','4h','1d'].includes(ctf());let divs=null;
+  let hunts=null;try{const A_=current.an;if(DIV_TF&&A_&&A_.series){divs=rsiDivergences(current.cs,A_.series.r12,Math.max(0,current.cs.length-300),A_.series.e50);if(HUNT_TF)hunts=stopHunts(current.cs,A_.series.at,Math.max(0,current.cs.length-300))}}catch(e){recordErr('RSI divergence',e)}
+  current.divs=divs;current.hunts=hunts;current.divTf=DIV_TF;current.huntTf=HUNT_TF;renderDiv();renderHunt();
+  let wave=null;try{if(['1d','1w'].includes(ctf())&&current.an&&current.an.series)wave=waveSignals(current.cs,current.an.series.at,Math.max(1,current.cs.length-300))}catch(e){recordErr('wave signals',e)}
   current.wave=wave;renderWave();current.briefOpen=current.briefOpen&&current.briefKey===current.p.id;current.briefKey=current.p.id;renderBrief();
   if(!ch){msg.hidden=false;msg.textContent="The chart library didn't load. Check your connection and refresh.";return}
   const {cs,an,rc}=current;if(keep){try{current.range=ch.main.timeScale().getVisibleLogicalRange()}catch(e){}}
@@ -3441,7 +3441,7 @@ function renderLegend(idx){
   }else{$('#rsiLegend').innerHTML='<span>RSI 6 / 12 / 24</span>';$('#macdLegend').innerHTML='<span>MACD(12,26,9)</span>'}
 }
 function renderToggles(){
-  const T=[['bb','Bollinger','--bb'],['st','Supertrend','--up'],['marks','B/S marks','--accent'],['sr','Support/Resistance','--up'],['w200','200W EMA','--c3'],['div','RSI divergence','--c3'],['hunt','Stop-hunts','--accent'],['wave','Wave signals (1D)','--c2'],['fib','Fibonacci','--c4'],['ema','EMA 20/50/200','--c2'],['vol','Volume','--muted']];
+  const T=[['bb','Bollinger','--bb'],['st','Supertrend','--up'],['marks','B/S marks','--accent'],['sr','Support/Resistance','--up'],['w200','200W EMA','--c3'],['div','RSI divergence','--c3'],['hunt','Stop-hunts','--accent'],['wave','Wave signals (1D/1W)','--c2'],['fib','Fibonacci','--c4'],['ema','EMA 20/50/200','--c2'],['vol','Volume','--muted']];
   $('#toggles').innerHTML=T.map(([k,l,c])=>`<button class="chip" data-ind="${k}" aria-pressed="${!!state.ind[k]}"><i style="background:var(${c})"></i>${l}</button>`).join('');
 }
 
@@ -3654,7 +3654,7 @@ function srHTML(r,tf){
 }
 function divHTML(){
   const tf=ctf(),L=TF_LABEL[tf],cs=current.cs,n=cs.length;
-  if(!current.divTf)return `<h3>RSI divergence</h3><p class="note">Shown on 1H, 4H and 1D candles, where it is less noisy. Switch to one of those to see it.</p>`;
+  if(!current.divTf)return `<h3>RSI divergence</h3><p class="note">Shown on 1H, 4H, 1D and 1W candles, where it is less noisy. Switch to one of those to see it.</p>`;
   const d=divAt(current.divs||[],n-1,20),bt_=bt.data&&bt.data.lab&&bt.data.lab.div;
   const when=i=>esc(new Date(cs[i].time*1000).toLocaleString('en-US',{month:'short',day:'numeric',hour:tf==='1d'?undefined:'numeric'}));
   const head=d?(d.dir<0?`<b class="down">Bearish divergence</b> on ${L}: price made a <b>higher high</b> (${fmtUsd(d.a.p)} on ${when(d.a.i)} → ${fmtUsd(d.b.p)} on ${when(d.b.i)}) but RSI 12 made a <b>lower high</b> (${Math.round(d.a.r)} → ${Math.round(d.b.r)}). The up-move may be losing strength.`
@@ -3675,7 +3675,7 @@ function divHTML(){
 }
 function huntHTML(){
   const tf=ctf(),L=TF_LABEL[tf],cs=current.cs,n=cs.length;
-  if(!current.divTf)return `<h3>Stop-hunts</h3><p class="note">Shown on 1H, 4H and 1D candles. Switch to one of those to see them.</p>`;
+  if(!current.huntTf)return `<h3>Stop-hunts</h3><p class="note">Shown on 1H, 4H and 1D candles. Switch to one of those to see them.</p>`;
   const H=(current.hunts||[]).filter(h=>n-1-h.at<=20),h=H[H.length-1],when=i=>esc(new Date(cs[i].time*1000).toLocaleString('en-US',{month:'short',day:'numeric',hour:tf==='1d'?undefined:'numeric'}));
   const head=h?(h.dir>0?`<b class="up">Stop-hunt below a low</b> on ${L}: price dipped to ${fmtUsd(h.ext)}, under the swing low at <b>${fmtUsd(h.level)}</b> (${when(h.j)}), then closed back above it on ${when(h.i)}. Stops under that low were likely triggered and the break failed, which often comes before a move back up.`
     :`<b class="down">Stop-hunt above a high</b> on ${L}: price spiked to ${fmtUsd(h.ext)}, over the swing high at <b>${fmtUsd(h.level)}</b> (${when(h.j)}), then closed back below it on ${when(h.i)}. Stops above that high were likely triggered and the break failed, which often comes before a move back down.`)+` ${n-1-h.at?plural(n-1-h.at,'candle')+' ago':'On the latest candle'}.`
@@ -3703,13 +3703,13 @@ function waveSVG(W,cs){
   const dots=sig.map(w=>{const cx=+X(w.i-s),cy=+Y(W.w1[w.i]),up=w.dir>0,show=lab.includes(w);
     const tx=clamp(cx,26,PW-26),ty=up?Math.min(cy+16,T0+PH-2):Math.max(cy-9,T0+8);
     return `<circle cx="${cx}" cy="${cy}" r="3.6" class="${up?'u':'d'}"/>${show?`<text x="${tx}" y="${ty}" class="dl ${up?'u':'d'}" text-anchor="middle">${esc(fmtUsd(cs[w.i].close))}</text><text x="${tx}" y="${up?ty+10:ty-10}" class="t" text-anchor="middle">${esc(day(cs[w.i].time))}</text>`:''}`}).join('');
-  return `<svg class="wv" viewBox="0 0 320 136" role="img" aria-label="The wave over the last ${k} days">${ticks}${lv}<polygon points="${area}" class="a"/><polyline points="${pts(g)}" class="s"/><polyline points="${pts(v)}" class="l"/>${dots}</svg>`;
+  return `<svg class="wv" viewBox="0 0 320 136" role="img" aria-label="The wave over the last ${k} candles">${ticks}${lv}<polygon points="${area}" class="a"/><polyline points="${pts(g)}" class="s"/><polyline points="${pts(v)}" class="l"/>${dots}</svg>`;
 }
 // the latest dots in words: date, price then, and how price has moved since
 function waveListHTML(W,cs){
   const L=W.sig.slice(-4).reverse();if(!L.length)return '';const now=cs[cs.length-1].close;
   return `<ul class="sim-trades wv-list">${L.map(w=>{const p=cs[w.i].close,ch=(now/p-1)*100,good=w.dir>0?ch>0:ch<0;
-    return `<li class="${good?'w':'l'}"><span><b class="${w.dir>0?'up':'down'}">${w.dir>0?'Low-wave':'High-wave'}</b> · ${esc(new Date(cs[w.i].time*1000).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',timeZone:'UTC'}))}<small>Close that day ${esc(fmtUsd(p))} · now ${esc(fmtUsd(now))}</small></span><b class="${ch>0?'up':ch<0?'down':''}">${fmtPct(ch)}</b></li>`}).join('')}</ul>
+    return `<li class="${good?'w':'l'}"><span><b class="${w.dir>0?'up':'down'}">${w.dir>0?'Low-wave':'High-wave'}</b> · ${esc(new Date(cs[w.i].time*1000).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',timeZone:'UTC'}))}<small>Close then ${esc(fmtUsd(p))} · now ${esc(fmtUsd(now))}</small></span><b class="${ch>0?'up':ch<0?'down':''}">${fmtPct(ch)}</b></li>`}).join('')}</ul>
     <p class="note">The % is how far price has moved since each dot's close (green when it went the dot's way).</p>`;
 }
 // longer holds: how price did 30 / 60 / 90 days after each kind of dot, beside random days
@@ -3723,30 +3723,31 @@ function waveHoldHTML(H){
 }
 function waveHTML(){
   const h='<h3>Wave signals</h3>';
-  if(ctf()!=='1d')return h+`<p class="note">Shown on 1D candles only, where they are less noisy. Switch to 1D to see them.</p>`;
+  const tf=ctf(),wk=tf==='1w',u=wk?'week':'day',U=wk?'1W':'1D';
+  if(tf!=='1d'&&!wk)return h+`<p class="note">Shown on 1D and 1W candles, where they are less noisy. Switch to one of those to see them.</p>`;
   const W=current.wave,cs=current.cs,n=cs.length;
-  if(!W||!W.len)return h+`<p class="note">Needs at least 70 days of history for a long average (${n} so far).</p>`;
+  if(!W||!W.len)return h+`<p class="note">Needs at least 70 ${u}s of history for a long average (${n} so far).</p>`;
   const i=n-1,x=W.w1[i],when=j=>esc(new Date(cs[j].time*1000).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',timeZone:'UTC'}));
   const mood=x==null?'not ready yet':x<=WAVE_OS?'<b class="up">low (oversold)</b>':x>=WAVE_OB?'<b class="down">high (overheated)</b>':x<0?'below the middle':'above the middle';
-  const avg=`${W.len}-day average`+(W.len<200?` (only ${n} days of history, so the ${W.len}-day stands in for the 200-day)`:'');
+  const avg=`${W.len}-${u} average`+(W.len<200?` (only ${n} ${u}s of history, so the ${W.len}-${u} stands in for the 200-${u})`:'');
   const gap=W.e20[i]!=null&&W.eL[i]!=null?W.e20[i]/W.eL[i]-1:null;
   const last=W.sig[W.sig.length-1],ago=last?n-1-last.at:0;
-  const lastTxt=last?(last.dir>0?`<b class="up">Low-wave signal</b> on ${when(last.i)}: the wave turned up from ${Math.round(last.w)} while the 20-day average was at or under the ${W.len}-day.`:`<b class="down">High-wave signal</b> on ${when(last.i)}: the wave turned down from +${Math.round(last.w)} with price ${last.gap.toFixed(1)} ATR above the ${W.len}-day average.`)+` ${ago?plural(ago,'day')+' ago':'Today (the day is not finished yet)'}.`:'No signal in the history on screen; they are rare by design.';
-  const L2=bt.data&&bt.data.lab,a=L2&&L2.waveUp&&L2.waveUp['1d'],b=L2&&L2.waveDn&&L2.waveDn['1d'],base=L2&&L2.base&&L2.base['1d'];
+  const lastTxt=last?(last.dir>0?`<b class="up">Low-wave signal</b> on ${when(last.i)}: the wave turned up from ${Math.round(last.w)} while the 20-${u} average was at or under the ${W.len}-${u}.`:`<b class="down">High-wave signal</b> on ${when(last.i)}: the wave turned down from +${Math.round(last.w)} with price ${last.gap.toFixed(1)} ATR above the ${W.len}-${u} average.`)+` ${ago?plural(ago,u)+' ago':`This ${u} (not finished yet)`}.`:'No signal in the history on screen; they are rare by design.';
+  const L2=!wk&&bt.data&&bt.data.lab,a=L2&&L2.waveUp&&L2.waveUp['1d'],b=L2&&L2.waveDn&&L2.waveDn['1d'],base=L2&&L2.base&&L2.base['1d'];
   const ev=[a&&a.n>=10?`low-wave signals were followed by a 1 ATR rise before a 1 ATR fall <b>${fmtP(a.turn)}</b> of ${a.n} times`:'',b&&b.n>=10?`high-wave signals by a 1 ATR fall first <b>${fmtP(b.turn)}</b> of ${b.n} times`:''].filter(Boolean);
-  return h+`<p class="sub">1D candles · wave (WaveTrend 10, 21) with the 20-day and ${W.len}-day averages · information only</p>
+  return h+`<p class="sub">${U} candles · wave (WaveTrend 10, 21) with the 20-${u} and ${W.len}-${u} averages · information only</p>
     ${waveSVG(W,cs)}<p class="wv-key"><span><i class="l"></i>Wave</span><span><i class="s"></i>Signal line</span><span><i class="u"></i>Low-wave</span><span><i class="d"></i>High-wave</span></p>
-    <p class="big">The wave is ${mood}${x!=null?` (${x>0?'+':''}${Math.round(x)})`:''}. The 20-day average is ${gap==null?'—':`<b>${fmtPct(gap*100)}</b> from the ${esc(avg)}`}.</p>
+    <p class="big">The wave is ${mood}${x!=null?` (${x>0?'+':''}${Math.round(x)})`:''}. The 20-${u} average is ${gap==null?'—':`<b>${fmtPct(gap*100)}</b> from the ${esc(avg)}`}.</p>
     <p class="big">${lastTxt}</p>
     ${waveListHTML(W,cs)}
     ${waveHoldHTML(L2&&L2.waveHold)}
-    ${ev.length?`<p class="note">Nightly backtest (Gate, 1D, 30 busiest markets): ${ev.join('; ')} (50% would be a coin flip${base&&base.n?`; random days ${fmtP(base.turn)}`:''}).</p>`:'<p class="note">The nightly backtest is measuring how often these signals were right; the numbers appear here once there are at least 10 of each.</p>'}
+    ${wk?`<p class="note">Weekly dots are rare (often one every year or two per market), so the nightly backtest can't collect enough of them to say how often they were right. The 1D card shows the measured numbers for daily dots.</p>`:ev.length?`<p class="note">Nightly backtest (Gate, 1D, 30 busiest markets): ${ev.join('; ')} (50% would be a coin flip${base&&base.n?`; random days ${fmtP(base.turn)}`:''}).</p>`:'<p class="note">The nightly backtest is measuring how often these signals were right; the numbers appear here once there are at least 10 of each.</p>'}
     <details><summary>How the wave signals work</summary><ul class="sim-notes">
-      <li>The <b>wave</b> is a momentum oscillator (WaveTrend): it measures how far the day's average price is from its recent average, smoothed. Below ${WAVE_OS} is oversold, above +${WAVE_OB} overheated.</li>
-      <li><b>Low-wave (green dot under the candle):</b> the wave turns up while oversold <i>and</i> the 20-day average has fallen to or below the ${W.len}-day. A deep pullback in a market whose short trend has dropped back to its long-term average. Rare, so expect only a few a year.</li>
-      <li><b>High-wave (red dot above the candle):</b> the wave turns down while overheated <i>and</i> price is stretched at least 3 ATR (3 typical daily ranges) above the ${W.len}-day average. A sign the run is overextended.</li>
-      <li>When a market has under 220 days of history, the 100-day average (or 50-day under 120 days) stands in for the 200-day, and this card says so.</li>
-      <li>A signal is only final once the day closes. It's a sign, not a guarantee; switch the dots off with the Wave signals chip.</li></ul></details>`;
+      <li>The <b>wave</b> is a momentum oscillator (WaveTrend): it measures how far the ${u}'s average price is from its recent average, smoothed. Below ${WAVE_OS} is oversold, above +${WAVE_OB} overheated.</li>
+      <li><b>Low-wave (green dot under the candle):</b> the wave turns up while oversold <i>and</i> the 20-${u} average has fallen to or below the ${W.len}-${u}. A deep pullback in a market whose short trend has dropped back to its long-term average. Rare, so expect only ${wk?'one every year or two':'a few a year'}.</li>
+      <li><b>High-wave (red dot above the candle):</b> the wave turns down while overheated <i>and</i> price is stretched at least 3 ATR (3 typical ${wk?'weekly':'daily'} ranges) above the ${W.len}-${u} average. A sign the run is overextended.</li>
+      <li>When a market has under 220 ${u}s of history, the 100-${u} average (or 50-${u} under 120 ${u}s) stands in for the 200-${u}, and this card says so.</li>
+      <li>A signal is only final once the ${u} closes. It's a sign, not a guarantee; switch the dots off with the Wave signals chip.</li></ul></details>`;
 }
 const SPARK='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>';
 function renderBrief(){

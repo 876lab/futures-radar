@@ -492,6 +492,21 @@ async def main():
                 for bad in ("undefined", "NaN"):
                     if bad in bs: problems.append(f"[{scheme}] chart {lbl}: shows '{bad}'")
                 if scheme == "light" and big == "1w": await pg.screenshot(path=os.path.join(OUT, "chart-1w.png"))
+                # wave and divergence: on 1W (owner request, 7 Nov 2026), not on 1M
+                wv = await pg.inner_text("#waveBox") if await pg.is_visible("#waveBox") else ""
+                dv = await pg.inner_text("#divBox") if await pg.is_visible("#divBox") else ""
+                hb = await pg.inner_text("#huntBox") if await pg.is_visible("#huntBox") else ""
+                if big == "1w":
+                    if "1W candles" not in wv and "70 weeks" not in wv: problems.append(f"[{scheme}] chart 1W: wave card missing: {wv[:120]!r}")
+                    if "1W" not in dv or "Switch to one of those" in dv: problems.append(f"[{scheme}] chart 1W: divergence card missing: {dv[:120]!r}")
+                    if hb and "Switch to one of those" not in hb: problems.append(f"[{scheme}] chart 1W: stop-hunts should stay off weekly")
+                    if "day" in wv.replace("1D card", "").replace("daily dots", "").lower().replace("today", ""): problems.append(f"[{scheme}] chart 1W: wave card still says 'day': {wv[:200]!r}")
+                    if scheme == "dark" and wv: await pg.locator("#waveBox").screenshot(path=os.path.join(OUT, "wave-1w.png"))
+                else:
+                    if wv and "Switch to one of those" not in wv: problems.append(f"[{scheme}] chart 1M: wave should not show on monthly")
+                    if dv and "Switch to one of those" not in dv: problems.append(f"[{scheme}] chart 1M: divergence should not show on monthly")
+                for bad in ("undefined", "NaN", "Infinity"):
+                    if bad in wv or bad in dv: problems.append(f"[{scheme}] chart {lbl}: wave/divergence card shows '{bad}'")
             # live track record beside the past win rate (1H and 4H setups only); sample track data has under 100 finished
             seen_tr = False
             for ttf in ("1h", "4h"):
@@ -524,7 +539,7 @@ async def main():
                     if bad in b4: problems.append(f"[{scheme}] chart 4H breakdown shows '{bad}'")
                 if scheme == "light": await pg.locator("#briefBox").screenshot(path=os.path.join(OUT, "brief-4h.png"))
                 await pg.evaluate("document.querySelector('#briefBtn').click()"); await pg.wait_for_timeout(200)
-            if "Wave signals" not in wv or "Switch to 1D" not in wv: problems.append(f"[{scheme}] chart 4H: wave card should point to 1D: {wv[:120]!r}")
+            if "Wave signals" not in wv or "Switch to one of those" not in wv: problems.append(f"[{scheme}] chart 4H: wave card should point to 1D: {wv[:120]!r}")
             await pg.click('#tfSeg [data-tf="1d"]'); await pg.wait_for_timeout(1500)
             wv = await pg.inner_text("#waveBox") if await pg.is_visible("#waveBox") else ""
             if "Wave signals" not in wv or "1D candles" not in wv or "The wave is" not in wv or "How the wave signals work" not in wv or not await pg.locator('#toggles [data-ind="wave"]').count(): problems.append(f"[{scheme}] chart 1D: wave card or chip wrong: {wv[:160]!r}")

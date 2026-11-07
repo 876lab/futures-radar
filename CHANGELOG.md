@@ -2,6 +2,12 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-11-07 (owner request): Bubble stage on 1D and 1W
+- New **Bubble stage** section at the top of the Wave signals card (1D and 1W): where price sits on Jean-Paul Rodrigue's "Stages of a bubble" curve (Hofstra University), drawn as the curve with a dot at the current stage, a plain-language description, how far price is from its long average and from its highest close of the last 250 candles, and, for crypto markets, the crowd mood (Fear & Greed and the Bitcoin cycle gauge).
+- Twelve stages, read from price alone: Take-off, Awareness, Bear trap (first sell-off), Enthusiasm, Greed, Delusion (mania), Denial, Bull trap (return to "normal"), Fear, Capitulation, Despair, Return to the mean. Inputs: distance from the long average in ATR and how unusual that stretch is for this market (share of past candles less stretched), drop from the 250-candle peak, how stretched that peak was, the bounce since the low after it, the 20-candle trend and the wave.
+- The chart breakdown adds the stage to its Trend section on 1D/1W.
+- New pure `bubbleStage` (4 engine tests: a made-up bubble walks bear trap → mania → denial → bull trap → capitulation → despair → return to the mean); browser test checks the section. Information only.
+
 ## 2026-11-07 (owner request): Wave and divergence on weekly charts
 - **Wave signals** now also on **1W** charts (dots, card with the picture, list and explanation worded in weeks: 20-week vs 200-week, with 100/50-week fallback). The card says weekly dots are too rare for the nightly backtest to measure and points to the 1D numbers. Chip renamed "Wave signals (1D/1W)".
 - **RSI divergence** (regular and hidden) now also on **1W**. Stop-hunts stay on 1H/4H/1D. Monthly charts stay trend only (owner agreed: too few candles).

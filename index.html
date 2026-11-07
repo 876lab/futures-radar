@@ -622,6 +622,10 @@ html,body{overscroll-behavior-y:none}
 .brief-body{display:grid;gap:12px;padding:4px 14px 14px} .brief-sec h4{margin:0 0 4px;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
 .brief-sec ul{margin:0;padding-left:18px;display:grid;gap:5px;font-size:13.5px;line-height:1.45} .brief .note{padding:0}
 .set-top{display:flex;align-items:center;gap:12px;margin:0 0 12px} .set-top b{font-size:17px;letter-spacing:-.015em}
+.bub{display:grid;gap:6px;padding:10px 12px;border-radius:12px;background:var(--surface-2)} .bub-h{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap} .bub-h b{font-size:17px;letter-spacing:-.015em}
+.bub .lab{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600} .bub p{margin:0;font-size:13px}
+.bub-c{width:100%;height:auto;display:block} .bub-c polyline{fill:none;stroke:var(--c2);stroke-width:2;stroke-linejoin:round;stroke-linecap:round} .bub-c .m{stroke:var(--muted);stroke-dasharray:4 4;opacity:.6}
+.bub-c text{font-size:9px;fill:var(--muted);font-family:var(--f-body)} .bub-c .dot{fill:var(--brand)} .bub-c .ring{fill:none;stroke:var(--brand);stroke-width:2;opacity:.35}
 /* ---- 2026-11 visual refresh: calmer palette for long chart sessions, one indigo "brand" colour for anything you
    tap or that is selected (amber now only means caution / Wait / Calm), glass bars, softer cards, larger type ---- */
 body{font-size:13px;letter-spacing:-.003em}
@@ -2360,6 +2364,7 @@ function chartBrief(cs,S,o){
     up?`<b class="up">Strong uptrend.</b> The ${U.a(20)} average is above the ${U.a(50)}${eL!=null?` and the ${U.a(50)} above the ${Lt}`:''}, and the ${U.a(20)} is still rising.`:
     `<b>Mixed trend.</b> The averages are not lined up in one direction, so neither side is clearly in control.`);
   t.push(`Over the last ${U.k(30)} price moved <b class="${ch30>0?'up':'down'}">${pc(ch30)}</b>. The ${U.a(60)} high was ${P(hi)} (${day(cs[hiI].time)}); price is ${pc(c/hi-1)} from it${loI!==i?` and ${pc(c/lo-1)} from the ${U.a(60)} low of ${P(lo)}`:`, at the ${U.a(60)} low`}.`);
+  if(W&&W.len&&(D||tf==='1w')){const B=bubbleStage(cs,S,W);if(B)t.push(`Bubble stage: <b>${B.label}</b>. ${B.text}`)}
   out.push({h:'Trend',lines:t});
   // 2. latest move
   const m=[],ch5=c/cs[Math.max(0,i-5)].close-1;let vI=i;for(let j=Math.max(0,n-20);j<n;j++)if((cs[j].volume||0)>(cs[vI].volume||0))vI=j;
@@ -2406,6 +2411,49 @@ function chartBrief(cs,S,o){
     out.push({h:'Sizing example',lines:[`With your ${fmtMoney(acct)} account and ${rk}% risk, one trade risks ${fmtMoney(risk)}. A stop 2 ATR away (${(stopPct*100).toFixed(1)}%) means a position of about <b>${fmtMoney(pos)}</b>; anything bigger loses more than ${fmtMoney(risk)} if the stop is hit.${lev>3?` That is ${lev.toFixed(0)}× your account, because ${TL} stops are tight; small candles mean small stops and big positions.`:''}`,
       o.maxLoss>0?`Your max-loss limit is ${fmtMoney(o.maxLoss)} per trade.`:'Tip: set a max loss per trade in Settings so the app warns before a trade could lose more than that.']})}
   return{trend,sections:out};
+}
+// Bubble stage (owner request, 7 Nov 2026): where price sits on Jean-Paul Rodrigue's "Stages of a bubble" curve
+// (Hofstra University), read from price alone on 1D/1W: distance from the long average in ATR (dA), drop from the
+// highest close of the last 250 candles (ddA), how stretched that peak was (pkDev), the bounce since the low after it,
+// the 20-candle trend and the wave. Information only; the theory's labels, not a forecast.
+const BUBBLE={takeoff:['Take-off','Price is starting to lift above a flat or falling long-term average. In the theory, early buyers are getting in quietly.',22,88],
+  awareness:['Awareness','A steady climb with the long-term average rising. In the theory, institutions build positions before the crowd notices.',58,78],
+  beartrap:['Bear trap (first sell-off)','A pullback inside a young uptrend, still above the long-term average. In the theory, this dip shakes out weak holders before the run continues.',92,80],
+  enthusiasm:['Enthusiasm','Price is well above its long-term average and the short trend keeps rising. In the theory, media attention starts and the public joins.',150,52],
+  greed:['Greed','Price is far above its long-term average and near its high. In the theory, this is where early buyers take profits while the crowd is still buying.',171,32],
+  delusion:['Delusion (mania)','Price is extremely stretched above its long-term average at a new high. In the theory, this is the "new paradigm" peak, which is rarely clear until afterwards.',187,10],
+  denial:['Denial','Price has dropped from a very stretched peak but is still above its long-term average. In the theory, many holders treat it as a dip and wait.',199,20],
+  bulltrap:['Bull trap (return to "normal")','A bounce after the first drop from a very stretched peak, still well under that peak. In the theory, this recovery often fails.',213,24],
+  fear:['Fear','Price is under its long-term average and the short trend is falling.',224,44],
+  capitulation:['Capitulation','A fast, deep fall well under the long-term average. In the theory, holders give up and sell at almost any price.',233,76],
+  despair:['Despair','Price is far under its long-term average, but the fall has slowed. In the theory, this is where patient long-term buyers start to collect.',247,100],
+  mean:['Return to the mean','Price is climbing back toward its long-term average from below.',283,76]};
+function bubbleStage(cs,S,W){
+  const n=cs?cs.length:0,i=n-1;if(!W||!W.len||n<60||!S)return null;
+  const c=cs[i].close,A=S.at[i],eL=W.eL[i],e20=W.e20[i];if(!(A>0)||eL==null||e20==null)return null;
+  const dA=(c-eL)/A,s20=W.e20[i-5]!=null?(e20-W.e20[i-5])/A:0,sL=W.eL[i-10]!=null?(eL-W.eL[i-10])/A:0;
+  const N=Math.min(250,n),st=n-N;let pk=st;for(let j=st;j<n;j++)if(cs[j].close>cs[pk].close)pk=j;
+  const P=cs[pk].close,ddA=(P-c)/A,pkDev=W.eL[pk]!=null&&S.at[pk]>0?(P-W.eL[pk])/S.at[pk]:0;
+  let tr=pk;for(let j=pk;j<n;j++)if(cs[j].close<cs[tr].close)tr=j;
+  const bounceA=(c-cs[tr].close)/A,ch20A=(c-cs[Math.max(0,i-20)].close)/A,w=W.w1[i];
+  // how unusual today's stretch is for this market: share of past candles (in view) that were less stretched
+  let le=0,cnt=0;for(let j=st;j<=i;j++){const L=W.eL[j],a=S.at[j];if(L==null||!(a>0))continue;cnt++;if((cs[j].close-L)/a<=dA)le++}
+  const pct=cnt?le/cnt:0;let lo=i;for(let j=Math.max(0,i-60);j<=i;j++)if(cs[j].close<cs[lo].close)lo=j;const upA=(c-cs[lo].close)/A;
+  let k;
+  if(dA>0){
+    if(ddA<2&&dA>=8&&pct>=0.97&&((w!=null&&w>=WAVE_OB)||dA>=12))k='delusion';
+    else if(ddA<3&&dA>=5&&pct>=0.85)k='greed';
+    else if(pkDev>=5&&ddA>=3&&pk<i)k=bounceA>=2&&tr>pk&&tr<i?'bulltrap':'denial';
+    else if(dA>=2&&s20>0)k='enthusiasm';
+    else if(ddA>=1.5&&pk<i&&sL>0)k='beartrap';
+    else k=sL>0?'awareness':'takeoff';
+  }else{
+    if(ch20A<=-6||(dA<=-3&&s20<0&&w!=null&&w<=WAVE_OS))k='capitulation';
+    else if(s20>0&&(dA>-2.5||upA>=3))k='mean';
+    else if(dA<=-2&&s20>=-0.3)k='despair';
+    else k='fear';
+  }
+  return{k,pct,label:BUBBLE[k][0],text:BUBBLE[k][1],x:BUBBLE[k][2],y:BUBBLE[k][3],dev:c/eL-1,dA,dd:c/P-1,peakT:cs[pk].time,ch20A,wave:w,len:W.len};
 }
 // which part of the last move price is in (used for wording and for the backtest's buckets)
 
@@ -3721,6 +3769,17 @@ function waveHoldHTML(H){
     ${WAVE_HOLD.map(h=>`<tr><td><b>${h} days</b></td>${c(H.up[h])}${c(H.dn&&H.dn[h])}${c(B[h])}</tr>`).join('')}</tbody></table>
     <p class="note">Each cell: how often price went the dot's way after that many days, and the typical (median) move the dot's way. Compare with random days (they fell the rest of the time): a dot only helps if it beats them. Under 10 cases shows "only N".</p></div>`;
 }
+const BUBBLE_PATH='0,96 22,88 40,84 58,78 75,72 84,76 92,80 104,76 120,68 136,60 150,52 162,42 171,32 180,18 187,10 192,5 196,12 199,20 204,30 208,32 213,24 217,22 221,32 224,44 229,62 233,76 238,92 244,100 250,100 262,94 274,84 283,76 296,68';
+function bubbleHTML(B,u,mood){
+  if(!B)return '';const pc=v=>fmtPct(v*100);
+  return `<div class="bub"><div class="bub-h"><span class="lab">Bubble stage</span><b>${esc(B.label)}</b></div>
+    <svg class="bub-c" viewBox="0 0 300 112" role="img" aria-label="Stages of a bubble curve, now at ${esc(B.label)}"><line x1="0" y1="92" x2="300" y2="70" class="m"/><polyline points="${BUBBLE_PATH}"/>
+      ${['Awareness','Mania','Blow-off'].map((t,q)=>`<text x="${[60,165,250][q]}" y="110" text-anchor="middle">${t}</text>`).join('')}<circle cx="${B.x}" cy="${B.y}" r="6" class="dot"/><circle cx="${B.x}" cy="${B.y}" r="11" class="ring"/></svg>
+    <p>${esc(B.text)}</p>
+    <ul class="sim-notes"><li>Price is <b>${pc(B.dev)}</b> from its ${B.len}-${u} average (${Math.abs(B.dA).toFixed(1)} ATR ${B.dA<0?'below':'above'}) and ${B.dd<-0.0005?`<b>${pc(B.dd)}</b> from its highest close of the last ${Math.min(250,current.cs.length)} ${u}s (${esc(new Date(B.peakT*1000).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',timeZone:'UTC'}))})`:`at its highest close of the last ${Math.min(250,current.cs.length)} ${u}s`}.</li>
+      ${mood?`<li>${mood}</li>`:''}
+      <li>Read from price only, using Jean-Paul Rodrigue's "Stages of a bubble" (Hofstra University). Not every market goes through a bubble, and the stage can change as new candles arrive. Information only.</li></ul></div>`;
+}
 function waveHTML(){
   const h='<h3>Wave signals</h3>';
   const tf=ctf(),wk=tf==='1w',u=wk?'week':'day',U=wk?'1W':'1D';
@@ -3737,6 +3796,7 @@ function waveHTML(){
   const ev=[a&&a.n>=10?`low-wave signals were followed by a 1 ATR rise before a 1 ATR fall <b>${fmtP(a.turn)}</b> of ${a.n} times`:'',b&&b.n>=10?`high-wave signals by a 1 ATR fall first <b>${fmtP(b.turn)}</b> of ${b.n} times`:''].filter(Boolean);
   return h+`<p class="sub">${U} candles · wave (WaveTrend 10, 21) with the 20-${u} and ${W.len}-${u} averages · information only</p>
     ${waveSVG(W,cs)}<p class="wv-key"><span><i class="l"></i>Wave</span><span><i class="s"></i>Signal line</span><span><i class="u"></i>Low-wave</span><span><i class="d"></i>High-wave</span></p>
+    ${bubbleHTML(bubbleStage(cs,current.an.series,W),u,bubbleMood())}
     <p class="big">The wave is ${mood}${x!=null?` (${x>0?'+':''}${Math.round(x)})`:''}. The 20-${u} average is ${gap==null?'—':`<b>${fmtPct(gap*100)}</b> from the ${esc(avg)}`}.</p>
     <p class="big">${lastTxt}</p>
     ${waveListHTML(W,cs)}
@@ -3757,6 +3817,13 @@ function renderBrief(){
   let B=null;try{B=chartBrief(current.cs,current.an.series,{wave:current.wave,divs:current.divs,hunts:current.hunts,sr:current.sr,rc:current.rc,acct:state.acct,risk:state.risk,maxLoss:state.maxLoss,tf:ctf()})}catch(e){recordErr('chart breakdown',e)}
   el.innerHTML=head+(B?`<div class="brief-body">${B.sections.map(x=>`<div class="brief-sec"><h4>${x.h}</h4><ul>${x.lines.map(l=>`<li>${l}</li>`).join('')}</ul></div>`).join('')}
     <p class="note">Written by the app's rules from this chart's numbers, the same each time for everyone; not an AI model and not financial advice. Futures are high risk.</p></div>`:'<p class="note">Needs at least 60 candles of history on this candle size.</p>');
+}
+// crowd mood beside the bubble stage, for crypto markets: Fear & Greed and the Bitcoin cycle gauge
+function bubbleMood(){
+  const g=state.gByKey.get(state.selected);if(!g||!g.cats.has('crypto'))return '';
+  const f=news.data&&news.data.fng,c=cy.data;const parts=[];
+  if(f)parts.push(`Fear &amp; Greed <b>${f.v}</b> (${esc(f.l)})`);if(c&&isFinite(c.score))parts.push(`Bitcoin cycle gauge <b>${c.score}</b>/100`);
+  return parts.length?`Crowd mood (all crypto): ${parts.join(' · ')}. In the theory, greed and euphoria come with the late stages and fear with the fall.`:'';
 }
 function renderWave(){const el=$('#waveBox');if(!el)return;const ok=current&&state.ind.wave&&current.cs;el.hidden=!ok;el.innerHTML=ok?waveHTML():''}
 function renderHunt(){const el=$('#huntBox');if(!el)return;const ok=current&&state.ind.hunt&&current.cs;el.hidden=!ok;el.innerHTML=ok?huntHTML():''}

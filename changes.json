@@ -1,4 +1,8 @@
 [
+  {"date": "2026-11-07", "title": "Bubble stage", "items": [
+    "The Wave signals card (1D and 1W) now shows where price sits on the classic \"Stages of a bubble\" curve, from Take-off through Greed and Mania to Capitulation, Despair and Return to the mean, with a dot on the curve.",
+    "It is read from price only (distance from the long average, drop from the peak, the trend and the wave), plus Fear & Greed and the cycle gauge for crypto. Information only."
+  ]},
   {"date": "2026-11-07", "title": "Wave and divergence on weekly charts", "items": [
     "On 1W charts you now get the wave dots and RSI divergences too, like on 1D, worded in weeks (20-week vs 200-week average).",
     "Weekly dots are rare, so they are for the big picture (which side to lean), not entry timing. Monthly charts stay trend only."

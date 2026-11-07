@@ -208,6 +208,15 @@ ok(chartBrief(dc.slice(0,40),computeSeries(dc.slice(0,40)),{})===null,'chart bri
 {const B1=chartBrief(dc,Sb,{tf:'1h',divs:[],hunts:[],acct:1000,risk:2}),t1=B1.sections.map(x=>x.lines.join(' ')).join(' ');
 ok(t1.includes('30 candles (30 hours)')&&/20-candle average/.test(t1)&&/1H trend/.test(t1)&&!/20-day|Today's candle|daily/.test(t1)&&!/undefined|NaN/.test(t1),'chart brief: worded in candles on 1H');
 const Bw=chartBrief(dc,Sb,{tf:'1w',acct:1000,risk:2});ok(Bw&&!/undefined|NaN/.test(Bw.sections.map(x=>x.lines.join(' ')).join(' ')),'chart brief: works on weekly candles');}}
+// bubble stage (1D/1W): a made-up bubble walks through the stages in the theory's order
+{const r=[];const seg=(n,d)=>{for(let k=0;k<n;k++)r.push(d)};seg(220,0);seg(60,0.004);seg(12,-0.006);seg(60,0.008);seg(30,0.02);seg(15,0.04);seg(10,-0.035);seg(8,0.02);seg(25,-0.03);seg(20,-0.025);seg(60,-0.001);seg(60,0.004);
+const bc=[];let q=100;r.forEach((d,j)=>{const w=Math.sin(j*1.7)*0.004;q=q*(1+d+w);bc.push({time:j*86400,open:q*(1-d/2),high:q*1.012,low:q*0.988,close:q,volume:1})});
+const at=L=>{const c=bc.slice(0,L+1),S=computeSeries(c);return bubbleStage(c,S,waveSignals(c,S.at,1))};
+const seq=[290,350,410,416,450,530,560].map(L=>at(L).k);
+ok(seq.join()==='beartrap,delusion,denial,bulltrap,capitulation,despair,mean','bubble stage: bear trap, mania, denial, bull trap, capitulation, despair, return to the mean ('+seq.join()+')');
+const B=at(450);ok(B.label==='Capitulation'&&B.dev<0&&B.dd<-0.3&&isFinite(B.dA)&&B.x>0&&B.y>0,'bubble stage: numbers and curve position');
+ok(bubbleStage(bc.slice(0,40),computeSeries(bc.slice(0,40)),null)===null,'bubble stage: needs a long average');
+ok(Object.values(BUBBLE).every(v=>!/\b(you should|buy now|sell now)\b/i.test(v[1])),'bubble stage: descriptive wording');}
 {const c5=[100,110,90,120,80].map((x,i)=>({time:i,close:x}));ok(Math.abs(holdReturn(c5,0,3)-0.2)<1e-12&&holdReturn(c5,2,3)===null,'wave hold: return after h days, none past the end');
 const hs=holdStat([0.1,-0.2,0.3,0.05],1),hd=holdStat([0.1,-0.2,0.3,0.05],-1);ok(hs.n===4&&hs.pos===0.75&&Math.abs(hs.med-0.075)<1e-9&&hd.pos===0.25&&Math.abs(hd.med+0.075)<1e-9&&holdStat([],1)===null,'wave hold: share going the dot way and median, both directions');}
 ok(same,'wave: no look-ahead ('+Wd.sig.length+' signals on sample data)');

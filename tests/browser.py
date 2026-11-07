@@ -397,6 +397,11 @@ async def main():
             for bad in ("undefined", "NaN", "Infinity", "null"):
                 if bad in txt: problems.append(f"[{scheme}] oversold tab: shows '{bad}'")
             print(f"  note: [{scheme}] oversold tab shows {nd} markets on sample data")
+            for mode in ("", "compact"):   # the note sits under the row's text, never on top of it (owner report, 7 Nov 2026)
+                await pg.evaluate(f"document.body.classList.toggle('compact', {'true' if mode else 'false'})"); await pg.wait_for_timeout(200)
+                bad = await pg.evaluate("[...document.querySelectorAll('#listArea .row')].filter(r=>r.querySelector('.r-note')).some(r=>{const n=r.querySelector('.r-note').getBoundingClientRect();return [...r.querySelectorAll('.r-main,.r-right,.spark')].some(e=>{const b=e.getBoundingClientRect();return b.height&&n.top<b.bottom-1&&n.bottom>b.top+1&&n.left<b.right-1&&n.right>b.left+1})})")
+                if bad: problems.append(f"[{scheme}] oversold tab: note overlaps the row {('in compact mode' if mode else '')}")
+            await pg.evaluate("document.body.classList.remove('compact')")
             if scheme == "dark": await pg.screenshot(path=os.path.join(OUT, "oversold.png"))
             await pg.click('[data-cat="hot"]'); await pg.wait_for_timeout(300)
             await pg.click("#openSettings"); await pg.wait_for_timeout(500)

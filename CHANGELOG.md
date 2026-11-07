@@ -2,6 +2,10 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-11-07 (owner report): Oversold tab fixes
+- The row note (green dot date, price, wave) overlapped the tag and text in Compact mode; it is now its own line under the row in both modes. Browser test checks the note never overlaps the row, normal and compact.
+- Green dots stay at the last **30 days** (owner briefly asked for 10, then confirmed 30).
+
 ## 2026-11-07 (owner request): Oversold tab
 - New **Oversold** tab on Markets (after Hot). Reads daily candles for the 120 most traded markets (at least $2M a day, stocks included, delisting markets left out), refreshed every 30 minutes while the tab is used.
 - **Green wave dots:** markets with a low-wave dot in the last 30 days, deepest wave at the dot first, up to 10. Each row adds the dot's date, price that day, wave value, move since, and notes a short-history long average.

@@ -603,7 +603,7 @@ html,body{overscroll-behavior-y:none}
 .ptr.busy svg{animation:rot 1s linear infinite}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 
-.r-note{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.4} .r-note .wdot{margin-right:6px;vertical-align:1px}
+.r-note{grid-column:2 / -1;font-size:12px;color:var(--muted);line-height:1.4;min-width:0} .r-note .wdot{margin-right:6px;vertical-align:1px}
 .wdot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none} .wdot.u{background:var(--up)} .wdot.n{background:var(--c2)}
 .wv{width:100%;height:auto;display:block;margin:6px 0 2px;border-radius:10px;background:var(--surface-2);overflow:visible}
 .wv .t{font-size:8.5px;fill:var(--muted);font-family:var(--f-body)} .wv .dl{font-size:9px;font-weight:700;font-family:var(--f-body)} .wv .dl.u{fill:var(--up)} .wv .dl.d{fill:var(--down)}
@@ -1837,9 +1837,9 @@ function rowHTML(g,opt){
   const sel=state.selected===g.key?' sel-on':'';
   return `<div class="row${sel}" data-key="${esc(g.key)}" ${opt.max?`data-max="${opt.max}"`:''} role="button" tabindex="0">
     <button class="star" data-star="${esc(g.key)}" aria-pressed="${state.watch.has(g.key)}" aria-label="Star ${esc(g.root)}">${STAR}</button>
-    <div class="r-main"><div class="r-top"><span class="tk" title="${esc(g.root)}">${esc(g.root)}</span><span class="fn">${esc(groupSub(g))}</span></div><div class="r-sub">${sub.join('')}</div>${opt.note?`<div class="r-note">${opt.note}</div>`:''}</div>
+    <div class="r-main"><div class="r-top"><span class="tk" title="${esc(g.root)}">${esc(g.root)}</span><span class="fn">${esc(groupSub(g))}</span></div><div class="r-sub">${sub.join('')}</div></div>
     <span class="spark" data-sid="${esc(g.primary.id)}">${sparkSVG(sparkFor(g.primary))}</span>
-    <div class="r-right"><span class="r-price">${fmtUsd(g.price)}</span><span class="pill ${c}">${fmtPct(g.chg)}</span></div>${bar}</div>`;
+    <div class="r-right"><span class="r-price">${fmtUsd(g.price)}</span><span class="pill ${c}">${fmtPct(g.chg)}</span></div>${bar}${opt.note?`<div class="r-note">${opt.note}</div>`:''}</div>`;
 }
 function renderMood(list){
   const w=list.filter(g=>isFinite(g.chg));if(!w.length){$('#mood').innerHTML='';return}
@@ -1872,7 +1872,7 @@ function renderListInner(force){
     const nearNote=x=>`<span class="wdot n"></span>Wave ${Math.round(x.st.w)} · 20-day ${fmtPct(x.st.gap*100)} vs the ${x.st.len}-day${x.st.len<200?' (short history)':''}`;
     const busy=state.waveScan&&!state.waveAt;
     const sec=(arr,note,empty)=>arr.length?arr.map(x=>rowHTML(x.g,{note:note(x)})).join(''):`<div class="empty">${busy?'Reading daily charts…':empty}</div>`;
-    area.innerHTML=section('Green wave dots','var(--up)','Last 30 days · most oversold first',sec(r.dots,dotNote,'No green dot in the last 30 days among the busiest markets. They are rare by design.'))+
+    area.innerHTML=section('Green wave dots','var(--up)','Last 30 days · most oversold first',sec(r.dots,dotNote,'No green dot in the last 30 days among the busiest markets. They are rare by design; the list below shows who may be next.'))+
       section('Oversold now, no turn yet','var(--c2)','Lowest wave first',sec(r.near,nearNote,'No busy market is oversold with its 20-day at or under the 200-day right now.'));
     renderMood([]);
     $('#footnote').innerHTML=state.waveScan?`Reading daily charts… <span class="num">${state.waveScan.done}/${state.waveScan.total}</span>`:

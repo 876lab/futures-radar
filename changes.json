@@ -1,4 +1,7 @@
 [
+  {"date": "2026-11-07", "title": "Oversold tab tidy-up", "items": [
+    "Fixed the dot details overlapping the row in Compact mode."
+  ]},
   {"date": "2026-11-07", "title": "New Oversold tab", "items": [
     "Markets → Oversold lists up to 10 markets with a green wave dot on the daily chart in the last 30 days, most oversold first, with the dot's date and price and the move since.",
     "Below it, up to 10 markets that are oversold right now but haven't turned up yet, to keep an eye on.",

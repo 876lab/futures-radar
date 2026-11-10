@@ -2,6 +2,10 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-11-10 (owner request): Date and price of any candle
+- The legend above the chart now starts with the candle's date (and time below 1D, in the phone's time zone; "week" on 1W, month on 1M) and the candle's % move, then O/H/L/C. With nothing touched it shows the latest candle with a hint to tap or drag on the chart; touching any candle shows that candle.
+- The crosshair's label on the time axis uses the same readable date and time. Browser test checks the legend's date and % move.
+
 ## 2026-11-07 (owner request): Bubble stage on 1D and 1W
 - New **Bubble stage** section at the top of the Wave signals card (1D and 1W): where price sits on Jean-Paul Rodrigue's "Stages of a bubble" curve (Hofstra University), drawn as the curve with a dot at the current stage, a plain-language description, how far price is from its long average and from its highest close of the last 250 candles, and, for crypto markets, the crowd mood (Fear & Greed and the Bitcoin cycle gauge).
 - Twelve stages, read from price alone: Take-off, Awareness, Bear trap (first sell-off), Enthusiasm, Greed, Delusion (mania), Denial, Bull trap (return to "normal"), Fear, Capitulation, Despair, Return to the mean. Inputs: distance from the long average in ATR and how unusual that stretch is for this market (share of past candles less stretched), drop from the 250-candle peak, how stretched that peak was, the bounce since the low after it, the 20-candle trend and the wave.

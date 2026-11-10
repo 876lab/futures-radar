@@ -1,4 +1,8 @@
 [
+  {"date": "2026-11-10", "title": "See the date and price of any candle", "items": [
+    "Tap or drag on any chart: the line above the chart shows that candle's date (and time on smaller candles), its open, high, low and close, and its % move.",
+    "With nothing touched, it shows the latest candle."
+  ]},
   {"date": "2026-11-07", "title": "Bubble stage", "items": [
     "The Wave signals card (1D and 1W) now shows where price sits on the classic \"Stages of a bubble\" curve, from Take-off through Greed and Mania to Capitulation, Despair and Return to the mean, with a dot on the curve.",
     "It is read from price only (distance from the long average, drop from the peak, the trend and the wave), plus Fear & Greed and the cycle gauge for crypto. Information only."

@@ -439,6 +439,8 @@ async def main():
             sig = await pg.inner_text("#sigCard")
             if not sig.strip(): problems.append(f"[{scheme}] chart screen: signal card empty")
             if "Big US news" not in sig: problems.append(f"[{scheme}] chart screen: big-news warning missing")
+            lg = await pg.inner_text("#legend")
+            if "latest" not in lg or not any(d in lg for d in ("Mon,", "Tue,", "Wed,", "Thu,", "Fri,", "Sat,", "Sun,")) or "Invalid" in lg or "%" not in lg: problems.append(f"[{scheme}] chart legend: candle date or % move missing: {lg[:120]!r}")
             if "chart reading ·" not in sig.lower() or "not financial advice" not in sig: problems.append(f"[{scheme}] chart screen: 'Chart reading' label or legal note missing")
             await pg.wait_for_timeout(800)
             if await pg.locator("#mtf [data-mtf]").count() != 4: problems.append(f"[{scheme}] chart screen: candle-size strip missing")

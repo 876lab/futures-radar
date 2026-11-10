@@ -39,6 +39,8 @@ The working plan for nightly improvement runs. Each run picks the **first unchec
 
 ## Backlog (top = next)
 
+- [ ] **Owner reminder: on or after 24 Nov 2026, review the wave dots and bubble stages** (asked 10 Nov). Before then, skip this item. Compare lab.waveUp/waveDn/waveHold in backtest.json with the 7 Nov first results (CHANGELOG); add the bubble-stage measurement to the nightly backtest (stage every 7th day on 1D, 30/60/90-day moves by stage, `lab.bubbleHold`; see "Judge the bubble stages" below); check the weekend filter and limit-order rows; write the verdict in plain words in Notes from runs. No rule changes.
+
 - [x] (2026-11-05, built in the daytime session) **Owner request: back up and restore.** Settings → Back up your data: backup file (Save to Files), restore with preview and undo.
 
 - [x] **Neutral wording + Terms, Risk and Privacy pages.** (done 2026-10-23; versioned acceptance key `fradar:terms`, `TERMS_V` = 1 in index.html) **TONIGHT (owner approved 23 Oct 2026):** The owner asked for this specific item in the run at 1:20am on 23 Oct; it may run larger than the usual 300-line limit. **Text and labels only: do not change any signal logic, scores, thresholds or maths.**

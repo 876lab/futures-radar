@@ -216,6 +216,10 @@ const seq=[290,350,410,416,450,530,560].map(L=>at(L).k);
 ok(seq.join()==='beartrap,delusion,denial,bulltrap,capitulation,despair,mean','bubble stage: bear trap, mania, denial, bull trap, capitulation, despair, return to the mean ('+seq.join()+')');
 const B=at(450);ok(B.label==='Capitulation'&&B.dev<0&&B.dd<-0.3&&isFinite(B.dA)&&B.x>0&&B.y>0,'bubble stage: numbers and curve position');
 ok(bubbleStage(bc.slice(0,40),computeSeries(bc.slice(0,40)),null)===null,'bubble stage: needs a long average');
+{const hs=waveStatus(bc.slice(0,351),30);ok(hs&&(hs.hot||hs.red)&&!hs.dot&&!hs.near&&hs.stretch>3,'overheated tab: a mania top reads overheated or has a red dot');
+const ds=waveStatus(bc.slice(0,451),30);ok(ds&&!ds.hot&&typeof ds.hot==='boolean','overheated tab: not overheated in a crash');
+const it=[{g:'a',st:{red:{w:60,ago:2}}},{g:'b',st:{red:{w:80,ago:9}}},{g:'c',st:{hot:true,w:58}},{g:'d',st:{hot:true,w:75}},{g:'e',st:null},{g:'f',st:{red:null,hot:false,w:-10}}];
+const rk=waveRankHot(it,10);ok(rk.dots.map(x=>x.g).join()==='b,a'&&rk.near.map(x=>x.g).join()==='d,c'&&waveRankHot(it,1).near.length===1,'overheated tab: highest wave first, capped');}
 ok(Object.values(BUBBLE).every(v=>!/\b(you should|buy now|sell now)\b/i.test(v[1])),'bubble stage: descriptive wording');}
 {const c5=[100,110,90,120,80].map((x,i)=>({time:i,close:x}));ok(Math.abs(holdReturn(c5,0,3)-0.2)<1e-12&&holdReturn(c5,2,3)===null,'wave hold: return after h days, none past the end');
 const hs=holdStat([0.1,-0.2,0.3,0.05],1),hd=holdStat([0.1,-0.2,0.3,0.05],-1);ok(hs.n===4&&hs.pos===0.75&&Math.abs(hs.med-0.075)<1e-9&&hd.pos===0.25&&Math.abs(hd.med+0.075)<1e-9&&holdStat([],1)===null,'wave hold: share going the dot way and median, both directions');}

@@ -1,4 +1,8 @@
 [
+  {"date": "2026-11-10", "title": "New Overheated tab", "items": [
+    "Markets → Overheated lists up to 10 coins and stocks with a red wave dot on the daily chart in the last 30 days, most overheated first, with the dot's date and price and the move since.",
+    "Below it, up to 10 markets that are overheated and stretched far above their 200-day right now but haven't turned down yet."
+  ]},
   {"date": "2026-11-10", "title": "See the date and price of any candle", "items": [
     "Tap or drag on any chart: the line above the chart shows that candle's date (and time on smaller candles), its open, high, low and close, and its % move.",
     "With nothing touched, it shows the latest candle."

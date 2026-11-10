@@ -2,6 +2,10 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-11-10 (owner request): Overheated tab
+- New **Overheated** tab on Markets, the mirror of Oversold, from the same daily-candle scan (no extra downloads): **Red wave dots** in the last 30 days, highest wave at the dot first, with the dot's date, price, wave, how many ATR price was above the long average, and the move since (green when price fell, the dot's way); and **Overheated now, no turn yet**: wave at +53 or higher with price 3+ ATR above the long average but no red dot yet. Up to 10 each; delisting markets left out.
+- `waveStatus` adds the latest red dot, the stretch and "overheated now"; new pure `waveRankHot` (3 engine tests); browser test checks the tab.
+
 ## 2026-11-10 (owner request): Date and price of any candle
 - The legend above the chart now starts with the candle's date (and time below 1D, in the phone's time zone; "week" on 1W, month on 1M) and the candle's % move, then O/H/L/C. With nothing touched it shows the latest candle with a hint to tap or drag on the chart; touching any candle shows that candle.
 - The crosshair's label on the time axis uses the same readable date and time. Browser test checks the legend's date and % move.

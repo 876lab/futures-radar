@@ -608,7 +608,7 @@ html,body{overscroll-behavior-y:none}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 
 .r-note{grid-column:2 / -1;font-size:12px;color:var(--muted);line-height:1.4;min-width:0} .r-note .wdot{margin-right:6px;vertical-align:1px}
-.wdot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none} .wdot.u{background:var(--up)} .wdot.n{background:var(--c2)} .wdot.d{background:var(--down)} .wdot.h{background:var(--accent)}
+.wdot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none} .wdot.u{background:var(--up)} .wdot.n{background:var(--c2)} .wdot.d{background:var(--down)} .wdot.h{background:var(--accent)} .bo-c{display:inline-block;margin-right:10px;white-space:nowrap} .bo-c.on{color:var(--up)}
 .wv{width:100%;height:auto;display:block;margin:6px 0 2px;border-radius:10px;background:var(--surface-2);overflow:visible}
 .wv .t{font-size:8.5px;fill:var(--muted);font-family:var(--f-body)} .wv .dl{font-size:9px;font-weight:700;font-family:var(--f-body)} .wv .dl.u{fill:var(--up)} .wv .dl.d{fill:var(--down)}
 .wv .gx{stroke:var(--line);stroke-width:.6;opacity:.7} .wv-list{margin-top:2px}
@@ -991,9 +991,9 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 
 const EX={binance:{name:'Binance'},gate:{name:'Gate'},bybit:{name:'Bybit'}};
 const EXK=Object.keys(EX);
-const CATS=[['hot','Hot'],['wave','Oversold'],['heat','Overheated'],['all','All'],['new','New'],['crypto','Crypto'],['meme','Meme'],['ai','AI'],['stocks','Stocks'],['tradfi','TradFi'],['dated','Expiring'],['delist','Delisting']];
+const CATS=[['hot','Hot'],['wave','Oversold'],['heat','Overheated'],['bo','Breakout'],['all','All'],['new','New'],['crypto','Crypto'],['meme','Meme'],['ai','AI'],['stocks','Stocks'],['tradfi','TradFi'],['dated','Expiring'],['delist','Delisting']];
 const MKT_CATS=CATS.map(c=>c[0]),PAGES=['setups','sim','news','watch','settings'];
-const CAT_DESC={heat:'Daily charts with a red wave dot in the last 30 days (overheated and turning down while price is stretched 3+ ATR above the 200-day), most overheated first. Below: overheated now, still waiting for the turn.',wave:'Daily charts with a green wave dot in the last 30 days (oversold and turning up while the 20-day average is at or under the 200-day), most oversold first. Below: oversold now, still waiting for the turn.',settings:'Your preferences. Changes save on this device straight away.',news:'Headlines that can move markets, refreshed every 15 minutes, plus market mood and upcoming economic events.',hot:'The biggest movers and most traded markets over the last 24 hours.',
+const CAT_DESC={bo:'Daily charts that just closed above a tested resistance level on strong volume, and ones coiling just under resistance in a tight squeeze. Information only; many breakouts fail.',heat:'Daily charts with a red wave dot in the last 30 days (overheated and turning down while price is stretched 3+ ATR above the 200-day), most overheated first. Below: overheated now, still waiting for the turn.',wave:'Daily charts with a green wave dot in the last 30 days (oversold and turning up while the 20-day average is at or under the 200-day), most oversold first. Below: oversold now, still waiting for the turn.',settings:'Your preferences. Changes save on this device straight away.',news:'Headlines that can move markets, refreshed every 15 minutes, plus market mood and upcoming economic events.',hot:'The biggest movers and most traded markets over the last 24 hours.',
   sim:'See how the app\'s long and short setups would have played out on past prices.',
   setups:'Markets where the chart currently shows a long or short setup, checked against the bigger timeframe.',
   watch:'Markets you starred. They stay on this device.',
@@ -1030,7 +1030,7 @@ const NAMES={BTC:'Bitcoin',ETH:'Ethereum',SOL:'Solana',XRP:'XRP',BNB:'BNB',DOGE:
 const state={
   pairs:[],groups:[],gByKey:new Map(),byId:new Map(),mode:'loading',status:{binance:'load',gate:'load',bybit:'load'},errors:{},updated:0,
   view:LS.get('view','all'),cat:LS.get('cat3','setups'),sort:LS.get('sort','vol'),q:'',
-  watch:new Set(LS.get('watch2',[])),tf:LS.get('tf2','15m'),selected:null,selContract:null,trend:new Map(),scanning:null,waveMap:new Map(),waveAt:0,waveScan:null,
+  watch:new Set(LS.get('watch2',[])),tf:LS.get('tf2','15m'),selected:null,selContract:null,trend:new Map(),scanning:null,waveMap:new Map(),boMap:new Map(),waveAt:0,waveScan:null,
   proxy:LS.get('proxy',''),ind:LS.get('ind3',{ema:false,bb:true,st:true,vol:true,marks:true,fib:true}),limit:120,loading:false,
   acct:LS.get('acct',100),evOn:LS.get('evOn',true),evAll:LS.get('evAll',false),confOnly:LS.get('confOnly',true),conf:new Map(),ann:{bybit:[],at:0,loading:false},navHide:LS.get('navHide',true),risk:LS.get('risk',2),maxLoss:LS.get('maxLoss',0),stream:{},lastTick:{},lastSeen:{}
 };
@@ -1688,7 +1688,7 @@ function annRowHTML(a){
     <div class="r-sub"><a class="dlann" href="${esc(a.url)}" target="_blank" rel="noopener noreferrer">${esc(a.title)}</a></div></div><span></span><div class="r-right">${g?'<span class="tag">Chart</span>':''}</div></div>`;
 }
 function listTargets(){
-  if(state.cat==='delist'||state.cat==='wave'||state.cat==='heat')return [];
+  if(state.cat==='delist'||state.cat==='wave'||state.cat==='heat'||state.cat==='bo')return [];
   if(state.cat==='hot'){const h=hotSets();const seen=new Set(),out=[];[...h.gain,...h.lose,...h.active].forEach(g=>{if(!seen.has(g.key)){seen.add(g.key);out.push(g)}});return out}
   if(state.cat==='setups'){const s=setupSets();return s.longs.length||s.shorts.length?[...s.longs,...s.shorts]:setupPool()}
   if(state.cat==='sim'||state.cat==='news'||state.cat==='settings')return setupPool();
@@ -1810,7 +1810,8 @@ function renderVenues(){
 }
 function renderTabs(){
   const base=state.groups.filter(matchesQ);
-  const count=c=>{if(c==='hot'||c==='sim')return '';if(c==='wave'||c==='heat'){const it=liquid().filter(g=>!isDelisting(g)).map(g=>({g,st:state.waveMap.get(g.key)})),r=c==='wave'?waveRank(it,10):waveRankHot(it,10);return state.waveAt?r.dots.length:''}if(c==='delist')return delistSets().length+annSets().length;if(c==='setups'){const s=setupSets();return s.checked?s.longs.length+s.shorts.length:''}
+  const count=c=>{if(c==='hot'||c==='sim')return '';if(c==='bo'){const it=liquid().filter(g=>!isDelisting(g)).map(g=>({g,st:state.boMap.get(g.key)}));return state.waveAt?breakoutRank(it,10).bo.length:''}
+    if(c==='wave'||c==='heat'){const it=liquid().filter(g=>!isDelisting(g)).map(g=>({g,st:state.waveMap.get(g.key)})),r=c==='wave'?waveRank(it,10):waveRankHot(it,10);return state.waveAt?r.dots.length:''}if(c==='delist')return delistSets().length+annSets().length;if(c==='setups'){const s=setupSets();return s.checked?s.longs.length+s.shorts.length:''}
     return c==='watch'?base.filter(g=>state.watch.has(g.key)).length:c==='all'?base.length:base.filter(g=>g.cats.has(c)).length};
   $('#tabs').innerHTML=CATS.map(([k,l])=>{const n=count(k);return `<button class="tab" role="tab" data-cat="${k}" aria-selected="${state.cat===k}">${k==='hot'?FLAME:''}${l}${n!==''?`<span class="ct">${n}</span>`:''}</button>`}).join('');
   const d=$('#tabdesc');d.textContent=(CAT_DESC[state.cat]||'')+(state.cat==='setups'?` Using ${TF_LABEL[state.tf]} candles; change it on any chart.`:'');
@@ -1830,7 +1831,7 @@ function applyChrome(){
   $('#tabs').hidden=pg!=='markets';
   $('#bar2').hidden=pg==='sim'||pg==='news'||pg==='settings';
   $('#settings').hidden=pg!=='settings';$('#listArea').hidden=$('#footnote').hidden=pg==='settings';
-  $('#sortWrap').hidden=!((pg==='markets'&&state.cat!=='delist'&&state.cat!=='wave'&&state.cat!=='heat')||pg==='watch');
+  $('#sortWrap').hidden=!((pg==='markets'&&state.cat!=='delist'&&state.cat!=='wave'&&state.cat!=='heat'&&state.cat!=='bo')||pg==='watch');
   $('#q').placeholder=pg==='news'?'Search headlines, e.g. ETF, Solana, Fed':'Search, e.g. bitcoin, gold, TSLA';
 }
 function goPage(k){
@@ -1880,6 +1881,22 @@ function renderListInner(force){
     area.innerHTML=section('Biggest gainers','var(--up)','Last 24 hours',rows(h.gain,max))+section('Biggest losers','var(--down)','Last 24 hours',rows(h.lose,max))+section('Most traded','var(--accent)','By 24h volume',rows(h.active,amax));
     renderMood(liquid());
     $('#footnote').textContent=`Only markets with at least ${fmtVol(HOT_MIN_VOL)} traded in 24 hours. Tags show the chart reading on ${TF_LABEL[state.tf]} candles.`;
+    return;
+  }
+  if(state.cat==='bo'){
+    waveScanRun();const r=breakoutRank(liquid().filter(g=>!isDelisting(g)).map(g=>({g,st:state.boMap.get(g.key)})),10),d=t=>new Date(t*1000).toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'});
+    const L2=bt.data&&bt.data.lab&&bt.data.lab.breakout;if(!bt.data)loadBT();
+    const boNote=x=>{const o=x.st.bo;return `<span class="wdot u"></span>Closed above ${esc(fmtUsd(o.level))} (tested ${o.tests}×) ${o.ago?d(o.time)+` (${plural(o.ago,'day')} ago)`:'today'} on <b>${o.vr.toFixed(1)}×</b> the usual volume${o.sqBefore<=0.25?' · out of a tight squeeze':''}${o.ago?` · since <b class="${o.since>0?'up':o.since<0?'down':''}">${fmtPct(o.since*100)}</b>`:''}`};
+    const tick=(ok,t)=>`<span class="bo-c ${ok?'on':''}">${ok?'✓':'·'} ${t}</span>`;
+    const coilNote=x=>{const s=x.st,k=s.checks;return `<span class="wdot n"></span>Squeeze: bands tighter than ${Math.round((1-s.sq)*100)}% of the last 120 days · ${s.gapA<=0?'testing':`${s.gapA.toFixed(1)} ATR under`} resistance ${esc(fmtUsd(s.level.hi))} (tested ${s.level.tests}×)<br>${tick(k.lows,'rising lows')}${tick(k.vol,'volume on up days')}${tick(k.big,'above a rising 200-day')}${tick(k.rsi,'RSI 50–65')}`};
+    const busy=state.waveScan&&!state.waveAt;
+    const sec=(arr,note,empty)=>arr.length?arr.map(x=>rowHTML(x.g,{note:note(x)})).join(''):`<div class="empty">${busy?'Reading daily charts…':empty}</div>`;
+    const ev=x=>x&&x.n>=10?`${fmtP(x.turn)} of ${x.n}`:null,eb=L2&&ev(L2.bo),ec=L2&&ev(L2.coil),eb2=L2&&ev(L2.base);
+    area.innerHTML=section('Just broke out','var(--up)','Last 3 days · newest first',sec(r.bo,boNote,'No busy market closed above a tested resistance on strong volume in the last 3 days.'))+
+      section('Coiling under resistance','var(--c2)','Most checks first',sec(r.coil,coilNote,'No busy market is in a tight squeeze just under resistance right now.'));
+    renderMood([]);
+    $('#footnote').innerHTML=state.waveScan?`Reading daily charts… <span class="num">${state.waveScan.done}/${state.waveScan.total}</span>`:
+      `Checked the ${state.boMap.size} most traded markets (at least ${fmtVol(HOT_MIN_VOL)} a day) on daily candles, up to 10 in each list. Many breakouts fail: a close back under the level (often marked as a stop-hunt) is the usual sign.${eb||ec?` Nightly backtest (Gate, 1D): price rose 1 ATR before falling 1 ATR after ${eb?eb+' breakouts':''}${eb&&ec?' and ':''}${ec?ec+' coiling days':''}${eb2?` (random days ${eb2})`:''}.`:' The nightly backtest is measuring how often these were followed by a move up.'} Information only.`;
     return;
   }
   if(state.cat==='heat'){
@@ -1973,10 +1990,10 @@ async function waveScanRun(force){
   if(state.waveScan||!state.groups.length||(!force&&state.waveAt&&NOW()-state.waveAt<30*60000))return;
   const list=wavePool();if(!list.length)return;state.waveScan={done:0,total:list.length};let i=0;
   const worker=async()=>{while(i<list.length){const g=list[i++];
-    try{state.waveMap.set(g.key,waveStatus(await getCandles(g.primary,'1d'),WAVE_DAYS))}catch(e){}
-    state.waveScan.done++;if((state.cat==='wave'||state.cat==='heat')&&state.waveScan.done%10===0){const f=$('#footnote');if(f)f.innerHTML=`Reading daily charts… <span class="num">${state.waveScan.done}/${state.waveScan.total}</span>`}}};
+    try{const cs=await getCandles(g.primary,'1d');state.waveMap.set(g.key,waveStatus(cs,WAVE_DAYS));try{state.boMap.set(g.key,breakoutStatus(cs,computeSeries(cs)))}catch(e){}}catch(e){}
+    state.waveScan.done++;if((state.cat==='wave'||state.cat==='heat'||state.cat==='bo')&&state.waveScan.done%10===0){const f=$('#footnote');if(f)f.innerHTML=`Reading daily charts… <span class="num">${state.waveScan.done}/${state.waveScan.total}</span>`}}};
   await Promise.all([worker(),worker(),worker(),worker()]);
-  state.waveScan=null;state.waveAt=NOW();if(state.cat==='wave'||state.cat==='heat'){renderTabs();renderList()}
+  state.waveScan=null;state.waveAt=NOW();if(state.cat==='wave'||state.cat==='heat'||state.cat==='bo'){renderTabs();renderList()}
 }
 /* ---------- indicators ---------- */
 function ema(v,n){const o=new Array(v.length).fill(null);const k=2/(n+1);let s=0,c=0,prev=null;for(let i=0;i<v.length;i++){const x=v[i];if(x==null)continue;if(prev==null){s+=x;c++;if(c===n){prev=s/n;o[i]=prev}}else{prev=x*k+prev*(1-k);o[i]=prev}}return o}
@@ -2357,6 +2374,42 @@ function waveStatus(cs,days){
     near:!g&&W.w1[i]!=null&&W.w1[i]<=WAVE_OS&&W.e20[i]!=null&&W.eL[i]!=null&&W.e20[i]<=W.eL[i]*1.01,
     hot:!r&&W.w1[i]!=null&&W.w1[i]>=WAVE_OB&&W.eL[i]!=null&&A[i]>0&&cs[i].close>=W.eL[i]+3*A[i]};
 }
+// Breakout tab (owner request, 10 Nov 2026), daily candles, information only.
+// Coiling: Bollinger band width in the tightest 25% of the last 120 candles (a squeeze), price within 1.5 ATR under a
+// resistance level tested 2+ times (or inside it), and price above its 50-day average. Extra points: rising lows, more
+// volume on up days than down days, above a rising 200-day, RSI 12 between 50 and 65.
+// Broke out: in the last 3 candles a close above a resistance level tested 2+ times (levels from the candles before
+// that day only) on at least 1.5x the 20-day average volume, and price still holding above it.
+function bbWidth(S,i){const u=S.bb.up[i],l=S.bb.lo[i],m=S.bb.mid[i];return u!=null&&l!=null&&m>0?(u-l)/m:null}
+function avgVol(cs,i,n){let s=0,c=0;for(let j=Math.max(0,i-n+1);j<=i;j++){s+=cs[j].volume||0;c++}return c?s/c:0}
+function breakoutStatus(cs,S){
+  const n=cs?cs.length:0,i=n-1;if(n<130||!S)return null;const c=cs[i].close,A=S.at[i];if(!(A>0))return null;
+  // squeeze: how tight the bands are versus the last 120 candles (0 = tightest)
+  const w=bbWidth(S,i);let le=0,cnt=0;for(let j=i-119;j<=i;j++){const x=bbWidth(S,j);if(x==null)continue;cnt++;if(x<=w)le++}
+  const sq=w!=null&&cnt?le/cnt:1;
+  // just broke out: a close above a tested resistance on strong volume in the last 3 candles, still holding
+  let bo=null;
+  for(let j=i;j>=i-2&&!bo;j--){const Aj=S.at[j-1];if(!(Aj>0))continue;const sr=srLevels(cs.slice(0,j),Aj);if(!sr)continue;
+    const z=[...sr.res,...(sr.at?[sr.at]:[])].filter(z=>z.tests>=2&&cs[j-1].close<=z.hi&&cs[j].close>z.hi).sort((a,b)=>a.hi-b.hi)[0];if(!z)continue;
+    const vr=(cs[j].volume||0)/(avgVol(cs,j-1,20)||1);
+    if(vr>=1.5&&c>z.hi)bo={ago:i-j,level:z.hi,tests:z.tests,vr,time:cs[j].time,price:cs[j].close,since:c/cs[j].close-1,sqBefore:(()=>{const x=bbWidth(S,j-1);let a=0,b=0;for(let q=j-120;q<j;q++){const y=bbWidth(S,q);if(y==null||x==null)continue;b++;if(y<=x)a++}return b?a/b:1})()}}
+  // coiling under resistance
+  const sr=srLevels(cs,A);const zs=sr?[...(sr.at?[sr.at]:[]),...sr.res].filter(z=>z.tests>=2):[];
+  const z=zs.sort((a,b)=>a.lo-b.lo)[0]||null,gapA=z?(z.lo-c)/A:null;
+  const e50=S.e50[i],e200=S.e200[i],r=S.r12[i];
+  const lows=k=>{let m=Infinity;for(let j=i-k[1]+1;j<=i-k[0];j++)m=Math.min(m,cs[j].low);return m};
+  let up=0,dn=0,nu=0,nd=0;for(let j=i-19;j<=i;j++){const v=cs[j].volume||0;if(cs[j].close>=cs[j].open){up+=v;nu++}else{dn+=v;nd++}}
+  const checks={squeeze:sq<=0.25,near:z!=null&&gapA<=1.5&&c<=z.hi,trend:e50!=null&&c>e50,
+    lows:lows([0,10])>lows([10,30]),vol:nu&&nd?(up/nu)>(dn/nd):nu>0,big:e200!=null&&c>e200&&S.e200[i-10]!=null&&e200>S.e200[i-10],rsi:r!=null&&r>=50&&r<=65};
+  const coil=!bo&&checks.squeeze&&checks.near&&checks.trend;
+  const score=['lows','vol','big','rsi'].filter(k=>checks[k]).length;
+  return{sq,bo,coil,score,checks,level:z?{lo:z.lo,hi:z.hi,tests:z.tests}:null,gapA,rsi:r};
+}
+function breakoutRank(items,max){
+  const bo=items.filter(x=>x.st&&x.st.bo).sort((a,b)=>a.st.bo.ago-b.st.bo.ago||b.st.bo.vr-a.st.bo.vr).slice(0,max);
+  const coil=items.filter(x=>x.st&&x.st.coil).sort((a,b)=>b.st.score-a.st.score||a.st.sq-b.st.sq).slice(0,max);
+  return{bo,coil};
+}
 // the two Overheated lists: red dots (highest wave first) and overheated-now markets still waiting for the turn down
 function waveRankHot(items,max){
   const dots=items.filter(x=>x.st&&x.st.red).sort((a,b)=>b.st.red.w-a.st.red.w||a.st.red.ago-b.st.red.ago).slice(0,max);
@@ -2535,10 +2588,10 @@ function cleanLab(L){
     older:fin(r.older)?clamp(r.older,-5,5):null,newer:fin(r.newer)?clamp(r.newer,-5,5):null,nOld:fin(r.nOld)?r.nOld:0,nNew:fin(r.nNew)?r.nNew:0}));
   const sig=o=>{const out={};if(o&&typeof o==='object')for(const tf of ['1h','4h','1d']){const x=o[tf];if(x&&fin(x.n)&&x.n>0&&fin(x.turn))out[tf]={n:Math.round(x.n),turn:clamp(x.turn,0,1)}}return out};
   const dg=(Array.isArray(L.divGroup)?L.divGroup:[]).slice(0,3).filter(g=>g&&typeof g.k==='string'&&fin(g.n)&&fin(g.avgR)).map(g=>({k:g.k.slice(0,40),n:Math.round(g.n),avgR:g.avgR,reach:fin(g.reach)?g.reach:0}));
-  const hdiv=sig(L.hdiv),hunt=sig(L.hunt),divlvl=sig(L.divlvl),combo=sig(L.combo),wave=sig(L.wave),waveUp=sig(L.waveUp),waveDn=sig(L.waveDn);
+  const hdiv=sig(L.hdiv),hunt=sig(L.hunt),divlvl=sig(L.divlvl),combo=sig(L.combo),wave=sig(L.wave),waveUp=sig(L.waveUp),waveDn=sig(L.waveDn),bk=L.breakout&&typeof L.breakout==='object'?L.breakout:{},one=o=>{const x=sig(o?{'1d':o}:null)['1d'];return x||null},breakout={bo:one(bk.bo),coil:one(bk.coil),base:one(bk.base)};
   const hs=o=>{const out={};if(o&&typeof o==='object')for(const h of WAVE_HOLD){const x=o[h];if(x&&fin(x.n)&&x.n>0&&fin(x.pos)&&fin(x.med))out[h]={n:Math.round(x.n),pos:clamp(x.pos,0,1),med:clamp(x.med,-1,20)}}return out};
   const wh=L.waveHold&&typeof L.waveHold==='object'?L.waveHold:{},waveHold={up:hs(wh.up),dn:hs(wh.dn),base:hs(wh.base)};
-  return rows.length?{hdiv,hunt,divlvl,combo,wave,waveUp,waveDn,waveHold,pbFill:fin(L.pbFill)?clamp(L.pbFill,0,1):null,rows,div:sig(L.div),flip:sig(L.flip),base:sig(L.base),divGroup:dg}:null;
+  return rows.length?{hdiv,hunt,divlvl,combo,wave,waveUp,waveDn,waveHold,breakout,pbFill:fin(L.pbFill)?clamp(L.pbFill,0,1):null,rows,div:sig(L.div),flip:sig(L.flip),base:sig(L.base),divGroup:dg}:null;
 }
 // ideas that held up: at least `minN` trades and better than today's rules on BOTH the older and the newer half
 function labPicks(lab,minN){

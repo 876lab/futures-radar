@@ -208,6 +208,17 @@ ok(chartBrief(dc.slice(0,40),computeSeries(dc.slice(0,40)),{})===null,'chart bri
 {const B1=chartBrief(dc,Sb,{tf:'1h',divs:[],hunts:[],acct:1000,risk:2}),t1=B1.sections.map(x=>x.lines.join(' ')).join(' ');
 ok(t1.includes('30 candles (30 hours)')&&/20-candle average/.test(t1)&&/1H trend/.test(t1)&&!/20-day|Today's candle|daily/.test(t1)&&!/undefined|NaN/.test(t1),'chart brief: worded in candles on 1H');
 const Bw=chartBrief(dc,Sb,{tf:'1w',acct:1000,risk:2});ok(Bw&&!/undefined|NaN/.test(Bw.sections.map(x=>x.lines.join(' ')).join(' ')),'chart brief: works on weekly candles');}}
+// breakout tab: a tightening range under resistance (coiling), then a close above it on 4x volume, then a failed break
+{const cs=[];let t=0;const add=(c,amp,v)=>{cs.push({time:(t++)*86400,open:c-amp*0.3,high:c+amp,low:c-amp,close:c,volume:v||1000})};
+for(let j=0;j<150;j++)add(50+j/3,1.5);for(let j=0;j<60;j++){const a=6*Math.exp(-j/25);add(100+a*Math.sin(j*0.7)+1,0.6+a*0.15)}
+const c1=breakoutStatus(cs,computeSeries(cs));ok(c1&&c1.coil&&!c1.bo&&c1.sq<=0.25&&c1.level&&c1.level.tests>=2&&c1.checks.trend,'breakout: coiling in a tight squeeze under resistance');
+add(112,1.5,4000);const S2=computeSeries(cs),b1=breakoutStatus(cs,S2);ok(b1&&b1.bo&&b1.bo.ago===0&&b1.bo.vr>=4&&!b1.coil&&b1.bo.level<112,'breakout: close above tested resistance on strong volume');
+const thin=cs.map((k,j)=>j===cs.length-1?{...k,volume:1000}:k);ok(!breakoutStatus(thin,computeSeries(thin)).bo,'breakout: needs 1.5x volume');
+const L=cs.length-1;ok(JSON.stringify(breakoutStatus(cs.slice(0,L),computeSeries(cs.slice(0,L))))===JSON.stringify(breakoutStatus(cs.slice(0,L),S2)),'breakout: no look-ahead (full-series indicators give the same answer)');
+add(101,1.5);const f=breakoutStatus(cs,computeSeries(cs));ok(f&&!f.bo,'breakout: a close back under the level drops it');
+const rk=breakoutRank([{g:'a',st:{bo:{ago:2,vr:2}}},{g:'b',st:{bo:{ago:0,vr:1.6}}},{g:'c',st:{coil:true,score:1,sq:0.1}},{g:'d',st:{coil:true,score:3,sq:0.2}},{g:'e',st:null}],10);
+ok(rk.bo.map(x=>x.g).join()==='b,a'&&rk.coil.map(x=>x.g).join()==='d,c','breakout: newest breakouts first, most checks first');
+ok(breakoutStatus(cs.slice(0,100),computeSeries(cs.slice(0,100)))===null,'breakout: needs 130 candles');}
 // bubble stage (1D/1W): a made-up bubble walks through the stages in the theory's order
 {const r=[];const seg=(n,d)=>{for(let k=0;k<n;k++)r.push(d)};seg(220,0);seg(60,0.004);seg(12,-0.006);seg(60,0.008);seg(30,0.02);seg(15,0.04);seg(10,-0.035);seg(8,0.02);seg(25,-0.03);seg(20,-0.025);seg(60,-0.001);seg(60,0.004);
 const bc=[];let q=100;r.forEach((d,j)=>{const w=Math.sin(j*1.7)*0.004;q=q*(1+d+w);bc.push({time:j*86400,open:q*(1-d/2),high:q*1.012,low:q*0.988,close:q,volume:1})});

@@ -2,6 +2,13 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-11-10 (owner request): Breakout tab
+- New **Breakout** tab on Markets (after Overheated), from the same daily-candle scan as Oversold/Overheated (no extra downloads), up to 10 per list, delisting markets left out:
+  - **Just broke out:** in the last 3 days a daily close above a resistance level tested 2+ times (levels from the candles before that day only) on at least 1.5x the 20-day average volume, with price still above the level. Row: level, tests, day, volume multiple, whether it came out of a tight squeeze, move since.
+  - **Coiling under resistance:** Bollinger band width in the tightest 25% of the last 120 days, price within 1.5 ATR under (or inside) a level tested 2+ times, and above the 50-day; ranked by extra checks (rising lows, more volume on up days, above a rising 200-day, RSI 12 50–65), then tightness.
+- **Nightly backtest** (1D, last 700 days per market): how often breakouts and the first day of each coiling run were followed by a 1 ATR rise before a 1 ATR fall (vs random days), and how often breakouts closed back under the level within 5 days (`lab.breakout`). Shown in the tab's footnote.
+- New pure `breakoutStatus`, `breakoutRank`, `bbWidth`, `avgVol` (7 engine tests incl. no look-ahead, volume rule and a failed break). Information only.
+
 ## 2026-11-10 (owner request): Overheated tab
 - New **Overheated** tab on Markets, the mirror of Oversold, from the same daily-candle scan (no extra downloads): **Red wave dots** in the last 30 days, highest wave at the dot first, with the dot's date, price, wave, how many ATR price was above the long average, and the move since (green when price fell, the dot's way); and **Overheated now, no turn yet**: wave at +53 or higher with price 3+ ATR above the long average but no red dot yet. Up to 10 each; delisting markets left out.
 - `waveStatus` adds the latest red dot, the stretch and "overheated now"; new pure `waveRankHot` (3 engine tests); browser test checks the tab.

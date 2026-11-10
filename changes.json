@@ -1,4 +1,9 @@
 [
+  {"date": "2026-11-10", "title": "New Breakout tab", "items": [
+    "Markets → Breakout shows coins and stocks that just closed above a tested resistance level on strong volume (last 3 days), and ones coiling in a tight squeeze just under resistance.",
+    "Each row explains why: the level, how many times it was tested, the volume, and which extra checks pass (rising lows, volume on up days, above a rising 200-day, RSI 50–65).",
+    "Many breakouts fail; a close back under the level is the usual sign. The nightly backtest is measuring how often they work."
+  ]},
   {"date": "2026-11-10", "title": "New Overheated tab", "items": [
     "Markets → Overheated lists up to 10 coins and stocks with a red wave dot on the daily chart in the last 30 days, most overheated first, with the dot's date and price and the move since.",
     "Below it, up to 10 markets that are overheated and stretched far above their 200-day right now but haven't turned down yet."

@@ -413,6 +413,13 @@ async def main():
                 if bad in txt: problems.append(f"[{scheme}] overheated tab: shows '{bad}'")
             print(f"  note: [{scheme}] overheated tab shows {await pg.locator('#listArea .r-note').count()} markets on sample data")
             if scheme == "dark": await pg.screenshot(path=os.path.join(OUT, "overheated.png"))
+            await pg.click('[data-cat="bo"]'); await pg.wait_for_timeout(1500)
+            txt = await pg.inner_text("#listArea")
+            if "Just broke out" not in txt or "Coiling under resistance" not in txt: problems.append(f"[{scheme}] breakout tab: sections missing: {txt[:120]!r}")
+            for bad in ("undefined", "NaN", "Infinity", "null"):
+                if bad in txt: problems.append(f"[{scheme}] breakout tab: shows '{bad}'")
+            print(f"  note: [{scheme}] breakout tab shows {await pg.locator('#listArea .r-note').count()} markets on sample data")
+            if scheme == "dark": await pg.screenshot(path=os.path.join(OUT, "breakout.png"))
             await pg.click('[data-cat="wave"]'); await pg.wait_for_timeout(300)
             await pg.click('[data-cat="hot"]'); await pg.wait_for_timeout(300)
             await pg.click("#openSettings"); await pg.wait_for_timeout(500)

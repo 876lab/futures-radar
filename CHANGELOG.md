@@ -2,6 +2,10 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-11-11 (owner report): Targets below $0 (SOXS 1D)
+- A 1D short on SOXS showed target 2 at −$31.77 and a stop 56% away: a very wild day (31% range) made the stop distance (R) bigger than half the price, so entry − 3R went below zero. A price can't go negative.
+- Display guard only (the setup rules and maths are unchanged): a target at or below $0 now shows "Not possible · below $0", and when the stop is more than 30% from price or a target is at or below zero, an amber note says the levels are too wide to use and suggests a smaller candle size. No TP line is drawn at or below zero on the chart.
+
 ## 2026-11-10 (owner request): Breakout tab
 - New **Breakout** tab on Markets (after Overheated), from the same daily-candle scan as Oversold/Overheated (no extra downloads), up to 10 per list, delisting markets left out:
   - **Just broke out:** in the last 3 days a daily close above a resistance level tested 2+ times (levels from the candles before that day only) on at least 1.5x the 20-day average volume, with price still above the level. Row: level, tests, day, volume multiple, whether it came out of a tight squeeze, move since.

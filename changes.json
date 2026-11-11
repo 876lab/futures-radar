@@ -1,4 +1,7 @@
 [
+  {"date": "2026-11-11", "title": "No more targets below $0", "items": [
+    "When a very wild candle stretches a setup so much that a target would be below $0 (as on SOXS), the target now says \"Not possible\" and a note warns that the levels are too wide to use."
+  ]},
   {"date": "2026-11-10", "title": "New Breakout tab", "items": [
     "Markets → Breakout shows coins and stocks that just closed above a tested resistance level on strong volume (last 3 days), and ones coiling in a tight squeeze just under resistance.",
     "Each row explains why: the level, how many times it was tested, the volume, and which extra checks pass (rising lows, volume on up days, above a rising 200-day, RSI 50–65).",

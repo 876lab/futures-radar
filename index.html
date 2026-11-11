@@ -3519,7 +3519,7 @@ function draw(keep){
   const Lv=rc&&rc.levels;
   if(Lv&&(rc.rec==='long'||rc.rec==='short')){
     const add=(price,color,title,style)=>ch.plines.push(ch.candle.createPriceLine({price,color,lineWidth:1,lineStyle:style,axisLabelVisible:true,title}));
-    add(Lv.price,css('--accent'),'Entry',2);add(Lv.stop,dn,'Stop',0);add(Lv.tp1,up,'TP1',2);add(Lv.tp2,up,'TP2',2);
+    add(Lv.price,css('--accent'),'Entry',2);add(Lv.stop,dn,'Stop',0);if(Lv.tp1>0)add(Lv.tp1,up,'TP1',2);if(Lv.tp2>0)add(Lv.tp2,up,'TP2',2);
   }else if(Lv&&rc.rec==='hold'){
     ch.plines.push(ch.candle.createPriceLine({price:Lv.stop,color:dn,lineWidth:1,lineStyle:0,axisLabelVisible:true,title:'Trend breaks'}));
   }
@@ -3617,6 +3617,8 @@ function renderBigSignal(an,tf){
 }
 const CHECK_IC={ok:'<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="m2.5 6.2 2.3 2.3 4.7-5"/></svg>',no:'<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 3 6 6M9 3 3 9"/></svg>',mid:'<svg viewBox="0 0 12 12" fill="currentColor"><rect x="2" y="5" width="8" height="2" rx="1"/></svg>'};
 function pctFrom(a,b){return (b/a-1)*100}
+// a setup whose stop is more than 30% from price, or whose targets fall to zero or below, can't be traded as shown
+function levelsTooWide(L){return !!L&&L.price>0&&(Math.abs(L.stop/L.price-1)>0.3||!(L.tp1>0)||!(L.tp2>0))}
 function renderSignal(rc){
   const el=$('#sigCard');
   if(!rc){el.innerHTML='<div class="sc-body"><p class="sc-text muted">Not enough price history on this candle size for a chart reading. A shorter candle may work.</p></div>';$('#signals').innerHTML='';return}
@@ -3625,7 +3627,9 @@ function renderSignal(rc){
   let lv='';
   if(L&&isTrade){
     const cell=(k,col,v,pct)=>`<div><div class="k"><i style="background:${col}"></i>${k}</div><div class="v">${v}</div>${pct!=null?`<div class="s ${pct>=0?'up':'down'}">${fmtPct(pct)}</div>`:''}</div>`;
-    lv=`<div class="lv four">${cell('Entry zone','var(--accent)',`${fmtPrice(L.zone[0])} – ${fmtPrice(L.zone[1])}`,null)}${cell('Stop loss','var(--down)',fmtUsd(L.stop),pctFrom(L.price,L.stop))}${cell('Target 1','var(--up)',fmtUsd(L.tp1),pctFrom(L.price,L.tp1))}${cell('Target 2','var(--up)',fmtUsd(L.tp2),pctFrom(L.price,L.tp2))}</div>
+    const tgt=(k,v)=>v>0?cell(k,'var(--up)',fmtUsd(v),pctFrom(L.price,v)):`<div><div class="k"><i style="background:var(--up)"></i>${k}</div><div class="v muted">Not possible</div><div class="s muted">below $0</div></div>`;
+    const far=levelsTooWide(L);
+    lv=`${far?`<div class="evwarn wide"><b>These levels are too wide to use.</b> The stop is ${Math.abs(pctFrom(L.price,L.stop)).toFixed(0)}% away from price${L.tp2<=0||L.tp1<=0?' and a target would be below $0, which a price can\'t reach':''}. A very wild candle (or a big jump in the price history, such as a share split) stretched the maths. A smaller candle size gives tighter levels.</div>`:''}<div class="lv four">${cell('Entry zone','var(--accent)',`${fmtPrice(L.zone[0])} – ${fmtPrice(L.zone[1])}`,null)}${cell('Stop loss','var(--down)',fmtUsd(L.stop),pctFrom(L.price,L.stop))}${tgt('Target 1',L.tp1)}${tgt('Target 2',L.tp2)}</div>
       <div class="rr">Reward vs risk: <b>1 : 1.5</b> at target 1, <b>1 : 3</b> at target 2.</div>`;
   }else if(L&&rc.rec==='hold'){
     lv=`<div class="lv">${L.better?`<div><div class="k"><i style="background:var(--accent)"></i>Better entry near</div><div class="v">${fmtPrice(L.better[0])} – ${fmtPrice(L.better[1])}</div></div>`:''}<div><div class="k"><i style="background:var(--down)"></i>Trend breaks ${L.dir>0?'below':'above'}</div><div class="v">${fmtUsd(L.stop)}</div><div class="s ${L.dir>0?'down':'up'}">${fmtPct(pctFrom(L.price,L.stop))}</div></div></div>`;

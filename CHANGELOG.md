@@ -2,6 +2,11 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-11-12 (owner request): Fibonacci levels past the swing
+- The Fibonacci card and chart now also show the levels **past the start of the move**: 127.2%, 161.8% and 200% below the swing low after an up-move (above the swing high after a down-move), the usual "if the move fails" targets. Levels at or below $0 are left out.
+- In All levels they read e.g. "127.2% below swing low" in red; on the chart they are drawn as red/green dashed lines titled "127.2% ▼". The next level below/above uses them, and when price has given back 61.8% or more (or passed the start), the text names them and the level list opens.
+- 2 engine tests (prices, nothing at or below zero).
+
 ## 2026-11-12 (owner report): Compact price alerts on Starred
 - The alerts list took up most of the Starred page. It is now a **folding card** ("Price alerts · 13 alerts waiting on 7 markets · 1 reached"), folded by default (remembered on the device as `alSec`) and opened automatically when an alert has been reached.
 - Inside: reached alerts first (full size, with Clear), then **one line per market** with small chips (▲ rises to / ▼ falls to, price, % away, × to remove), markets with the nearest alert first. Tap the market name to open its chart.

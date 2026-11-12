@@ -215,7 +215,7 @@ button{cursor:pointer}
 .fib .big{font-size:14px;margin:0;line-height:1.45} .fib .next{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .fib .next>div{background:var(--surface-2);border-radius:10px;padding:8px 10px;font-size:12px;color:var(--muted)} .fib .next b{display:block;font-size:14px;color:var(--fg);font-weight:600}
 .fib table{width:100%;border-collapse:collapse;font-size:13px} .fib td{padding:5px 0;border-top:1px solid var(--line)} .fib td:nth-child(n+2){text-align:right;font-variant-numeric:tabular-nums}
-.fib tr.here td{font-weight:700;color:var(--accent)} .fib tr.ext td:first-child{color:var(--c2)}
+.fib tr.here td{font-weight:700;color:var(--accent)} .fib tr.beyond td:first-child{color:var(--down)} .fib tr.beyond small{color:var(--muted);font-weight:400} .fib tr.ext td:first-child{color:var(--c2)}
 .bt h3{margin:0;font-size:16px} .bt .sub{font-size:12px;color:var(--muted);margin:2px 0 10px}
 .bt .big{font-size:14px;margin:0 0 6px} .bt .verdict{font-weight:700;margin:6px 0}
 .bt details summary{cursor:pointer;color:var(--accent);font-weight:600;margin-top:8px}
@@ -2159,7 +2159,7 @@ function zigzag(cs,th,from){
   if(dir===1)piv.push({i:hi,p:cs[hi].high,open:true});else if(dir===-1)piv.push({i:lo,p:cs[lo].low,open:true});
   return piv;
 }
-const FIB_R=[0.236,0.382,0.5,0.618,0.786],FIB_X=[1.272,1.618],FIB_ATR=3,FIB_LOOK=200;
+const FIB_R=[0.236,0.382,0.5,0.618,0.786],FIB_X=[1.272,1.618],FIB_B=[1.272,1.618,2],FIB_ATR=3,FIB_LOOK=200;
 // The last main move (A -> B) and where price sits on it. While price is pulling back by less than the move itself,
 // the move stays the one measured; once the pullback grows bigger than the move, it becomes the new main move.
 function fibLevels(cs,atr){
@@ -2173,6 +2173,8 @@ function fibLevels(cs,atr){
   for(const r of FIB_R)lv.push({r,p:b.p-span*r,name:+(r*100).toFixed(1)+'%'});
   lv.push({r:1,p:a.p,name:dir>0?'Swing low':'Swing high'});
   for(const x of FIB_X)lv.push({r:-(x-1),p:a.p+span*x,name:+(x*100).toFixed(1)+'%',ext:true});
+  // owner request 12 Nov 2026: where price may go if the move fails, past its starting swing (zero or below left out)
+  for(const x of FIB_B)lv.push({r:x,p:b.p-span*x,name:+(x*100).toFixed(1)+'%',beyond:true});
   const ok=lv.filter(l=>l.p>0),above=ok.filter(l=>l.p>price).sort((x,y)=>x.p-y.p)[0]||null,below=ok.filter(l=>l.p<price).sort((x,y)=>y.p-x.p)[0]||null;
   // breakout: the move still running has gone past the previous swing on its side (a new high above the last high, or low below the last low)
   const run=b===piv[m-1]&&b.open&&m>=3?piv[m-3].p:null,brk=run!=null&&(dir>0?b.p>run:b.p<run)?run:null;
@@ -3544,7 +3546,7 @@ function draw(keep){
   ch.flines.forEach(pl=>{try{ch.candle.removePriceLine(pl)}catch(e){}});ch.flines=[];
   if(fib&&state.ind.fib){const gc=css('--c4'),xc=css('--c2');
     for(const l of fib.levels){const key=l.r===0||l.r===1;
-      ch.flines.push(ch.candle.createPriceLine({price:l.p,color:hexA(l.ext?xc:gc,key||l.r===0.618||l.r===0.5?.9:.6),lineWidth:1,lineStyle:key?0:1,axisLabelVisible:false,title:l.r===0||l.r===1?(l.r===0?'0%':'100%'):l.name}))}}
+      ch.flines.push(ch.candle.createPriceLine({price:l.p,color:l.beyond?hexA(fib.dir>0?dn:up,.75):hexA(l.ext?xc:gc,key||l.r===0.618||l.r===0.5?.9:.6),lineWidth:1,lineStyle:key?0:1,axisLabelVisible:false,title:l.r===0||l.r===1?(l.r===0?'0%':'100%'):l.beyond?l.name+(fib.dir>0?' ▼':' ▲'):l.name}))}}
   $('#cMain').dataset.fib=ch.flines.length;
   (ch.slines||[]).forEach(pl=>{try{ch.candle.removePriceLine(pl)}catch(e){}});ch.slines=[];
   if(sr&&state.ind.sr){const L=(z,col,t)=>ch.slines.push(ch.candle.createPriceLine({price:z.p,color:hexA(col,z.tests>=3?.95:.7),lineWidth:z.tests>=3?3:2,lineStyle:0,axisLabelVisible:true,title:t}));
@@ -3767,18 +3769,21 @@ function fibHTML(f,tf){
   const r=f.retr,z=fibZone(r),pct=Math.round(r*100);
   let now;
   if(f.breakout||r<0)now=`Price ${f.breakout?`has broken ${up?'above the previous swing high':'below the previous swing low'} (${fmtUsd(f.brk)}) and is near the end of this move`:`has moved past the ${up?'swing high':'swing low'}`}, a breakout. Extensions such as 127.2%${x1?` (${fmtUsd(x1.p)})`:''} and 161.8%${x2?` (${fmtUsd(x2.p)})`:''} are where traders often watch for the move to pause.`;
-  else if(r>1)now=`Price has gone back past the start of the ${mv}, so this move no longer holds.`;
+  else if(r>1)now=`Price has gone back past the start of the ${mv}, so this move no longer holds.${bzTxt}`;
   else{now=`Price has given back <b>${pct}%</b> of that ${mv}`+(z==='Under 23.6%'?', a shallow pullback; strong trends often pull back only this little.':
     z==='23.6–38.2%'||z==='38.2–50%'||z==='50–61.8%'?`, inside the 38.2–61.8% area where pullbacks within a trend often pause (the 50–61.8% band is the most watched).`:
     z==='61.8–78.6%'?`, a deep pullback. Many traders read a move beyond 78.6%${l786?` (${fmtUsd(l786.p)})`:''} as the ${mv} failing.`:', very deep: price is close to undoing the whole move.');
+    if(r>=0.618&&r<=1)now+=bzTxt;
     if(r>=0.236&&r<=1)now+=` If the ${mv} resumes, the ${up?'swing high':'swing low'} (${fmtUsd(f.b.p)}) and then the 127.2%${x1?` (${fmtUsd(x1.p)})`:''} and 161.8%${x2?` (${fmtUsd(x2.p)})`:''} extensions are the usual levels traders watch next.`}
   const nb=(l,w)=>`<div>${w}${l?`<b>${esc(l.name)} · ${fmtUsd(l.p)}</b>${dist(l)}`:'<b>—</b>none in range'}</div>`;
   const near=l=>f.above===l||f.below===l;
-  const rows=[...f.levels].sort((x,y)=>y.p-x.p).map(l=>`<tr class="${l.ext?'ext':''}${near(l)?' here':''}"><td>${esc(l.name)}${l.ext?' extension':''}</td><td>${fmtUsd(l.p)}</td><td>${dist(l)}</td></tr>`).join('');
+  const past=up?'below swing low':'above swing high';
+  const rows=[...f.levels].sort((x,y)=>y.p-x.p).map(l=>`<tr class="${l.ext?'ext':''}${l.beyond?' beyond':''}${near(l)?' here':''}"><td>${esc(l.name)}${l.ext?' extension':l.beyond?` <small>${past}</small>`:''}</td><td>${fmtUsd(l.p)}</td><td>${dist(l)}</td></tr>`).join('');
+  const bz=f.levels.filter(l=>l.beyond).sort((x,y)=>up?y.p-x.p:x.p-y.p),bzTxt=bz.length?` If price ${r>1?'keeps going':`breaks the ${up?'swing low':'swing high'} (${fmtUsd(f.a.p)})`}, the levels ${past.replace('swing','the swing')} that traders watch are ${bz.map(l=>`${l.name} (${fmtUsd(l.p)})`).join(', ')}.`:'';
   return `<h3>Fibonacci levels</h3><p class="sub">${TF_LABEL[tf]} candles · from the last main swing · information only</p>
     <p class="big">${head} ${now}</p>
     <div class="next">${nb(f.above,'Next level above')}${nb(f.below,'Next level below')}</div>
-    <details><summary>All levels</summary><table>${rows}</table></details>
+    <details${r>=0.618?' open':''}><summary>All levels</summary><table>${rows}</table></details>
     <p class="note">Fibonacci levels are zones, not exact prices. Many traders watch them, which is part of why price sometimes reacts there, but studies disagree on whether they work better than other levels. The nightly backtest now measures how setups did in each zone (Simulator → Last night's backtest).</p>`;
 }
 function srHTML(r,tf){

@@ -288,6 +288,8 @@ let f=fibLevels(cs,5);   // threshold 15
 ok(f&&f.dir===1&&Math.abs(f.a.p-99.5)<1e-9&&Math.abs(f.b.p-200.5)<1e-9,'fib: measures the main up-move, not the smaller pullback');
 const l618=f.levels.find(l=>l.r===0.618),x16=f.levels.find(l=>l.ext&&Math.abs(l.r+0.618)<1e-9);
 ok(Math.abs(l618.p-(200.5-101*0.618))<1e-9&&Math.abs(x16.p-(99.5+101*1.618))<1e-9,'fib: 61.8% retracement and 161.8% extension prices');
+{const bz=f.levels.filter(l=>l.beyond);ok(bz.length===2&&bz.every(l=>l.p<f.a.p&&l.p>0),'fib: levels below the swing low, none at or below $0');
+const b1=bz.find(l=>Math.abs(l.r-1.272)<1e-9),b2=bz.find(l=>l.r===2);ok(b1&&Math.abs(b1.p-(200.5-101*1.272))<1e-9&&!b2,'fib: 127.2% below the swing low; 200% would be below $0 and is left out ('+bz.map(l=>l.name+'='+l.p.toFixed(2)).join()+')');}
 ok(Math.abs(f.retr-(200.5-160)/101)<1e-9&&fibZone(f.retr)==='38.2–50%','fib: price has given back about 40% (38.2–50% zone)');
 ok(f.above&&f.above.name==='38.2%'&&f.below&&f.below.name==='50%','fib: next levels above and below');
 // a pullback bigger than the move becomes the new main move (down)

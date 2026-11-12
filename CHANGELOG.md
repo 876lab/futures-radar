@@ -2,6 +2,12 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-11-12 (owner report): Compact price alerts on Starred
+- The alerts list took up most of the Starred page. It is now a **folding card** ("Price alerts · 13 alerts waiting on 7 markets · 1 reached"), folded by default (remembered on the device as `alSec`) and opened automatically when an alert has been reached.
+- Inside: reached alerts first (full size, with Clear), then **one line per market** with small chips (▲ rises to / ▼ falls to, price, % away, × to remove), markets with the nearest alert first. Tap the market name to open its chart.
+- **No duplicate alerts:** setting the same price twice for the same market says it's already set, and old duplicates are kept once when the list is loaded.
+- Engine test for duplicates; browser test checks the card starts folded and lists one line per market.
+
 ## 2026-11-11 (owner report): Targets below $0 (SOXS 1D)
 - A 1D short on SOXS showed target 2 at −$31.77 and a stop 56% away: a very wild day (31% range) made the stop distance (R) bigger than half the price, so entry − 3R went below zero. A price can't go negative.
 - Display guard only (the setup rules and maths are unchanged): a target at or below $0 now shows "Not possible · below $0", and when the stop is more than 30% from price or a target is at or below zero, an amber note says the levels are too wide to use and suggests a smaller candle size. No TP line is drawn at or below zero on the chart.

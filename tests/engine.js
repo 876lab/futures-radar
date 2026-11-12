@@ -113,6 +113,7 @@ const hit=alertTouched(up,cs);ok(hit&&hit.at===t0+H*1000,'alerts: closed-app che
 ok(alertTouched(newAlert('INTC','INTC',30,36.5,t0),cs)===null&&alertTouched(Object.assign({},up,{hit:1}),cs)===null,'alerts: nothing touched, or already reached');
 const many=Array.from({length:70},(_,i)=>newAlert('M'+i,'M',10+i,5,t0));
 const cl=cleanAlerts([up,up,dn,null,'x',{k:'<b>',p:-1,d:1,t:1},{k:'A',p:5,d:2,t:1},{k:'A',p:5,d:1,t:'1'},{...up,p:41,id:'bad id <x>'}]);
+{const d2=cleanAlerts([up,{...up,id:'other-id',t:up.t+1},{...up,id:'hit-copy',hit:5}]);ok(d2.length===2&&d2[0].id===up.id&&d2[1].id==='hit-copy','alerts: the same waiting alert twice is kept once ('+d2.length+')');}
 ok(cl.length===3&&cl[0].id===up.id&&cl[2].id!==up.id&&!cl[2].id.includes('<')&&cleanAlerts(many).length===AL_MAX&&cleanAlerts('x').length===0,'alerts: saved list cleaned, duplicates dropped, capped at '+AL_MAX+' ('+cl.length+')');}
 // price alerts: far-away prices and typo suggestions (owner typed $132.90 for ZEC at $1,133)
 ok(alertFar(132.9,1133.5)&&!alertFar(40,36.5)&&!alertFar(74900,76706)&&!alertFar(0,10),'alerts: far from price (over 25%) is flagged');

@@ -96,6 +96,11 @@ async def alerts_check(b):
     if "Price alerts" not in lt or "1 alert waiting" not in lt: problems.append(f"alerts: Starred page list missing: {lt[:120]!r}")
     for bad in ("undefined", "NaN"):
         if bad in lt: problems.append(f"alerts: Starred page shows '{bad}'")
+    # folded by default so it doesn't push the starred markets down (owner report, 12 Nov 2026); one line per market when open
+    if await pg.get_attribute("#alList", "open") is not None: problems.append("alerts: Starred list should start folded")
+    await pg.click("#alList > summary"); await pg.wait_for_timeout(200)
+    if await pg.locator("#alList .al-groups li").count() != 1 or await pg.locator("#alList .al-chip").count() != 1: problems.append("alerts: grouped one-line list missing")
+    await pg.screenshot(path=os.path.join(OUT, "alerts-starred.png"))
     await pg.click('#alList [data-aldel]'); await pg.wait_for_timeout(300)
     if await pg.locator("#alList").count(): problems.append("alerts: removing the alert did not clear the list")
     # reached while you were away: an alert made 2 days ago that the sample prices have already passed

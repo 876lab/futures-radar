@@ -151,6 +151,13 @@ button{cursor:pointer}
 .al-quick{display:flex;flex-wrap:wrap;gap:6px} .al-quick button{font:inherit;font-size:12.5px;border:1px solid var(--line);background:var(--surface-2);color:var(--fg);border-radius:999px;padding:5px 10px;cursor:pointer}
 .al-prev{font-size:13px;margin:0;color:var(--muted)} .al-prev b{color:var(--fg)}
 .al-list{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.al-fold{padding:0} .al-fold>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px}
+.al-fold>summary::-webkit-details-marker{display:none} .al-fold>summary span{display:grid;gap:2px} .al-fold>summary small{color:var(--muted);font-size:12.5px}
+.al-chev{color:var(--muted);transition:transform .2s} .al-fold[open] .al-chev{transform:rotate(180deg)} .al-fold>:not(summary){margin:0 14px 12px}
+.al-groups{list-style:none;padding:0;display:grid;gap:0} .al-groups li{display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid var(--line)}
+.al-mk{border:0;background:none;padding:0;font:inherit;font-weight:700;color:var(--fg);min-width:52px;text-align:left;cursor:pointer}
+.al-chips{display:flex;flex-wrap:wrap;gap:6px;min-width:0;flex:1} .al-chip{display:inline-flex;align-items:center;gap:1px;border-radius:999px;padding:2px 2px 2px 8px;font-size:12.5px;background:var(--surface-2);font-variant-numeric:tabular-nums}
+.al-chip.u span{color:var(--up)} .al-chip.d span{color:var(--down)} .al-chip small{color:var(--muted);font-size:11px} .al-chip .x{border:0;background:none;color:var(--muted);font-size:15px;line-height:1;padding:2px 5px;cursor:pointer}
 .al-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;background:var(--surface-2);font-size:13px}
 .al-item .al-txt{flex:1;min-width:0} .al-item .al-txt small{display:block;color:var(--muted);font-size:12px} .al-item.hit{background:var(--accent-bg)}
 .al-item button.x{border:0;background:none;color:var(--muted);font-size:18px;line-height:1;padding:4px 6px;cursor:pointer}
@@ -1032,7 +1039,7 @@ const state={
   view:LS.get('view','all'),cat:LS.get('cat3','setups'),sort:LS.get('sort','vol'),q:'',
   watch:new Set(LS.get('watch2',[])),tf:LS.get('tf2','15m'),selected:null,selContract:null,trend:new Map(),scanning:null,waveMap:new Map(),boMap:new Map(),waveAt:0,waveScan:null,
   proxy:LS.get('proxy',''),ind:LS.get('ind3',{ema:false,bb:true,st:true,vol:true,marks:true,fib:true}),limit:120,loading:false,
-  acct:LS.get('acct',100),evOn:LS.get('evOn',true),evAll:LS.get('evAll',false),confOnly:LS.get('confOnly',true),conf:new Map(),ann:{bybit:[],at:0,loading:false},navHide:LS.get('navHide',true),risk:LS.get('risk',2),maxLoss:LS.get('maxLoss',0),stream:{},lastTick:{},lastSeen:{}
+  acct:LS.get('acct',100),alSec:LS.get('alSec',false),evOn:LS.get('evOn',true),evAll:LS.get('evAll',false),confOnly:LS.get('confOnly',true),conf:new Map(),ann:{bybit:[],at:0,loading:false},navHide:LS.get('navHide',true),risk:LS.get('risk',2),maxLoss:LS.get('maxLoss',0),stream:{},lastTick:{},lastSeen:{}
 };
 if(!TFS[state.tf])state.tf='15m';
 state.alerts=[];   // price alerts, loaded from the device further down (after cleanAlerts' constants exist)
@@ -1744,6 +1751,7 @@ function addAlert(v){const g=state.gByKey.get(state.selected),now=g&&g.price;
   if(alertFar(v,now)&&state.alConfirm!==v){state.alConfirm=v;const el=document.getElementById('alPrev'),t=alertTypo(v,now);
     if(el)el.innerHTML=`<b class="down">That's ${fmtPct((v/now-1)*100)} from the price now (${fmtUsd(now)}).</b> ${t.length?'Did you mean one of these?':'Is that the price you meant?'}<span class="al-quick" style="margin-top:6px">${t.map(x=>`<button type="button" data-alset="${x}">Set ${fmtUsd(x)}</button>`).join('')}<button type="button" data-alset="${v}">Set ${fmtUsd(v)} anyway</button></span>`;return}
   state.alConfirm=null;
+  if(state.alerts.some(a=>a.hit==null&&a.k===g.key&&Math.abs(a.p/v-1)<1e-6)){showToast(`You already have an alert at ${fmtUsd(v)} for ${g.root}.`);return}
   const a=newAlert(g.key,g.root,v,now,NOW());if(!a){showToast(now?'That is the price right now. Pick a price above or below it.':'Waiting for a live price, try again in a moment.');return}
   state.alerts.unshift(a);state.alerts=cleanAlerts(state.alerts);saveAlerts();renderAlBox();unlockSound();
   showToast(`Alert set: ${g.root} ${a.d>0?'rises':'falls'} to ${fmtUsd(v)}.`);try{subscribeBybit()}catch(e){}}
@@ -1770,10 +1778,19 @@ async function checkAway(force){if(awayBusy||!state.groups||!state.groups.length
   finally{awayBusy=false}}
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(()=>{try{checkAlerts()}catch(e){}checkAway(true)},1500)});
 setInterval(()=>{if(!document.hidden)checkAway()},10*60000);
+// waiting alerts grouped by market, one line each, nearest price first; reached alerts stay full size at the top
+function alertGroups(L){const m=new Map();for(const a of L){if(!m.has(a.k))m.set(a.k,{k:a.k,root:a.root||a.k,al:[]});m.get(a.k).al.push(a)}
+  const dist=a=>{const now=gPrice(a.k);return now?Math.abs(a.p/now-1):1};
+  return [...m.values()].map(g=>(g.al.sort((x,y)=>y.p-x.p),g.near=Math.min(...g.al.map(dist)),g)).sort((a,b)=>a.near-b.near)}
+function alertChip(a){const now=gPrice(a.k),up=a.d>0;
+  const pr=a.p>=1000?Math.round(a.p).toLocaleString('en-US'):a.p>=1?+a.p.toFixed(2)+'':fmtPrice(a.p),pc=now?(a.p/now-1)*100:null;
+  return `<span class="al-chip ${up?'u':'d'}"><span>${up?'▲':'▼'} ${pr}${pc!=null?` <small>${pc>0?'+':''}${pc.toFixed(1)}%</small>`:''}</span><button type="button" class="x" data-aldel="${esc(a.id)}" aria-label="Remove alert at ${esc(fmtUsd(a.p))}">×</button></span>`}
 function alertsSectionHTML(){const L=state.alerts;if(!L.length)return '';
-  const act=L.filter(a=>a.hit==null),done=L.filter(a=>a.hit!=null).sort((x,y)=>y.hit-x.hit);
-  return `<div class="card albox" id="alList"><h3>Price alerts</h3><p class="sub">${plural(act.length,'alert')} waiting${done.length?` · ${done.length} reached`:''} · tap one to open its chart</p>
-    <ul class="al-list">${[...done,...act].map(a=>alertItem(a,true)).join('')}</ul>${done.length?'<div class="al-quick"><button type="button" data-alclear="1">Clear reached alerts</button></div>':''}</div>`}
+  const act=L.filter(a=>a.hit==null),done=L.filter(a=>a.hit!=null).sort((x,y)=>y.hit-x.hit),G=alertGroups(act),open=done.length>0||state.alSec;
+  return `<details class="card albox al-fold" id="alList"${open?' open':''}><summary><span><b>Price alerts</b><small>${plural(act.length,'alert')} waiting on ${plural(G.length,'market')}${done.length?` · <b class="up">${done.length} reached</b>`:''}</small></span><span class="al-chev" aria-hidden="true">▾</span></summary>
+    ${done.length?`<ul class="al-list">${done.map(a=>alertItem(a,true)).join('')}</ul><div class="al-quick"><button type="button" data-alclear="1">Clear reached alerts</button></div>`:''}
+    ${G.length?`<ul class="al-groups">${G.map(g=>`<li><button type="button" class="al-mk" data-alopen="${esc(g.k)}">${esc(g.root)}</button><span class="al-chips">${g.al.map(alertChip).join('')}</span></li>`).join('')}</ul>`:''}
+    <p class="note">▲ rings when price rises to it, ▼ when it falls to it; the % is how far away it is now. Tap a market to open its chart, × to remove an alert.</p></details>`}
 const FLAME='<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c.6 3.4-1.2 5.1-2.6 6.6C8 10.2 7 11.7 7 14a5 5 0 0 0 10 0c0-1.6-.6-3-1.4-4.1-.3 1.2-1 2-2 2.3.5-3.5-.4-7.4-1.6-10.2z"/></svg>';
 const FLASK='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.7 3h10.6a2 2 0 0 0 1.7-3l-5-9V3"/><path d="M7.5 15h9"/></svg>';
 const TARGET='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>';
@@ -2267,6 +2284,7 @@ function cleanAlerts(a){
   if(!Array.isArray(a))return [];const fin=v=>typeof v==='number'&&isFinite(v),seen=new Set(),out=[];
   for(const x of a){if(!x||typeof x!=='object'||typeof x.k!=='string'||!x.k||x.k.length>60||!fin(x.p)||!(x.p>0&&x.p<1e12)||(x.d!==1&&x.d!==-1)||!fin(x.t))continue;
     const id=typeof x.id==='string'&&/^[\w.|:-]{1,80}$/.test(x.id)?x.id:x.k+'|'+x.p+'|'+x.t;if(seen.has(id))continue;seen.add(id);
+    if(!fin(x.hit)){const dup=x.k+'|'+x.p+'|'+x.d;if(seen.has(dup))continue;seen.add(dup)}   // the same waiting alert twice (old duplicates) is kept once
     out.push({id,k:x.k,root:typeof x.root==='string'?x.root.slice(0,20):'',p:x.p,d:x.d,t:x.t,hit:fin(x.hit)?x.hit:null,hp:fin(x.hp)?x.hp:null,away:x.away===true});
     if(out.length>=AL_MAX)break}
   return out;
@@ -4070,6 +4088,7 @@ $('#alBox').addEventListener('input',e=>{if(e.target.id==='alIn'){state.alConfir
 $('#alBox').addEventListener('click',e=>{const q=e.target.closest('[data-alq]'),d=e.target.closest('[data-aldel]');
   const st=e.target.closest('[data-alset]');if(st){const v=parseFloat(st.dataset.alset);state.alConfirm=v;addAlert(v);return}
   if(q){const i=$('#alIn');if(i){i.value=q.dataset.alq;previewAlert()}}else if(d)removeAlert(d.dataset.aldel)});
+$('#listArea').addEventListener('toggle',e=>{if(e.target&&e.target.id==='alList'){state.alSec=e.target.open;LS.set('alSec',state.alSec)}},true);
 $('#listArea').addEventListener('click',e=>{const o=e.target.closest('[data-alopen]'),d=e.target.closest('[data-aldel]'),c=e.target.closest('[data-alclear]');
   if(d){e.stopPropagation();removeAlert(d.dataset.aldel)}else if(c){state.alerts=state.alerts.filter(a=>a.hit==null);state.alNew=[];saveAlerts();renderAlBar()}
   else if(o){const k=o.dataset.alopen;if(state.gByKey.get(k))openGroup(k);else showToast('This market isn\'t in the list right now.')}});

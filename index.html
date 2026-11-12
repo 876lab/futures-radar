@@ -630,7 +630,7 @@ html,body{overscroll-behavior-y:none}
 .brief-sec ul{margin:0;padding-left:18px;display:grid;gap:5px;font-size:13.5px;line-height:1.45} .brief .note{padding:0}
 .set-top{display:flex;align-items:center;gap:12px;margin:0 0 12px} .set-top b{font-size:17px;letter-spacing:-.015em}
 .bub{display:grid;gap:6px;padding:10px 12px;border-radius:12px;background:var(--surface-2)} .bub-h{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap} .bub-h b{font-size:17px;letter-spacing:-.015em}
-.bub .lab{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600} .bub p{margin:0;font-size:13px}
+.bub-h small{color:var(--muted);font-size:12px} .bub .lab{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600} .bub p{margin:0;font-size:13px}
 .bub-c{width:100%;height:auto;display:block} .bub-c polyline{fill:none;stroke:var(--c2);stroke-width:2;stroke-linejoin:round;stroke-linecap:round} .bub-c .m{stroke:var(--muted);stroke-dasharray:4 4;opacity:.6}
 .bub-c text{font-size:9px;fill:var(--muted);font-family:var(--f-body)} .bub-c .dot{fill:var(--brand)} .bub-c .ring{fill:none;stroke:var(--brand);stroke-width:2;opacity:.35}
 /* ---- 2026-11 visual refresh: calmer palette for long chart sessions, one indigo "brand" colour for anything you
@@ -2430,6 +2430,14 @@ function breakoutRank(items,max){
   const coil=items.filter(x=>x.st&&x.st.coil).sort((a,b)=>b.st.score-a.st.score||a.st.sq-b.st.sq).slice(0,max);
   return{bo,coil};
 }
+// Bubble stage on fully closed candles only (owner report 12 Nov 2026: the stage flipped during the day as the forming
+// candle moved). Also when the current stage started and what it was before, from the last 60 closes.
+function bubbleNow(cs,S,W,sec,now){
+  if(!cs||!cs.length)return null;let n=cs.length;if(sec>0&&now!=null&&cs[n-1].time+sec>now/1000)n--;   // drop the candle still forming
+  const at=m=>bubbleStage(cs.slice(0,m),S,W),B=at(n);if(!B)return null;
+  let since=n-1,prev=null;for(let m=n-1;m>=Math.max(61,n-60);m--){const x=at(m);if(!x)break;if(x.k!==B.k){prev=x;break}since=m-1}
+  return Object.assign(B,{closedT:cs[n-1].time,sinceT:cs[since].time,held:n-since,prev:prev?prev.label:null});
+}
 // the two Overheated lists: red dots (highest wave first) and overheated-now markets still waiting for the turn down
 function waveRankHot(items,max){
   const dots=items.filter(x=>x.st&&x.st.red).sort((a,b)=>b.st.red.w-a.st.red.w||a.st.red.ago-b.st.red.ago).slice(0,max);
@@ -2459,7 +2467,7 @@ function chartBrief(cs,S,o){
     up?`<b class="up">Strong uptrend.</b> The ${U.a(20)} average is above the ${U.a(50)}${eL!=null?` and the ${U.a(50)} above the ${Lt}`:''}, and the ${U.a(20)} is still rising.`:
     `<b>Mixed trend.</b> The averages are not lined up in one direction, so neither side is clearly in control.`);
   t.push(`Over the last ${U.k(30)} price moved <b class="${ch30>0?'up':'down'}">${pc(ch30)}</b>. The ${U.a(60)} high was ${P(hi)} (${day(cs[hiI].time)}); price is ${pc(c/hi-1)} from it${loI!==i?` and ${pc(c/lo-1)} from the ${U.a(60)} low of ${P(lo)}`:`, at the ${U.a(60)} low`}.`);
-  if(W&&W.len&&(D||tf==='1w')){const B=bubbleStage(cs,S,W);if(B)t.push(`Bubble stage: <b>${B.label}</b>. ${B.text}`)}
+  if(W&&W.len&&(D||tf==='1w')){const B=o.now!=null?bubbleNow(cs,S,W,sec,o.now):bubbleStage(cs,S,W);if(B)t.push(`Bubble stage (closed ${D?'days':'weeks'}): <b>${B.label}</b>. ${B.text}`)}
   out.push({h:'Trend',lines:t});
   // 2. latest move
   const m=[],ch5=c/cs[Math.max(0,i-5)].close-1;let vI=i;for(let j=Math.max(0,n-20);j<n;j++)if((cs[j].volume||0)>(cs[vI].volume||0))vI=j;
@@ -3879,13 +3887,15 @@ function waveHoldHTML(H){
 const BUBBLE_PATH='0,96 22,88 40,84 58,78 75,72 84,76 92,80 104,76 120,68 136,60 150,52 162,42 171,32 180,18 187,10 192,5 196,12 199,20 204,30 208,32 213,24 217,22 221,32 224,44 229,62 233,76 238,92 244,100 250,100 262,94 274,84 283,76 296,68';
 function bubbleHTML(B,u,mood){
   if(!B)return '';const pc=v=>fmtPct(v*100);
-  return `<div class="bub"><div class="bub-h"><span class="lab">Bubble stage</span><b>${esc(B.label)}</b></div>
+  const dd=t=>new Date(t*1000).toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'});
+  return `<div class="bub"><div class="bub-h"><span class="lab">Bubble stage</span><b>${esc(B.label)}</b>${B.sinceT?`<small>since ${esc(dd(B.sinceT))}${B.prev?` · was ${esc(B.prev)}`:''}</small>`:''}</div>
     <svg class="bub-c" viewBox="0 0 300 112" role="img" aria-label="Stages of a bubble curve, now at ${esc(B.label)}"><line x1="0" y1="92" x2="300" y2="70" class="m"/><polyline points="${BUBBLE_PATH}"/>
       ${['Awareness','Mania','Blow-off'].map((t,q)=>`<text x="${[60,165,250][q]}" y="110" text-anchor="middle">${t}</text>`).join('')}<circle cx="${B.x}" cy="${B.y}" r="6" class="dot"/><circle cx="${B.x}" cy="${B.y}" r="11" class="ring"/></svg>
     <p>${esc(B.text)}</p>
     <ul class="sim-notes"><li>Price is <b>${pc(B.dev)}</b> from its ${B.len}-${u} average (${Math.abs(B.dA).toFixed(1)} ATR ${B.dA<0?'below':'above'}) and ${B.dd<-0.0005?`<b>${pc(B.dd)}</b> from its highest close of the last ${Math.min(250,current.cs.length)} ${u}s (${esc(new Date(B.peakT*1000).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',timeZone:'UTC'}))})`:`at its highest close of the last ${Math.min(250,current.cs.length)} ${u}s`}.</li>
       ${mood?`<li>${mood}</li>`:''}
-      <li>Read from price only, using Jean-Paul Rodrigue's "Stages of a bubble" (Hofstra University). Not every market goes through a bubble, and the stage can change as new candles arrive. Information only.</li></ul></div>`;
+      <li>Read from closed ${u}s only (as of the ${esc(dd(B.closedT))} close), so it doesn't change while the ${u} is still forming. Neighbouring stages such as Fear and Despair can swap from one close to the next when price is between them.</li>
+      <li>Read from price only, using Jean-Paul Rodrigue's "Stages of a bubble" (Hofstra University). Not every market goes through a bubble. Information only.</li></ul></div>`;
 }
 function waveHTML(){
   const h='<h3>Wave signals</h3>';
@@ -3903,7 +3913,7 @@ function waveHTML(){
   const ev=[a&&a.n>=10?`low-wave signals were followed by a 1 ATR rise before a 1 ATR fall <b>${fmtP(a.turn)}</b> of ${a.n} times`:'',b&&b.n>=10?`high-wave signals by a 1 ATR fall first <b>${fmtP(b.turn)}</b> of ${b.n} times`:''].filter(Boolean);
   return h+`<p class="sub">${U} candles · wave (WaveTrend 10, 21) with the 20-${u} and ${W.len}-${u} averages · information only</p>
     ${waveSVG(W,cs)}<p class="wv-key"><span><i class="l"></i>Wave</span><span><i class="s"></i>Signal line</span><span><i class="u"></i>Low-wave</span><span><i class="d"></i>High-wave</span></p>
-    ${bubbleHTML(bubbleStage(cs,current.an.series,W),u,bubbleMood())}
+    ${bubbleHTML(bubbleNow(cs,current.an.series,W,tfSec(tf),NOW()),u,bubbleMood())}
     <p class="big">The wave is ${mood}${x!=null?` (${x>0?'+':''}${Math.round(x)})`:''}. The 20-${u} average is ${gap==null?'—':`<b>${fmtPct(gap*100)}</b> from the ${esc(avg)}`}.</p>
     <p class="big">${lastTxt}</p>
     ${waveListHTML(W,cs)}
@@ -3921,7 +3931,7 @@ function renderBrief(){
   const el=$('#briefBox');if(!el)return;const ok=current&&current.cs&&current.an&&current.an.series;el.hidden=!ok;if(!ok){el.innerHTML='';return}
   const head=`<button type="button" class="brief-btn" id="briefBtn" aria-expanded="${!!current.briefOpen}">${SPARK}<span><b>Break down this chart</b><small>Trend, latest move, signals, levels and sizing in plain words</small></span></button>`;
   if(!current.briefOpen){el.innerHTML=head;return}
-  let B=null;try{B=chartBrief(current.cs,current.an.series,{wave:current.wave,divs:current.divs,hunts:current.hunts,sr:current.sr,rc:current.rc,acct:state.acct,risk:state.risk,maxLoss:state.maxLoss,tf:ctf()})}catch(e){recordErr('chart breakdown',e)}
+  let B=null;try{B=chartBrief(current.cs,current.an.series,{wave:current.wave,divs:current.divs,hunts:current.hunts,sr:current.sr,rc:current.rc,acct:state.acct,risk:state.risk,maxLoss:state.maxLoss,tf:ctf(),now:NOW()})}catch(e){recordErr('chart breakdown',e)}
   el.innerHTML=head+(B?`<div class="brief-body">${B.sections.map(x=>`<div class="brief-sec"><h4>${x.h}</h4><ul>${x.lines.map(l=>`<li>${l}</li>`).join('')}</ul></div>`).join('')}
     <p class="note">Written by the app's rules from this chart's numbers, the same each time for everyone; not an AI model and not financial advice. Futures are high risk.</p></div>`:'<p class="note">Needs at least 60 candles of history on this candle size.</p>');
 }

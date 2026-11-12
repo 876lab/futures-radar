@@ -1,4 +1,8 @@
 [
+  {"date": "2026-11-12", "title": "Steadier bubble stage", "items": [
+    "The bubble stage now uses closed candles only, so it no longer changes while today's candle is still moving.",
+    "It also shows since when the stage has held and what it was before, e.g. \"Fear · since Nov 11 · was Despair\"."
+  ]},
   {"date": "2026-11-12", "title": "Fibonacci levels below the swing low", "items": [
     "The Fibonacci card now also lists 127.2%, 161.8% and 200% below the swing low (or above the swing high after a drop): where price often heads if the move fails.",
     "They are drawn on the chart too, and the card names them when price is close to undoing the move."

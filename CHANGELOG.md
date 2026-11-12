@@ -2,6 +2,11 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-11-12 (owner report): Steadier bubble stage
+- XAG's stage moved between Despair and Fear during the day. Cause: the stage was read with the candle still forming, and XAG sits on the line between the two (Despair needs the 20-day's fall to have slowed; a new leg down on Nov 11–12 turned it back to Fear, 17.9% → 22.9% under the 200-day).
+- The stage is now read from **fully closed candles only** (new pure `bubbleNow`), so it changes at most once per day (week on 1W). The card shows **since when** it has held and **what it was before** (e.g. "Fear · since Nov 11 · was Despair"), and says which close it is based on. The chart breakdown uses the same reading.
+- 2 engine tests (forming candle left out; since/was).
+
 ## 2026-11-12 (owner request): Fibonacci levels past the swing
 - The Fibonacci card and chart now also show the levels **past the start of the move**: 127.2%, 161.8% and 200% below the swing low after an up-move (above the swing high after a down-move), the usual "if the move fails" targets. Levels at or below $0 are left out.
 - In All levels they read e.g. "127.2% below swing low" in red; on the chart they are drawn as red/green dashed lines titled "127.2% ▼". The next level below/above uses them, and when price has given back 61.8% or more (or passed the start), the text names them and the level list opens.

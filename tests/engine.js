@@ -228,6 +228,10 @@ const seq=[290,350,410,416,450,530,560].map(L=>at(L).k);
 ok(seq.join()==='beartrap,delusion,denial,bulltrap,capitulation,despair,mean','bubble stage: bear trap, mania, denial, bull trap, capitulation, despair, return to the mean ('+seq.join()+')');
 const B=at(450);ok(B.label==='Capitulation'&&B.dev<0&&B.dd<-0.3&&isFinite(B.dA)&&B.x>0&&B.y>0,'bubble stage: numbers and curve position');
 ok(bubbleStage(bc.slice(0,40),computeSeries(bc.slice(0,40)),null)===null,'bubble stage: needs a long average');
+{const c=bc.slice(0,531),S=computeSeries(c),W=waveSignals(c,S.at,1),t=c[530].time;
+const open=bubbleNow(c,S,W,86400,(t+43200)*1000),closed=bubbleNow(c,S,W,86400,(t+86400)*1000);
+ok(open&&open.closedT===c[529].time&&closed.closedT===t,'bubble stage: the candle still forming is left out');
+ok(closed.k==='despair'&&closed.prev==='Capitulation'&&closed.held>=1&&closed.sinceT<=t,'bubble stage: since when and the stage before ('+closed.k+', was '+closed.prev+', '+closed.held+' closes)');}
 {const hs=waveStatus(bc.slice(0,351),30);ok(hs&&(hs.hot||hs.red)&&!hs.dot&&!hs.near&&hs.stretch>3,'overheated tab: a mania top reads overheated or has a red dot');
 const ds=waveStatus(bc.slice(0,451),30);ok(ds&&!ds.hot&&typeof ds.hot==='boolean','overheated tab: not overheated in a crash');
 const it=[{g:'a',st:{red:{w:60,ago:2}}},{g:'b',st:{red:{w:80,ago:9}}},{g:'c',st:{hot:true,w:58}},{g:'d',st:{hot:true,w:75}},{g:'e',st:null},{g:'f',st:{red:null,hot:false,w:-10}}];

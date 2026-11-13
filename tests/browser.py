@@ -259,6 +259,25 @@ async def mine_check(b):
         if "Choose a CSV file" not in await pg.inner_text("#mineCard"): problems.append(f"[{scheme}] my trades: remove did not work")
         await pg.close()
 
+async def stages_check(b):
+    """Starred page: a Bubble stages card and each starred row's stage (owner request, 13 Nov 2026)."""
+    pg = await b.new_page(viewport={"width": 390, "height": 800})
+    errs = []; pg.on("pageerror", lambda e: errs.append(str(e)))
+    await block_exchanges(pg); await route_bt(pg); await pg.add_init_script(ACCEPT)
+    await pg.goto("file://" + PAGE); await pg.wait_for_timeout(2500)
+    await pg.click('[data-nav="markets"]'); await pg.wait_for_timeout(400); await pg.click('[data-cat="all"]'); await pg.wait_for_timeout(400)
+    stars = pg.locator(".row .star")
+    for k in range(3): await stars.nth(k).click(); await pg.wait_for_timeout(100)
+    await pg.click('[data-nav="watch"]'); await pg.wait_for_timeout(3000)
+    txt = await pg.inner_text("#listArea")
+    if "Bubble stages" not in txt or not await pg.locator(".stg-card .stg").count(): problems.append(f"stages: Bubble stages card missing on Starred: {txt[:160]!r}")
+    if await pg.locator("#listArea .row .r-note .stg").count() < 1: problems.append("stages: starred rows don't show their stage")
+    for bad in ("undefined", "NaN", "Infinity", "Reading the daily"):
+        if bad in txt: problems.append(f"stages: Starred shows '{bad}'")
+    await pg.screenshot(path=os.path.join(OUT, "starred-stages.png"))
+    if errs: problems.append("stages: JS error: " + errs[0])
+    await pg.close()
+
 async def backup_check(b):
     """Back up your data: save a backup file, lose everything, restore it, undo the restore; a wrong file gets a plain message."""
     ctx = await b.new_context(viewport={"width": 390, "height": 800}, accept_downloads=True)
@@ -649,6 +668,7 @@ async def main():
         await stock_check(b)
         await pull_check(b)
         await legal_check(b)
+        await stages_check(b)
         await backup_check(b)
         await mine_check(b)
         await b.close()

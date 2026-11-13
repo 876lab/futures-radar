@@ -2,6 +2,12 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-11-13 (owner request): Bubble stages on Starred
+- **Starred** now opens with a **Bubble stages** card: every starred market grouped by its stage on the "Stages of a bubble" curve (in the curve's order), colour-coded (green: take-off, awareness, bear trap, capitulation, despair, return to the mean; amber: enthusiasm, denial, bull trap, fear; red: greed, delusion). Tap a name to open its chart.
+- Each starred row adds a line: its stage, since when and what it was before, % from its long average, and a green/red wave dot from the last 30 days.
+- From daily closes (`bubbleNow`), using the same daily scan as Oversold/Overheated/Breakout, which now always includes starred markets; a newly starred market is read on its own. A market whose chart can't be read is marked and retried on the next scan (no loop).
+- Browser test stars three markets and checks the card and row lines. Information only.
+
 ## 2026-11-13 (owner report): 4H/1D charts "hit a snag" (INJ)
 - Cause: yesterday's Fibonacci update used a piece of text before it was defined, which only happens when price has given back 61.8% or more of the last move. On INJ 4H and 1D that broke the whole chart screen ("The chart hit a snag").
 - Fixed the order in `fibHTML`. The cards under the chart (Fibonacci, support/resistance, divergence, stop-hunts, wave, breakdown) are now drawn one by one, so a broken card is logged in Settings → App health instead of stopping the chart.

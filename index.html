@@ -633,6 +633,10 @@ html,body{overscroll-behavior-y:none}
 .bub-h small{color:var(--muted);font-size:12px} .bub .lab{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600} .bub p{margin:0;font-size:13px}
 .bub-c{width:100%;height:auto;display:block} .bub-c polyline{fill:none;stroke:var(--c2);stroke-width:2;stroke-linejoin:round;stroke-linecap:round} .bub-c .m{stroke:var(--muted);stroke-dasharray:4 4;opacity:.6}
 .bub-c text{font-size:9px;fill:var(--muted);font-family:var(--f-body)} .bub-c .dot{fill:var(--brand)} .bub-c .ring{fill:none;stroke:var(--brand);stroke-width:2;opacity:.35}
+.stg{display:inline-block;font-size:11.5px;font-weight:700;padding:1px 7px;border-radius:999px;background:var(--surface-2);margin-right:2px} .stg.lo{background:var(--up-bg);color:var(--up)} .stg.mid{background:var(--accent-bg);color:var(--accent)} .stg.hot{background:var(--down-bg);color:var(--down)}
+.stg-card{padding:12px 14px;display:grid;gap:8px;margin-bottom:12px} .stg-card h3,.stg-card .sub,.stg-card .note{margin:0;padding:0} .stg-card .sub{font-size:12px;color:var(--muted)}
+.stg-list{list-style:none;margin:0;padding:0;display:grid;gap:6px} .stg-list li{display:flex;align-items:flex-start;gap:10px} .stg-list .stg{flex:none;min-width:96px;text-align:center}
+.stg-mk{display:flex;flex-wrap:wrap;gap:6px} .stg-mk button{border:0;background:none;padding:0;font:inherit;font-weight:600;color:var(--brand);cursor:pointer}
 /* ---- 2026-11 visual refresh: calmer palette for long chart sessions, one indigo "brand" colour for anything you
    tap or that is selected (amber now only means caution / Wait / Calm), glass bars, softer cards, larger type ---- */
 body{font-size:13px;letter-spacing:-.003em}
@@ -1037,7 +1041,7 @@ const NAMES={BTC:'Bitcoin',ETH:'Ethereum',SOL:'Solana',XRP:'XRP',BNB:'BNB',DOGE:
 const state={
   pairs:[],groups:[],gByKey:new Map(),byId:new Map(),mode:'loading',status:{binance:'load',gate:'load',bybit:'load'},errors:{},updated:0,
   view:LS.get('view','all'),cat:LS.get('cat3','setups'),sort:LS.get('sort','vol'),q:'',
-  watch:new Set(LS.get('watch2',[])),tf:LS.get('tf2','15m'),selected:null,selContract:null,trend:new Map(),scanning:null,waveMap:new Map(),boMap:new Map(),waveAt:0,waveScan:null,
+  watch:new Set(LS.get('watch2',[])),tf:LS.get('tf2','15m'),selected:null,selContract:null,trend:new Map(),scanning:null,waveMap:new Map(),boMap:new Map(),stageMap:new Map(),waveAt:0,waveScan:null,
   proxy:LS.get('proxy',''),ind:LS.get('ind3',{ema:false,bb:true,st:true,vol:true,marks:true,fib:true}),limit:120,loading:false,
   acct:LS.get('acct',100),alSec:LS.get('alSec',false),evOn:LS.get('evOn',true),evAll:LS.get('evAll',false),confOnly:LS.get('confOnly',true),conf:new Map(),ann:{bybit:[],at:0,loading:false},navHide:LS.get('navHide',true),risk:LS.get('risk',2),maxLoss:LS.get('maxLoss',0),stream:{},lastTick:{},lastSeen:{}
 };
@@ -1785,6 +1789,23 @@ function alertGroups(L){const m=new Map();for(const a of L){if(!m.has(a.k))m.set
 function alertChip(a){const now=gPrice(a.k),up=a.d>0;
   const pr=a.p>=1000?Math.round(a.p).toLocaleString('en-US'):a.p>=1?+a.p.toFixed(2)+'':fmtPrice(a.p),pc=now?(a.p/now-1)*100:null;
   return `<span class="al-chip ${up?'u':'d'}"><span>${up?'▲':'▼'} ${pr}${pc!=null?` <small>${pc>0?'+':''}${pc.toFixed(1)}%</small>`:''}</span><button type="button" class="x" data-aldel="${esc(a.id)}" aria-label="Remove alert at ${esc(fmtUsd(a.p))}">×</button></span>`}
+// bubble stages of starred markets (owner request, 13 Nov 2026), from daily candles; information only
+const STAGE_ORDER=['takeoff','awareness','beartrap','enthusiasm','greed','delusion','denial','bulltrap','fear','capitulation','despair','mean'];
+const STAGE_TONE={takeoff:'lo',awareness:'lo',beartrap:'lo',enthusiasm:'mid',greed:'hot',delusion:'hot',denial:'mid',bulltrap:'mid',fear:'mid',capitulation:'lo',despair:'lo',mean:'lo'};
+function watchStages(v){const miss=v.filter(g=>!state.stageMap.has(g.key));if(!miss.length||state.waveScan)return;setTimeout(()=>waveScanRun(false,miss),0)}
+function stageNote(g){const b=state.stageMap.get(g.key);if(!b)return state.waveScan?'<span class="wdot n"></span>Reading the daily chart…':'';
+  if(b.err)return '<span class="wdot n"></span>Couldn\'t read the daily chart; it will try again later';
+  if(b.none!=null)return `<span class="wdot n"></span>Bubble stage needs at least 70 days of history (${b.none} so far)`;
+  const d=t=>new Date(t*1000).toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'}),w=state.waveMap.get(g.key);
+  const dot=w&&w.dot?` · <span class="up">green dot ${d(w.dot.time)}</span>`:w&&w.red?` · <span class="down">red dot ${d(w.red.time)}</span>`:'';
+  return `<span class="stg ${STAGE_TONE[b.k]}">${esc(b.label)}</span> since ${d(b.sinceT)}${b.prev?` (was ${esc(b.prev)})`:''} · ${fmtPct(b.dev*100)} vs ${b.len}-day avg${dot}`}
+function stagesCardHTML(v){
+  const by={};for(const g of v){const b=state.stageMap.get(g.key);if(b&&b.k)(by[b.k]=by[b.k]||[]).push(g)}const ks=STAGE_ORDER.filter(k=>by[k]);
+  if(!ks.length)return v.length&&state.waveScan?'<div class="card stg-card"><h3>Bubble stages</h3><p class="note">Reading the daily charts of your starred markets…</p></div>':'';
+  return `<div class="card stg-card"><h3>Bubble stages</h3><p class="sub">Your starred markets on the "Stages of a bubble" curve · daily closes · information only</p>
+    <ul class="stg-list">${ks.map(k=>`<li><span class="stg ${STAGE_TONE[k]}">${esc(BUBBLE[k][0])}</span><span class="stg-mk">${by[k].map(g=>`<button type="button" data-alopen="${esc(g.key)}">${esc(g.root)}</button>`).join('')}</span></li>`).join('')}</ul>
+    <p class="note">Listed in the curve's order, from take-off through mania and the fall to despair and the return to the mean. In the theory, Despair and Return to the mean are where patient buyers collect, Greed and Delusion where early buyers take profits. Open a chart's 1D Wave card for the details.</p></div>`;
+}
 function alertsSectionHTML(){const L=state.alerts;if(!L.length)return '';
   const act=L.filter(a=>a.hit==null),done=L.filter(a=>a.hit!=null).sort((x,y)=>y.hit-x.hit),G=alertGroups(act),open=done.length>0||state.alSec;
   return `<details class="card albox al-fold" id="alList"${open?' open':''}><summary><span><b>Price alerts</b><small>${plural(act.length,'alert')} waiting on ${plural(G.length,'market')}${done.length?` · <b class="up">${done.length} reached</b>`:''}</small></span><span class="al-chev" aria-hidden="true">▾</span></summary>
@@ -1966,8 +1987,8 @@ function renderListInner(force){
   const v=visible();
   let html;
   if(!v.length)html=`<div class="list"><div class="empty">${state.cat==='watch'?'No starred markets yet. Tap the star on any row to keep it here.':'No markets match. Try another tab or clear the search.'}</div></div>`;
-  else html=`<div class="list">${v.slice(0,state.limit).map(g=>rowHTML(g)).join('')}${v.length>state.limit?`<button class="more" id="more">Show ${Math.min(120,v.length-state.limit)} more</button>`:''}</div>`;
-  if(state.cat==='watch')html=alertsSectionHTML()+html;
+  else html=`<div class="list">${v.slice(0,state.limit).map(g=>rowHTML(g,state.cat==='watch'?{note:stageNote(g)}:{})).join('')}${v.length>state.limit?`<button class="more" id="more">Show ${Math.min(120,v.length-state.limit)} more</button>`:''}</div>`;
+  if(state.cat==='watch'){html=alertsSectionHTML()+stagesCardHTML(v)+html;watchStages(v)}
   area.innerHTML=html;
   const m=$('#more');if(m)m.onclick=()=>{state.limit+=120;renderList()};
   renderMood(v);
@@ -2002,15 +2023,17 @@ async function scan(max){
 
 // Oversold tab: daily candles for the busiest markets (stocks included), refreshed every 30 minutes
 const WAVE_POOL=120,WAVE_DAYS=30;
-function wavePool(){return liquid().filter(g=>!isDelisting(g)).sort((a,b)=>b.vol-a.vol).slice(0,state.mode==='demo'?400:WAVE_POOL)}
-async function waveScanRun(force){
-  if(state.waveScan||!state.groups.length||(!force&&state.waveAt&&NOW()-state.waveAt<30*60000))return;
-  const list=wavePool();if(!list.length)return;state.waveScan={done:0,total:list.length};let i=0;
+function wavePool(){const top=liquid().filter(g=>!isDelisting(g)).sort((a,b)=>b.vol-a.vol).slice(0,state.mode==='demo'?400:WAVE_POOL),k=new Set(top.map(g=>g.key));
+  return top.concat(state.groups.filter(g=>state.watch.has(g.key)&&!k.has(g.key)))}   // starred markets always included (bubble stage on Starred)
+async function waveScanRun(force,only){
+  if(state.waveScan||!state.groups.length||(!only&&!force&&state.waveAt&&NOW()-state.waveAt<30*60000))return;
+  const list=only||wavePool();if(!list.length)return;state.waveScan={done:0,total:list.length};let i=0;
   const worker=async()=>{while(i<list.length){const g=list[i++];
-    try{const cs=await getCandles(g.primary,'1d');state.waveMap.set(g.key,waveStatus(cs,WAVE_DAYS));try{state.boMap.set(g.key,breakoutStatus(cs,computeSeries(cs)))}catch(e){}}catch(e){}
+    try{const cs=await getCandles(g.primary,'1d');state.waveMap.set(g.key,waveStatus(cs,WAVE_DAYS));const S=computeSeries(cs);try{state.boMap.set(g.key,breakoutStatus(cs,S))}catch(e){}
+      try{state.stageMap.set(g.key,bubbleNow(cs,S,waveSignals(cs,S.at,1),86400,NOW())||{none:cs.length})}catch(e){state.stageMap.set(g.key,{err:1})}}catch(e){state.stageMap.set(g.key,{err:1})}   // marked, so a failing market isn't re-read in a loop
     state.waveScan.done++;if((state.cat==='wave'||state.cat==='heat'||state.cat==='bo')&&state.waveScan.done%10===0){const f=$('#footnote');if(f)f.innerHTML=`Reading daily charts… <span class="num">${state.waveScan.done}/${state.waveScan.total}</span>`}}};
   await Promise.all([worker(),worker(),worker(),worker()]);
-  state.waveScan=null;state.waveAt=NOW();if(state.cat==='wave'||state.cat==='heat'||state.cat==='bo'){renderTabs();renderList()}
+  state.waveScan=null;if(!only)state.waveAt=NOW();if(['wave','heat','bo','watch'].includes(state.cat)){renderTabs();renderList()}
 }
 /* ---------- indicators ---------- */
 function ema(v,n){const o=new Array(v.length).fill(null);const k=2/(n+1);let s=0,c=0,prev=null;for(let i=0;i<v.length;i++){const x=v[i];if(x==null)continue;if(prev==null){s+=x;c++;if(c===n){prev=s/n;o[i]=prev}}else{prev=x*k+prev*(1-k);o[i]=prev}}return o}

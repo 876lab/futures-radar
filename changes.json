@@ -1,4 +1,8 @@
 [
+  {"date": "2026-11-13", "title": "Bubble stages on Starred", "items": [
+    "The Starred page now starts with a Bubble stages card: all your starred coins grouped by stage (Fear, Despair, Return to the mean, Greed…), so your whole portfolio is on one screen.",
+    "Each starred row also shows its stage, since when, what it was before, and any green or red wave dot from the last 30 days."
+  ]},
   {"date": "2026-11-13", "title": "Fix: charts that wouldn't open", "items": [
     "Some 4H and 1D charts (like INJ) showed \"The chart hit a snag\" after yesterday's Fibonacci update. Fixed.",
     "If one card under a chart ever breaks again, the chart itself still opens."

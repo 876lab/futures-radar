@@ -363,7 +363,7 @@ async def main():
                 if nav == "sim":
                     await pg.click("#trCard summary"); await pg.wait_for_timeout(150)
                     trt = await pg.inner_text("#trCard")
-                    for want in ("Track record", "finished setups", "Open now", "By month started", "Latest finished", "never edited or removed", "every hourly update"):
+                    for want in ("Track record", "finished setups", "Open now", "By month started", "Latest finished", "never edited or removed", "every hourly update", "Checked against last night's backtest", "found the same setup at", "Scored again by the backtest"):
                         if want not in trt: problems.append(f"[{scheme}] simulator: track record card is missing '{want}'")
                     if scheme == "light":   # CSV download of every finished record
                         try:

@@ -2661,13 +2661,22 @@ function cleanBT(j){
   const lab=cleanLab(j.lab);
   return{lab,updated:fin(j.updated)?j.updated:0,from:fin(j.from)?j.from:null,to:fin(j.to)?j.to:null,source:typeof j.source==='string'?j.source.slice(0,60):'',
     markets:Array.isArray(j.markets)?j.markets.filter(x=>typeof x==='string').slice(0,60).map(x=>x.slice(0,20)):[],minN:fin(j.minN)?j.minN:BT_MIN_N,
-    overall,groups,odds,walk:{older:rows(w.older),newer:rows(w.newer)}};
+    overall,groups,odds,walk:{older:rows(w.older),newer:rows(w.newer)},check:cleanCheck(j.check)};
+}
+// the nightly backtest's check of the live track record (replayCheck plus both sides' results since the record began)
+function cleanCheck(c){
+  if(!c||typeof c!=='object')return null;const fin=v=>typeof v==='number'&&isFinite(v),int=v=>fin(v)&&v>=0?Math.round(v):0;
+  const cnt=o=>{const r={};for(const k of RC_K)r[k]=int(o&&o[k]);return r};
+  const st=x=>x&&typeof x==='object'&&fin(x.n)&&x.n>0&&fin(x.avgR)&&fin(x.reach)?{n:Math.round(x.n),avgR:clamp(x.avgR,-5,5),reach:clamp(x.reach,0,1)}:null;
+  const n=int(c.n);if(!n)return null;
+  return{n,read:cnt(c.read),long:cnt(c.long),scored:Math.min(n,int(c.scored)),scoreSame:Math.min(n,int(c.scoreSame)),liveR:fin(c.liveR)?clamp(c.liveR,-5,5):null,replayR:fin(c.replayR)?clamp(c.replayR,-5,5):null,
+    from:fin(c.from)?c.from:null,markets:int(c.markets),live:st(c.live),replay:st(c.replay)};
 }
 async function loadBT(){
   if(bt.loading||(bt.data&&NOW()-bt.at<30*60000)||(bt.err&&NOW()-bt.at<5*60000))return;bt.loading=true;
   try{const r=await fetch(BT_URL+'?t='+Math.floor(NOW()/600000));if(!r.ok)throw new Error('HTTP '+r.status);const j=cleanBT(await r.json());if(!j)throw new Error('bad data');bt.data=j;bt.err=null}
   catch(e){bt.err=String(e&&e.message||e)}
-  bt.at=NOW();bt.loading=false;const c=document.getElementById('btCard');if(c)c.innerHTML=btCardHTML();const lc=document.getElementById('labCard');if(lc)lc.innerHTML=labCardHTML();renderConfirm();if(current){renderDiv();renderHunt();renderWave()}
+  bt.at=NOW();bt.loading=false;const c=document.getElementById('btCard');if(c)c.innerHTML=btCardHTML();const lc=document.getElementById('labCard');if(lc)lc.innerHTML=labCardHTML();const tc=document.getElementById('trCard');if(tc&&tr.data)tc.innerHTML=trCardHTML();renderConfirm();if(current){renderDiv();renderHunt();renderWave()}
 }
 // public track record (scripts/track.js, published hourly to the track-data branch, which is only ever added to)
 const TR_URL=NEWS_URL.replace('/news-data/news.json','/track-data/track.json');
@@ -3024,6 +3033,16 @@ function trackLike(closed,tf,dir,ok,minN){
   for(let i=0;i<tries.length;i++){const st=btStat(sc.filter(tries[i][0]));if(st.n>=minN)return{st,label:tries[i][1],exact:i===0,all:sc.length}}
   return{st:null,label:'',exact:false,all:sc.length};
 }
+// live vs replay (track record follow-up a, 13 Nov 2026): the nightly backtest re-reads every finished live setup on its own
+// candles. Each row: read = the reading at the same candle with the live run's 400-candle window, long = with the backtest's
+// long history ('same' side and stop within 2% | 'levels' same side, other stop | 'other' side | 'none' | 'nocandle'),
+// r = live result, rr = the backtest's own score of the same trade. Information only.
+const RC_K=['same','levels','other','none','nocandle'];
+function replayCheck(rows){
+  const cnt=f=>{const o={};for(const k of RC_K)o[k]=0;for(const x of rows)if(o[x[f]]!=null)o[x[f]]++;return o};
+  const fin=v=>typeof v==='number'&&isFinite(v),sc=rows.filter(x=>fin(x.r)&&fin(x.rr)),avg=a=>a.length?a.reduce((s,v)=>s+v,0)/a.length:null;
+  return{n:rows.length,read:cnt('read'),long:cnt('long'),scored:sc.length,scoreSame:sc.filter(x=>Math.abs(x.r-x.rr)<=0.05).length,liveR:avg(sc.map(x=>x.r)),replayR:avg(sc.map(x=>x.rr))};
+}
 // CSV of every finished record (RFC 4180: commas, doubled quotes, CRLF), oldest first; text cells that a
 // spreadsheet would read as a formula (= + - @ tab CR at the start) get a leading ' (OWASP CSV injection advice)
 function csvCell(v){
@@ -3255,8 +3274,23 @@ function trCardHTML(){
       <ul class="sim-notes"><li>Every setup is saved within the hour its candle closes, before its result is known. Finished results are never edited or removed, losses included${s.nodata?`; ${plural(s.nodata,'setup')} couldn't be scored because the market's prices stopped coming`:''}.</li>
       <li>Results are simulated with the Simulator's rules on Gate prices: entry at the next candle's open, half closed at target 1 and the stop moved to entry, 0.05% fee and 0.02% slippage each side, closed after ${OPTS_TR.maxHold} candles. They are not real trades; real fills, funding fees and liquidation can make results worse.</li>
       <li>The full history is public: <a href="${esc(TR_LOG)}" target="_blank" rel="noopener">every hourly update on GitHub</a>. Past results don't guarantee future ones.</li></ul>
+      ${trCheckHTML()}
       ${d.closed.length?`<div class="simbtns"><button type="button" class="btn" id="trCsv">Download all ${plural(d.closed.length,'finished setup')} (CSV)</button></div><p class="note">A spreadsheet file with every finished setup: market, side, entry, stop, targets, times in UTC and the result in R. It opens in Excel, Numbers or Google Sheets.</p>`:''}
     </details>`;
+}
+// does the nightly backtest see the same setups and results as the live record? (bt.data.check, see replayCheck)
+function trCheckHTML(){
+  const c=bt.data&&bt.data.check;if(!c)return '';
+  const p=(k,n)=>fmtP(k/(n||1)),R=c.read,L=c.long,miss=R.other+R.none;
+  const gap=c.live&&c.replay?c.live.avgR-c.replay.avgR:null;
+  const verdict=gap==null?'':Math.abs(gap)<=0.1?'Close: the backtest\'s numbers describe what the app shows live.':
+    `A gap of ${Math.abs(gap).toFixed(2)}R per setup (live ${gap>0?'better':'worse'}). With this many setups luck can explain part of it; worth watching.`;
+  return `<div class="sim-sec"><h4>Checked against last night's backtest</h4><ul class="sim-notes">
+    <li>The backtest re-read <b>${c.n.toLocaleString()}</b> finished setups on the same candles and found the same setup at <b>${p(R.same,c.n)}</b>${R.levels?`, the same side with a different stop at ${p(R.levels,c.n)}`:''}${miss?`, and no setup or the other side at ${p(miss,c.n)}`:''}${R.nocandle?`; ${plural(R.nocandle,'candle')} could not be found again`:''}.</li>
+    <li>With the backtest's longer price history (indicators warmed up on more candles): the same setup at ${p(L.same,c.n)}.</li>
+    ${c.scored?`<li>Scored again by the backtest: <b>${p(c.scoreSame,c.scored)}</b> got the same result; average ${fmtR(c.liveR)} live vs ${fmtR(c.replayR)} replayed.</li>`:''}
+    ${c.live&&c.replay?`<li>Same ${plural(c.markets,'market')}${c.from?` since ${esc(dateStr(c.from*1000))}`:''}: the backtest found ${c.replay.n.toLocaleString()} setups averaging <b class="${c.replay.avgR>0?'up':'down'}">${fmtR(c.replay.avgR)}</b> (target 1 in ${fmtP(c.replay.reach)}); live ${c.live.n.toLocaleString()} averaging <b class="${c.live.avgR>0?'up':'down'}">${fmtR(c.live.avgR)}</b> (target 1 in ${fmtP(c.live.reach)}). ${verdict}</li>`:''}
+    <li>The live record only follows each market while it is among the busiest 25, and one setup at a time, so the counts differ a little.</li></ul></div>`;
 }
 function labCardHTML(){
   const d=bt.data,L=d&&d.lab;

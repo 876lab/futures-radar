@@ -270,6 +270,12 @@ const b=trackLike(cl,'1h',1,true,100);ok(!b.exact&&b.st.n===180&&b.label==='conf
 const c=trackLike(cl,'1h',1,false,100);ok(c.st.n===230&&c.label==='all 1H setups','track like: then same candle size');
 const e=trackLike(cl,'4h',-1,true,100);ok(e.st.n===270&&e.label==='all 1H and 4H setups'&&e.all===270,'track like: then everything, unscored left out');
 ok(trackLike(cl,'4h',-1,true,500).st===null&&trackLike(cl,'15m',1,true,100)===null,'track like: nothing under the minimum, no 15m');}
+// live vs replay check (track record follow-up a): counts per reading, same score within 0.05R, averages over scored rows only
+{const c=replayCheck([{tf:'1h',read:'same',long:'same',r:1.2,rr:1.2},{tf:'1h',read:'same',long:'levels',r:-1.05,rr:-0.98},{tf:'4h',read:'none',long:'other',r:0.6,rr:-1},
+  {tf:'4h',read:'nocandle',long:'nocandle',r:null,rr:null},{tf:'1h',read:'bogus',long:'same',r:0.3,rr:null}]);
+ok(c.n===5&&c.read.same===2&&c.read.none===1&&c.read.nocandle===1&&c.read.levels===0&&c.long.same===2&&c.long.levels===1&&c.long.other===1,'replay check: reading counts '+JSON.stringify(c));
+ok(c.scored===3&&c.scoreSame===1&&Math.abs(c.liveR-(1.2-1.05+0.6)/3)<1e-9&&Math.abs(c.replayR-(1.2-0.98-1)/3)<1e-9,'replay check: scores compared on rows with both results only');
+const z=replayCheck([]);ok(z.n===0&&z.scored===0&&z.liveR===null&&z.replayR===null,'replay check: empty input');}
 // crypto cycle gauge (information only)
 {const D=86400,mk=(n,f)=>Array.from({length:n},(_,i)=>{const c=f(i);return{time:1.5e9+i*D,open:c,high:c*1.01,low:c*0.99,close:c,volume:1}});
 let c=cycleAt(mk(1500,()=>100),1499);

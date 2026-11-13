@@ -2,6 +2,12 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-11-13 (nightly run): Track record checked against the backtest (track record follow-up a)
+- The nightly backtest (`scripts/backtest.js`) now re-reads every finished live setup from `track.json` (track-data branch, read from raw.githubusercontent.com) at the same candle, twice: with the live run's 400-candle window (exactly as `scripts/track.js` saw it) and with the backtest's long history. It also scores each trade again with `simTrade`, and replays the same markets since the record began (26 Oct), so live and replayed results can be compared like for like. Markets no longer in the backtest's top 30 are downloaded for the check only; delisted ones are listed as missing.
+- Published as `check` in `backtest.json`; the Simulator's **Track record** card shows it under its details as "Checked against last night's backtest" (share of live setups found again, share scored the same, average R live vs replayed, and both sides' results on the same markets since the start, with a plain verdict). The check can never stop the backtest: any problem is noted in `fails`.
+- New pure `replayCheck` (3 engine tests) and `cleanCheck`; the demo run checks that the backtest's own trades are re-read and re-scored identically; the browser test checks the new section. Information only: no signal rule, entry, stop or target changed.
+- Sources: Gate API v4 futures candlesticks (https://www.gate.com/docs/developers/apiv4/, endpoint already used by the app and jobs); on why live and backtest results drift apart (data, warm-up, timing): https://www.mql5.com/en/blogs/post/773870, https://www.tradezella.com/blog/backtesting-vs-forward-testing.
+
 ## 2026-11-13 (owner request): Bubble stages on Starred
 - **Starred** now opens with a **Bubble stages** card: every starred market grouped by its stage on the "Stages of a bubble" curve (in the curve's order), colour-coded (green: take-off, awareness, bear trap, capitulation, despair, return to the mean; amber: enthusiasm, denial, bull trap, fear; red: greed, delusion). Tap a name to open its chart.
 - Each starred row adds a line: its stage, since when and what it was before, % from its long average, and a green/red wave dot from the last 30 days.

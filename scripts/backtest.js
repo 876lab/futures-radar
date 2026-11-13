@@ -243,8 +243,48 @@ function report(trades, meta) {
     odds
   });
 }
+// Live vs replay (track record follow-up a, 13 Nov 2026): re-read every finished live setup from track.json at the same candle,
+// once with the live run's 400-candle window (as scripts/track.js saw it) and once with this backtest's long history, score it
+// again with simTrade, and replay the same markets since the record began. Prices scaled per one coin like the track record.
+const TRACK_URL = 'https://raw.githubusercontent.com/' + (process.env.GITHUB_REPOSITORY || '876lab/futures-radar') + '/track-data/track.json';
+const scaleC = (cs, k) => !cs || k === 1 ? cs : cs.map(b => ({ time: b.time, open: b.open / k, high: b.high / k, low: b.low / k, close: b.close / k, volume: b.volume }));
+function readAs(rc, r) { return !rc || (rc.rec !== 'long' && rc.rec !== 'short') ? 'none' : rc.dir !== r.dir ? 'other' : rc.levels && Math.abs(rc.levels.R / r.R - 1) <= 0.02 ? 'same' : 'levels'; }
+function checkMarket(c, recs, from) {   // c: scaled candles {1h, 4h, 1d} up to now; recs: this market's finished live records
+  const rows = [], long = {}, closedNow = (cs, tf, at) => cs.filter(k => k.time + TFS[tf] <= at);
+  for (const tf of ['1h', '4h']) { const cs = c[tf], hcs = c[HTF[tf]]; if (cs && cs.length > SIM_WARM) long[tf] = { cs, S: computeSeries(cs), hcs, HS: hcs && hcs.length > 40 ? computeSeries(hcs) : null }; }
+  for (const r of recs) {
+    const row = { tf: r.tf, r: r.how === 'nodata' ? null : r.r, rr: null, read: 'nocandle', long: 'nocandle' }; rows.push(row);
+    const raw = c[r.tf], hraw = c[HTF[r.tf]], close = r.t + TFS[r.tf]; if (!raw) continue;
+    // as the hourly run saw it: the last 400 candles that had opened by then, fully closed ones only
+    const cs = closedNow(raw.filter(k => k.time < r.seen).slice(-400), r.tf, r.seen), i = cs.findIndex(k => k.time === r.t);
+    if (i >= SIM_WARM) { const an = analyzeAt(cs, computeSeries(cs), i), hc = hraw ? closedNow(hraw.filter(k => k.time < r.seen).slice(-400), HTF[r.tf], r.seen).filter(k => k.time + TFS[HTF[r.tf]] <= close) : [];
+      const han = hc.length >= 35 ? analyzeAt(hc, computeSeries(hc), hc.length - 1) : null; row.read = readAs(an && recommend(an, cs.slice(0, i + 1), han, r.tf, true), r); }
+    // as this backtest sees it (same steps as backtestSeries)
+    const L = long[r.tf], j = L ? L.cs.findIndex(k => k.time === r.t) : -1; if (j < SIM_WARM) continue;
+    let h = -1; if (L.HS) while (h + 1 < L.hcs.length && L.hcs[h + 1].time + TFS[HTF[r.tf]] <= close) h++;
+    const an = analyzeAt(L.cs, L.S, j); row.long = readAs(an && recommend(an, L.cs, h >= 34 ? analyzeAt(L.hcs, L.HS, h) : null, r.tf, true), r);
+    const t = simTrade(L.cs, j, { dir: r.dir, conf: r.conf, levels: { R: r.R } }, OPTS); if (t && !t.unfinished) row.rr = +t.r.toFixed(3);
+  }
+  const replay = [];
+  for (const tf in long) for (const t of backtestSeries(long[tf].cs, long[tf].hcs, null, tf, OPTS)) if (t.t0 >= from) replay.push({ r: t.r, reach: t.mfe >= 1.5 });
+  return { rows, replay };
+}
+async function liveCheck(track, CAND) {
+  const recs = track.closed.filter(r => (r.tf === '1h' || r.tf === '4h') && r.sym && r.t > 0 && r.seen > 0 && r.R > 0), bySym = {};
+  for (const r of recs) (bySym[r.sym] = bySym[r.sym] || []).push(r);
+  const rows = [], replay = [], missing = []; let markets = 0;
+  for (const sym in bySym) {
+    let c = CAND[sym];
+    if (!c && !DEMO) try { c = {}; for (const tf of ['1h', '4h', '1d']) { c[tf] = await gateCandles(sym, tf); await sleep(150); } } catch (e) { c = null; }
+    if (!c) missing.push(sym);
+    const k = baseInfo(sym.split('_')[0]).mult || 1, sc = {}; if (c) for (const tf of ['1h', '4h', '1d']) sc[tf] = scaleC(c[tf], k);
+    const out = checkMarket(sc, bySym[sym], track.start); rows.push(...out.rows); replay.push(...out.replay); if (c) markets++;
+  }
+  const live = recs.filter(r => r.how !== 'nodata' && r.t0 >= track.start).map(r => ({ r: r.r, reach: !!r.reach }));
+  return Object.assign(replayCheck(rows), { from: track.start, markets, missing, live: btStat(live), replay: btStat(replay) });
+}
 async function main() {
-  const t0 = Date.now(), all = [], fails = [];
+  const t0 = Date.now(), all = [], fails = [], CAND = {};
   let markets;
   if (DEMO) { state.pairs = demoPairs(); markets = state.pairs.filter(p => p.kind === 'perp').slice(0, 8); }
   else markets = await gateMarkets();
@@ -253,11 +293,24 @@ async function main() {
     try {
       const c = {};
       for (const tf of ['15m', '1h', '4h', '1d']) { c[tf] = DEMO ? demoCandles(m, tf, LIMIT[tf]) : await gateCandles(m.sym, tf); if (!DEMO) await sleep(150); }
-      all.push(...runMarket(m, c));
+      CAND[m.sym] = c; all.push(...runMarket(m, c));
     } catch (e) { fails.push(m.sym + ': ' + String(e && e.message || e).slice(0, 80)); }
   }
   const rep = report(all, { source: DEMO ? 'sample data' : 'Gate USDT perpetuals', markets: markets.map(m => m.root), fails, secs: Math.round((Date.now() - t0) / 1000) });
   if (!DEMO && rep.overall.n < 50) throw new Error('too few trades (' + rep.overall.n + '); not publishing');
+  try {   // never stops the backtest: on any problem the check is left out and noted in fails
+    let track;
+    if (DEMO) {   // sample check: the backtest's own 1H trades on 3 markets stand in for live records, so both readings must match
+      track = { start: 0, closed: [] };
+      for (const m of markets.slice(0, 3)) { const cs = CAND[m.sym]['1h'];
+        for (const t of backtestSeries(cs, CAND[m.sym]['4h'], m, '1h', OPTS).slice(-25)) track.closed.push({ sym: m.sym, tf: '1h', dir: t.dir, conf: t.conf, t: cs[t.i].time, t0: t.t0, R: t.R, r: +t.r.toFixed(3), reach: t.mfe >= 1.5, how: t.how, seen: t.t0 + 720 }); }
+    } else { const r = await fetch(TRACK_URL + '?t=' + Date.now()); if (!r.ok) throw new Error('track.json HTTP ' + r.status); track = await r.json(); }
+    if (track && Array.isArray(track.closed) && track.closed.length) rep.check = await liveCheck(track, CAND);
+    const k = rep.check;
+    if (k) console.log('live check: ' + k.n + ' live setups; same reading ' + JSON.stringify(k.read) + ', long history ' + JSON.stringify(k.long) + '; scored the same ' + k.scoreSame + '/' + k.scored +
+      ' (live ' + (k.liveR == null ? '-' : k.liveR.toFixed(3)) + 'R, replay ' + (k.replayR == null ? '-' : k.replayR.toFixed(3)) + 'R); same markets since start: live ' + JSON.stringify(k.live) + ' replay ' + JSON.stringify(k.replay) + '; missing ' + k.missing.join(' '));
+    if (DEMO && !(k && k.long.same === k.n && k.scoreSame === k.scored && k.scored === k.n)) throw new Error('demo live check: replay of the backtest own trades does not match ' + JSON.stringify(k));
+  } catch (e) { if (DEMO) throw e; rep.fails.push('live check: ' + String(e && e.message || e).slice(0, 80)); }
   fs.writeFileSync(OUT, JSON.stringify(rep));
   const c = rep.groups.confirmed;
   console.log('backtest: ' + rep.overall.n + ' trades on ' + markets.length + ' markets (' + fails.length + ' failed) in ' + rep.secs + 's; ' +

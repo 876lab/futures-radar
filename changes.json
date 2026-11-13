@@ -1,4 +1,8 @@
 [
+  {"date": "2026-11-13", "title": "Track record checked every night", "items": [
+    "The nightly backtest now re-reads every finished live setup on the same candles and scores it again, to make sure the live record and the backtest agree.",
+    "See Simulator → Track record → details → \"Checked against last night's backtest\". The first results appear after tonight's run (about 2am)."
+  ]},
   {"date": "2026-11-13", "title": "Bubble stages on Starred", "items": [
     "The Starred page now starts with a Bubble stages card: all your starred coins grouped by stage (Fear, Despair, Return to the mean, Greed…), so your whole portfolio is on one screen.",
     "Each starred row also shows its stage, since when, what it was before, and any green or red wave dot from the last 30 days."

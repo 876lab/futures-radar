@@ -3501,14 +3501,15 @@ function draw(keep){
   if(!current)return;const ch=ensureCharts(),msg=$('#chartMsg');
   // Fibonacci levels of the last main swing (card always; chart lines with the "Fibonacci" chip). Information only.
   let fib=null;try{fib=fibLevels(current.cs,current.an&&current.an.atr)}catch(e){recordErr('fibonacci',e)}
-  current.fib=fib;renderFib();
+  const card=(name,fn)=>{try{fn()}catch(e){recordErr(name+' card',e)}};
+  current.fib=fib;card('Fibonacci',renderFib);
   let sr=null;try{sr=srLevels(current.cs,current.an&&current.an.atr)}catch(e){recordErr('support and resistance',e)}
-  current.sr=sr;renderSR();
+  current.sr=sr;card('support and resistance',renderSR);
   const DIV_TF=['1h','4h','1d','1w'].includes(ctf()),HUNT_TF=['1h','4h','1d'].includes(ctf());let divs=null;
   let hunts=null;try{const A_=current.an;if(DIV_TF&&A_&&A_.series){divs=rsiDivergences(current.cs,A_.series.r12,Math.max(0,current.cs.length-300),A_.series.e50);if(HUNT_TF)hunts=stopHunts(current.cs,A_.series.at,Math.max(0,current.cs.length-300))}}catch(e){recordErr('RSI divergence',e)}
-  current.divs=divs;current.hunts=hunts;current.divTf=DIV_TF;current.huntTf=HUNT_TF;renderDiv();renderHunt();
+  current.divs=divs;current.hunts=hunts;current.divTf=DIV_TF;current.huntTf=HUNT_TF;card('RSI divergence',renderDiv);card('stop-hunts',renderHunt);
   let wave=null;try{if(['1d','1w'].includes(ctf())&&current.an&&current.an.series)wave=waveSignals(current.cs,current.an.series.at,Math.max(1,current.cs.length-300))}catch(e){recordErr('wave signals',e)}
-  current.wave=wave;renderWave();current.briefOpen=current.briefOpen&&current.briefKey===current.p.id;current.briefKey=current.p.id;renderBrief();
+  current.wave=wave;card('wave signals',renderWave);current.briefOpen=current.briefOpen&&current.briefKey===current.p.id;current.briefKey=current.p.id;card('chart breakdown',renderBrief);
   if(!ch){msg.hidden=false;msg.textContent="The chart library didn't load. Check your connection and refresh.";return}
   const {cs,an,rc}=current;if(keep){try{current.range=ch.main.timeScale().getVisibleLogicalRange()}catch(e){}}
   const T=cs.map(k=>k.time+tzOff);current.tIndex=new Map(T.map((t,i)=>[t,i]));
@@ -3775,6 +3776,8 @@ function fibHTML(f,tf){
   const lvl=r=>f.levels.find(l=>Math.abs(l.r-r)<1e-9),x1=lvl(-0.272),x2=lvl(-0.618),l786=lvl(0.786);
   const head=`The last main ${mv} on ${TF_LABEL[tf]} went from <b>${fmtUsd(f.a.p)}</b> to <b>${fmtUsd(f.b.p)}</b> (${pc((f.b.p/f.a.p-1)*100)}, ${plural(f.legBars,'candle')}).`;
   const r=f.retr,z=fibZone(r),pct=Math.round(r*100);
+  const past=up?'below swing low':'above swing high';
+  const bz=f.levels.filter(l=>l.beyond).sort((x,y)=>up?y.p-x.p:x.p-y.p),bzTxt=bz.length?` If price ${r>1?'keeps going':`breaks the ${up?'swing low':'swing high'} (${fmtUsd(f.a.p)})`}, the levels ${past.replace('swing','the swing')} that traders watch are ${bz.map(l=>`${l.name} (${fmtUsd(l.p)})`).join(', ')}.`:'';
   let now;
   if(f.breakout||r<0)now=`Price ${f.breakout?`has broken ${up?'above the previous swing high':'below the previous swing low'} (${fmtUsd(f.brk)}) and is near the end of this move`:`has moved past the ${up?'swing high':'swing low'}`}, a breakout. Extensions such as 127.2%${x1?` (${fmtUsd(x1.p)})`:''} and 161.8%${x2?` (${fmtUsd(x2.p)})`:''} are where traders often watch for the move to pause.`;
   else if(r>1)now=`Price has gone back past the start of the ${mv}, so this move no longer holds.${bzTxt}`;
@@ -3785,9 +3788,7 @@ function fibHTML(f,tf){
     if(r>=0.236&&r<=1)now+=` If the ${mv} resumes, the ${up?'swing high':'swing low'} (${fmtUsd(f.b.p)}) and then the 127.2%${x1?` (${fmtUsd(x1.p)})`:''} and 161.8%${x2?` (${fmtUsd(x2.p)})`:''} extensions are the usual levels traders watch next.`}
   const nb=(l,w)=>`<div>${w}${l?`<b>${esc(l.name)} · ${fmtUsd(l.p)}</b>${dist(l)}`:'<b>—</b>none in range'}</div>`;
   const near=l=>f.above===l||f.below===l;
-  const past=up?'below swing low':'above swing high';
   const rows=[...f.levels].sort((x,y)=>y.p-x.p).map(l=>`<tr class="${l.ext?'ext':''}${l.beyond?' beyond':''}${near(l)?' here':''}"><td>${esc(l.name)}${l.ext?' extension':l.beyond?` <small>${past}</small>`:''}</td><td>${fmtUsd(l.p)}</td><td>${dist(l)}</td></tr>`).join('');
-  const bz=f.levels.filter(l=>l.beyond).sort((x,y)=>up?y.p-x.p:x.p-y.p),bzTxt=bz.length?` If price ${r>1?'keeps going':`breaks the ${up?'swing low':'swing high'} (${fmtUsd(f.a.p)})`}, the levels ${past.replace('swing','the swing')} that traders watch are ${bz.map(l=>`${l.name} (${fmtUsd(l.p)})`).join(', ')}.`:'';
   return `<h3>Fibonacci levels</h3><p class="sub">${TF_LABEL[tf]} candles · from the last main swing · information only</p>
     <p class="big">${head} ${now}</p>
     <div class="next">${nb(f.above,'Next level above')}${nb(f.below,'Next level below')}</div>

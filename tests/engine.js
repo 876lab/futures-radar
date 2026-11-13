@@ -8,6 +8,8 @@ const cut = (a, b) => { const i = src.indexOf(a), j = src.indexOf(b); if (i < 0 
 global.location = { hostname: '876lab.github.io', pathname: '/futures-radar/' };
 let code = cut('const DAY', '/* ---------- network').replace(/const LS=.*\n/, 'const LS={get:(k,d)=>d,set(){}};\n');
 code += cut('/* ---------- sample data', '/* ---------- loading') + cut('/* ---------- indicators', '/* ---------- charts');
+// the Fibonacci card's text (a broken card once stopped 4H/1D charts from drawing, 13 Nov 2026), with the helpers it needs
+code += src.slice(src.indexOf('const esc='), src.indexOf('const DAY')) .replace(/const \$=.*\n/, '') + cut('function fibHTML(', 'function srHTML(');
 code += `
 let pass=0,fail=0;const ok=(c,m)=>{if(c)pass++;else{fail++;console.log('FAIL:',m)}};
 // 1. no look-ahead: a signal at a past candle must equal a fresh calculation on candles up to that point
@@ -303,6 +305,10 @@ ok(f&&f.dir===-1&&Math.abs(f.b.p-(10-0.5))<1e-9,'fib: once the drop is bigger th
 const p3=path.concat(Array.from({length:12},(_,i)=>165+i*5));f=fibLevels(mkc(p3),5);
 ok(f&&f.dir===1&&Math.abs(f.a.p-159.5)<1e-9&&Math.abs(f.b.p-220.5)<1e-9&&f.breakout&&Math.abs(f.brk-200.5)<1e-9,'fib: new high past the old swing high reads as a breakout');
 ok(fibLevels(cs,5).breakout===false,'fib: a pullback is not a breakout');
+// the card's text renders for every depth of pullback, including past 61.8% where it names the levels below the swing low
+for(const end of [180,150,125,104]){const pp=path.slice(0,41).concat(Array.from({length:12},(_,i)=>200-(200-end)*(i+1)/12));const ff=fibLevels(mkc(pp),5);
+  let h='';try{h=fibHTML(ff,'4h')}catch(e){h='ERR '+e.message}
+  ok(ff&&h.includes('Fibonacci levels')&&!/ERR|undefined|NaN/.test(h)&&(ff.retr<0.618||h.includes('below the swing low')),'fib card: renders at '+Math.round((ff?ff.retr:0)*100)+'% pullback'+(h.startsWith('ERR')?' ('+h+')':''));}
 ok(fibLevels(mkc(path.slice(0,30)),5)===null,'fib: under 40 candles gives nothing');ok(fibLevels(cs,0)===null&&fibLevels([],5)===null,'fib: no ATR or no candles gives nothing');
 ok(fibZone(-0.1)==='Past the swing end'&&fibZone(0.1)==='Under 23.6%'&&fibZone(0.7)==='61.8–78.6%'&&fibZone(1.2)==='Past 100%'&&fibZone(NaN)===null,'fibZone bands');
 // no look-ahead: levels at a past candle equal levels computed on candles up to that point

@@ -1,4 +1,8 @@
 [
+  {"date": "2026-11-13", "title": "Fix: charts that wouldn't open", "items": [
+    "Some 4H and 1D charts (like INJ) showed \"The chart hit a snag\" after yesterday's Fibonacci update. Fixed.",
+    "If one card under a chart ever breaks again, the chart itself still opens."
+  ]},
   {"date": "2026-11-12", "title": "Steadier bubble stage", "items": [
     "The bubble stage now uses closed candles only, so it no longer changes while today's candle is still moving.",
     "It also shows since when the stage has held and what it was before, e.g. \"Fear · since Nov 11 · was Despair\"."

@@ -275,6 +275,31 @@ async def stages_check(b):
     for bad in ("undefined", "NaN", "Infinity", "Reading the daily"):
         if bad in txt: problems.append(f"stages: Starred shows '{bad}'")
     await pg.screenshot(path=os.path.join(OUT, "starred-stages.png"))
+    # B/S alerts (owner request 15 Nov 2026): first look only remembers where each chart is; a flip since the last check rings
+    if "B/S alerts" not in txt or "Watching 3 starred markets on 1H, 4H" not in txt: problems.append(f"bs: B/S alerts card missing on Starred: {txt[:200]!r}")
+    await pg.wait_for_timeout(7000)
+    last = json.loads(await pg.evaluate("localStorage.getItem('fradar:bsLast')") or "{}")
+    if len(last) < 6: problems.append(f"bs: first check didn't remember the starred charts ({len(last)} of 6)")
+    if json.loads(await pg.evaluate("localStorage.getItem('fradar:bsEv')") or "[]"): problems.append("bs: first look raised alerts for old flips")
+    k1 = next((k for k in last if k.endswith("|1h")), None)
+    if k1:
+        last[k1] = last[k1] - 20 * 86400
+        await pg.evaluate("v => localStorage.setItem('fradar:bsLast', v)", json.dumps(last))
+        await pg.reload(); await pg.wait_for_timeout(11000)
+        bar = await pg.inner_text("#alBar") if await pg.is_visible("#alBar") else ""
+        if "Supertrend turned" not in bar or "while you were away" not in bar: problems.append(f"bs: no banner for a flip since the last check: {bar!r}")
+        await pg.click('[data-nav="watch"]'); await pg.wait_for_timeout(800)
+        txt2 = await pg.inner_text("#bsList") if await pg.locator("#bsList").count() else ""
+        if "1H" not in txt2 or "Supertrend turned" not in txt2 or "1 new" not in txt2: problems.append(f"bs: flip not listed on Starred: {txt2[:200]!r}")
+        for bad in ("undefined", "NaN", "Infinity", "null"):
+            if bad in txt2: problems.append(f"bs: card shows '{bad}'")
+        try:
+            if txt2: await pg.locator("#bsList").screenshot(path=os.path.join(OUT, "bs-alerts.png"), timeout=5000)
+        except Exception as e: print(f"  note: B/S alerts screenshot skipped ({type(e).__name__})")
+        if bar: await pg.click('[data-albar="bsok"]'); await pg.wait_for_timeout(200)
+        if await pg.is_visible("#alBar"): problems.append("bs: OK did not close the banner")
+        await pg.click('[data-bstf="15m"]'); await pg.wait_for_timeout(300)
+        if await pg.get_attribute('[data-bstf="15m"]', "aria-pressed") != "true" or "15m" not in (await pg.evaluate("localStorage.getItem('fradar:bsTfs')") or ""): problems.append("bs: 15m chip didn't switch on")
     if errs: problems.append("stages: JS error: " + errs[0])
     await pg.close()
 

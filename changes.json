@@ -1,4 +1,9 @@
 [
+  {"date": "2026-11-15", "title": "B/S alerts for your starred coins", "items": [
+    "The Starred page has a new B/S alerts card: when a B or S mark (Supertrend flip) appears on one of your starred markets, the app rings and shows a banner, even if that chart isn't open.",
+    "It watches 1H and 4H to start; tap 15m, 1H, 4H or 1D on the card to choose, or switch it off.",
+    "Flips that happened while the app was closed show up as \"while you were away\" when you come back. A flip is a reason to look at the chart, not a trade on its own."
+  ]},
   {"date": "2026-11-15", "title": "Trading box on charts", "items": [
     "When a market is stuck going sideways, the chart now shades the box it is trading in, with its top and bottom marked.",
     "A Trading box card under the chart says how long it has lasted, how often each edge was tested, and whether price is near the top, the bottom or the middle.",

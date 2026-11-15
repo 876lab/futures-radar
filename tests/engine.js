@@ -282,6 +282,16 @@ const bd=rangeBox(mk(rise.concat(side,[97,92])),3);ok(bd&&bd.status==='below','b
 ok(rangeBox(mk(side.slice(0,10)),3)===null&&rangeBox(mk(side),0)===null,'box: too few candles or no ATR');
 const cs=mk(rise.concat(side,[118,120,125])),b1=rangeBox(cs.slice(0,62),3),b2=rangeBox(cs,3);ok(b1&&b2&&b1.top===b2.top||(b1&&b1.status==='above'),'box: later candles do not change an earlier box');
 const h=boxHTML(b,'4h'),h2=boxHTML(bo,'1d');ok(/Trading box/.test(h)&&/\\d+ candles/.test(h)&&/tested/.test(h)&&/closed above the box/.test(h2)&&!/undefined|NaN/.test(h+h2),'box: card text');}
+// B/S alerts on Starred (owner request 15 Nov 2026): same flips as the chart's marks, closed candles only, only after 'after'
+{state.pairs=demoPairs();const p=state.pairs[0],cs=demoCandles(p,'1h',400),now=cs[cs.length-1].time+60;   // last candle still forming
+const all=stFlips(cs,'1h',now,0),S=computeSeries(cs.slice(0,-1)),marks=[];for(let i=1;i<cs.length-1;i++){const a=S.st.dir[i-1],b=S.st.dir[i];if(a!=null&&b!=null&&a!==b)marks.push(cs[i].time)}
+ok(all.flips.length>0&&JSON.stringify(all.flips.map(f=>f.time))===JSON.stringify(marks),'bs: flips match the chart marks on closed candles ('+all.flips.length+')');
+ok(all.last===cs[cs.length-2].time,'bs: the forming candle is left out');
+const mid=all.flips[Math.floor(all.flips.length/2)].time,later=stFlips(cs,'1h',now,mid);ok(later.flips.every(f=>f.time>mid)&&later.flips.length===all.flips.filter(f=>f.time>mid).length,'bs: only flips after the last check');
+ok(stFlips(cs,'1h',now,Infinity).flips.length===0&&stFlips(cs.slice(0,10),'1h',now,0).flips.length===0,'bs: first look and too few candles give nothing');
+const ev=cleanBsEv([{k:'BTC',root:'BTC',tf:'1h',dir:1,t:100,p:5,at:1},{k:'BTC',tf:'1h',dir:1,t:100,at:2},{k:'X',tf:'2h',dir:1,t:1,at:1},{k:'Y',tf:'4h',dir:0,t:1,at:1},null,'x',{k:'Z',tf:'1d',dir:-1,t:5,at:3,p:-1,seen:true}]);
+ok(ev.length===2&&ev[0].id==='BTC|1h|100'&&ev[1].p===null&&ev[1].seen===true&&ev[1].root==='Z','bs: stored events cleaned, duplicates dropped');
+ok(cleanBsEv('junk').length===0&&Object.keys(cleanBsLast({'a|1h':5,'b|2h':5,'c|4h':'x','d|1d':-1,e:1})).join()==='a|1h'&&Object.keys(cleanBsLast([1])).length===0,'bs: last-checked times cleaned');}
 // live vs replay check (track record follow-up a): counts per reading, same score within 0.05R, averages over scored rows only
 {const c=replayCheck([{tf:'1h',read:'same',long:'same',r:1.2,rr:1.2},{tf:'1h',read:'same',long:'levels',r:-1.05,rr:-0.98},{tf:'4h',read:'none',long:'other',r:0.6,rr:-1},
   {tf:'4h',read:'nocandle',long:'nocandle',r:null,rr:null},{tf:'1h',read:'bogus',long:'same',r:0.3,rr:null}]);

@@ -1772,6 +1772,10 @@ function fireAlert(a,price,at,away){a.hit=at;a.hp=price||null;a.away=!!away;stat
   if(state.cat==='watch')renderList();if(state.alOpen)renderAlBox()}
 function checkAlerts(){for(const a of state.alerts){if(a.hit!=null)continue;const p=gPrice(a.k);if(p&&alertHit(a,p))fireAlert(a,p,NOW(),false)}}
 function renderAlBar(){const el=document.getElementById('alBar');if(!el)return;const L=(state.alNew||[]).map(id=>state.alerts.find(a=>a.id===id)).filter(Boolean);
+  const B=(state.bsNew||[]).map(id=>(state.bsEv||[]).find(e=>e.id===id)).filter(Boolean);
+  if(!L.length&&B.length){const e=B[0],more=B.length-1;
+    el.innerHTML=`<p><b>${esc(e.root)} ${TF_LABEL[e.tf]}: ${e.dir>0?'B, Supertrend turned up':'S, Supertrend turned down'}</b>${e.away?' while you were away':''}${e.p?` at ${fmtUsd(e.p)}`:''}.${more?` (${more} more on Starred)`:''}</p>
+    <div class="acts"><button type="button" data-albar="bsview" data-k="${esc(e.k)}" data-tf="${esc(e.tf)}">View chart</button><button type="button" data-albar="bsok">OK</button></div>`;el.hidden=false;return}
   if(!L.length){el.hidden=true;el.innerHTML='';return}
   const a=L[L.length-1],more=L.length-1;
   el.innerHTML=`<p><b>${esc(a.root||a.k)} ${a.d>0?'rose':'fell'} to ${fmtUsd(a.p)}</b>${a.away?' while you were away':''}. ${esc(alertSub(a))}.${more?` (${more} more)`:''}</p>
@@ -1814,6 +1818,31 @@ function alertsSectionHTML(){const L=state.alerts;if(!L.length)return '';
     ${done.length?`<ul class="al-list">${done.map(a=>alertItem(a,true)).join('')}</ul><div class="al-quick"><button type="button" data-alclear="1">Clear reached alerts</button></div>`:''}
     ${G.length?`<ul class="al-groups">${G.map(g=>`<li><button type="button" class="al-mk" data-alopen="${esc(g.k)}">${esc(g.root)}</button><span class="al-chips">${g.al.map(alertChip).join('')}</span></li>`).join('')}</ul>`:''}
     <p class="note">▲ rings when price rises to it, ▼ when it falls to it; the % is how far away it is now. Tap a market to open its chart, × to remove an alert.</p></details>`}
+let bsBusy=false;
+async function checkBs(){
+  if(bsBusy||!state.bsOn||!state.bsTfs.length||!state.groups||!state.groups.length||document.hidden)return;bsBusy=true;
+  const nowS=Math.floor(NOW()/1000),fresh=[];let moved=false;
+  try{for(const g of state.groups.filter(x=>state.watch.has(x.key)).slice(0,30))for(const tf of state.bsTfs){
+      const id=g.key+'|'+tf,lastClosed=barStart(tf,nowS)-tfSec(tf),seen=state.bsLast[id];if(seen>=lastClosed)continue;
+      let cs;try{cs=await getCandles(g.primary,tf)}catch(e){continue}
+      const r=stFlips(cs,tf,nowS,seen||Infinity);if(r.last==null)continue;   // first look at a market: only remember where it is
+      const f=seen&&r.flips[r.flips.length-1],eid=f&&g.key+'|'+tf+'|'+f.time;
+      if(f&&!state.bsEv.some(e=>e.id===eid))fresh.push({id:eid,k:g.key,root:g.root,tf,dir:f.dir,t:f.time,p:f.close,at:NOW(),away:f.time+tfSec(tf)<lastClosed,seen:false});
+      if(state.bsLast[id]!==r.last){state.bsLast[id]=r.last;moved=true}}}
+  catch(e){recordErr('B/S alerts',e)}
+  finally{bsBusy=false}
+  if(moved)LS.set('bsLast',state.bsLast);if(!fresh.length)return;
+  state.bsEv=cleanBsEv(fresh.concat(state.bsEv));LS.set('bsEv',state.bsEv);state.bsNew=fresh.map(e=>e.id).concat(state.bsNew||[]);ring();renderAlBar();if(state.cat==='watch')renderList();
+}
+function bsWhen(e){return new Date((e.t+tfSec(e.tf))*1000).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}
+function bsItem(e){const now=gPrice(e.k),T=TF_LABEL[e.tf];
+  return `<li class="al-item${e.seen?'':' hit'}"><button type="button" class="open" data-bsopen="${esc(e.k)}" data-tf="${esc(e.tf)}"><span class="al-txt"><b>${esc(e.root)}</b> ${T} <b class="${e.dir>0?'up':'down'}">${e.dir>0?'B':'S'}</b> · Supertrend turned ${e.dir>0?'up':'down'}${e.away?' while you were away':''}<small>${T} candle closed ${esc(bsWhen(e))}${e.p?` · price then ${fmtUsd(e.p)}${now?`, now ${fmtPct((now/e.p-1)*100)}`:''}`:''}</small></span></button><button type="button" class="x" data-bsdel="${esc(e.id)}" aria-label="Remove">×</button></li>`}
+function bsSectionHTML(nStar){if(!nStar||!state.bsEv)return '';
+  const E=state.bsEv,nNew=E.filter(e=>!e.seen).length,open=nNew>0||state.bsSec,tfs=BS_TFS.filter(t=>state.bsTfs.includes(t)).map(t=>TF_LABEL[t]).join(', ');
+  return `<details class="card albox al-fold" id="bsList"${open?' open':''}><summary><span><b>B/S alerts</b><small>${!state.bsOn?'Off':tfs?`Watching ${plural(Math.min(nStar,30),'starred market')} on ${tfs}`:'Pick a candle size'}${nNew?` · <b class="up">${nNew} new</b>`:''}</small></span><span class="al-chev" aria-hidden="true">▾</span></summary>
+    ${E.length?`<ul class="al-list">${E.slice(0,15).map(bsItem).join('')}</ul><div class="al-quick"><button type="button" data-bsclear="1">Clear the list</button></div>`:`<p class="note">No B/S flips on your starred markets yet. When one appears, it rings and shows here.</p>`}
+    <div class="al-quick"><button type="button" data-bson="1" aria-pressed="${state.bsOn}">${state.bsOn?'On · tap to turn off':'Off · tap to turn on'}</button>${BS_TFS.map(t=>`<button type="button" data-bstf="${t}" aria-pressed="${state.bsTfs.includes(t)}">${state.bsTfs.includes(t)?'✓ ':''}${TF_LABEL[t]}</button>`).join('')}</div>
+    <p class="note">The same B and S marks as on the charts (Supertrend flips), checked each time a candle closes while the app is open. If the app was closed, flips you missed are listed as "while you were away" when you come back. Up to 30 starred markets. On their own, flips pointed the right way only about half the time in the nightly backtest, so treat one as a reason to look at the chart, not a signal to trade.</p></details>`}
 const FLAME='<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c.6 3.4-1.2 5.1-2.6 6.6C8 10.2 7 11.7 7 14a5 5 0 0 0 10 0c0-1.6-.6-3-1.4-4.1-.3 1.2-1 2-2 2.3.5-3.5-.4-7.4-1.6-10.2z"/></svg>';
 const FLASK='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.7 3h10.6a2 2 0 0 0 1.7-3l-5-9V3"/><path d="M7.5 15h9"/></svg>';
 const TARGET='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>';
@@ -1990,7 +2019,8 @@ function renderListInner(force){
   let html;
   if(!v.length)html=`<div class="list"><div class="empty">${state.cat==='watch'?'No starred markets yet. Tap the star on any row to keep it here.':'No markets match. Try another tab or clear the search.'}</div></div>`;
   else html=`<div class="list">${v.slice(0,state.limit).map(g=>rowHTML(g,state.cat==='watch'?{note:stageNote(g)}:{})).join('')}${v.length>state.limit?`<button class="more" id="more">Show ${Math.min(120,v.length-state.limit)} more</button>`:''}</div>`;
-  if(state.cat==='watch'){html=alertsSectionHTML()+stagesCardHTML(v)+html;watchStages(v)}
+  if(state.cat==='watch'){html=bsSectionHTML(v.length)+alertsSectionHTML()+stagesCardHTML(v)+html;watchStages(v);
+    if(state.bsEv&&state.bsEv.some(e=>!e.seen)){state.bsEv.forEach(e=>e.seen=true);LS.set('bsEv',state.bsEv)}}   // highlighted this once, then marked seen
   area.innerHTML=html;
   const m=$('#more');if(m)m.onclick=()=>{state.limit+=120;renderList()};
   renderMood(v);
@@ -2335,6 +2365,26 @@ function rangeBox(cs,atr,o){
 /* Price alerts (owner request, 3 Nov 2026). Kept on the device. d = 1 rings when price rises to p, −1 when it falls to p
    (set from where price was when the alert was made). t, hit: milliseconds. */
 const AL_MAX=50;
+/* B/S alerts for starred markets (owner request, 15 Nov 2026). stFlips: Supertrend flips (the chart's B/S marks) on fully
+   closed candles after time 'after' (seconds). Events kept on the device: k market, tf, dir 1 = B / −1 = S, t flip candle start,
+   p close then, at detected (ms), away = found after more candles had closed, seen. */
+const BS_TFS=['15m','1h','4h','1d'],BS_MAX=60;
+function stFlips(cs,tf,now,after){
+  const c=(cs||[]).filter(k=>k&&k.time+tfSec(tf)<=now),out=[];if(c.length<20)return{last:c.length?c[c.length-1].time:null,flips:out};
+  const S=computeSeries(c);
+  for(let i=1;i<c.length;i++){if(!(c[i].time>after))continue;const a=S.st.dir[i-1],b=S.st.dir[i];if(a!=null&&b!=null&&a!==b)out.push({time:c[i].time,dir:b,close:c[i].close})}
+  return{last:c[c.length-1].time,flips:out};
+}
+function cleanBsEv(a){
+  if(!Array.isArray(a))return [];const fin=v=>typeof v==='number'&&isFinite(v),seen=new Set(),out=[];
+  for(const e of a){if(!e||typeof e!=='object'||typeof e.k!=='string'||!e.k||e.k.length>60||!BS_TFS.includes(e.tf)||(e.dir!==1&&e.dir!==-1)||!fin(e.t)||!(e.t>0)||!fin(e.at))continue;
+    const id=e.k+'|'+e.tf+'|'+e.t;if(seen.has(id))continue;seen.add(id);
+    out.push({id,k:e.k,root:typeof e.root==='string'?e.root.slice(0,20):e.k.slice(0,20),tf:e.tf,dir:e.dir,t:e.t,p:fin(e.p)&&e.p>0?e.p:null,at:e.at,away:e.away===true,seen:e.seen===true});
+    if(out.length>=BS_MAX)break}
+  return out;
+}
+function cleanBsLast(o){const out={};if(!o||typeof o!=='object'||Array.isArray(o))return out;let n=0;
+  for(const k of Object.keys(o)){if(n>=300)break;const v=o[k];if(k.length<=90&&/\|(15m|1h|4h|1d)$/.test(k)&&typeof v==='number'&&isFinite(v)&&v>0){out[k]=v;n++}}return out}
 function cleanAlerts(a){
   if(!Array.isArray(a))return [];const fin=v=>typeof v==='number'&&isFinite(v),seen=new Set(),out=[];
   for(const x of a){if(!x||typeof x!=='object'||typeof x.k!=='string'||!x.k||x.k.length>60||!fin(x.p)||!(x.p>0&&x.p<1e12)||(x.d!==1&&x.d!==-1)||!fin(x.t))continue;
@@ -4215,11 +4265,20 @@ $('#alBox').addEventListener('input',e=>{if(e.target.id==='alIn'){state.alConfir
 $('#alBox').addEventListener('click',e=>{const q=e.target.closest('[data-alq]'),d=e.target.closest('[data-aldel]');
   const st=e.target.closest('[data-alset]');if(st){const v=parseFloat(st.dataset.alset);state.alConfirm=v;addAlert(v);return}
   if(q){const i=$('#alIn');if(i){i.value=q.dataset.alq;previewAlert()}}else if(d)removeAlert(d.dataset.aldel)});
-$('#listArea').addEventListener('toggle',e=>{if(e.target&&e.target.id==='alList'){state.alSec=e.target.open;LS.set('alSec',state.alSec)}},true);
+$('#listArea').addEventListener('toggle',e=>{if(e.target&&e.target.id==='alList'){state.alSec=e.target.open;LS.set('alSec',state.alSec)}if(e.target&&e.target.id==='bsList'){state.bsSec=e.target.open;LS.set('bsSec',state.bsSec)}},true);
+$('#listArea').addEventListener('click',e=>{const t=e.target.closest('[data-bstf],[data-bson],[data-bsclear],[data-bsdel],[data-bsopen]');if(!t)return;e.stopImmediatePropagation();
+  if(t.dataset.bsopen)bsOpen(t.dataset.bsopen,t.dataset.tf);
+  else if(t.dataset.bsdel){state.bsEv=state.bsEv.filter(x=>x.id!==t.dataset.bsdel);LS.set('bsEv',state.bsEv);renderList()}
+  else if(t.dataset.bsclear){state.bsEv=[];state.bsNew=[];LS.set('bsEv',[]);renderAlBar();renderList()}
+  else if(t.dataset.bson){state.bsOn=!state.bsOn;LS.set('bsOn',state.bsOn);renderList();if(state.bsOn){unlockSound();checkBs()}}
+  else{const f=t.dataset.bstf,L=state.bsTfs.includes(f)?state.bsTfs.filter(x=>x!==f):state.bsTfs.concat(f);state.bsTfs=BS_TFS.filter(x=>L.includes(x));LS.set('bsTfs',state.bsTfs);renderList();unlockSound();checkBs()}},true);
 $('#listArea').addEventListener('click',e=>{const o=e.target.closest('[data-alopen]'),d=e.target.closest('[data-aldel]'),c=e.target.closest('[data-alclear]');
   if(d){e.stopPropagation();removeAlert(d.dataset.aldel)}else if(c){state.alerts=state.alerts.filter(a=>a.hit==null);state.alNew=[];saveAlerts();renderAlBar()}
   else if(o){const k=o.dataset.alopen;if(state.gByKey.get(k))openGroup(k);else showToast('This market isn\'t in the list right now.')}});
-$('#alBar').addEventListener('click',e=>{const b=e.target.closest('[data-albar]');if(!b)return;state.alNew=[];renderAlBar();if(b.dataset.albar==='view'&&state.gByKey.get(b.dataset.k))openGroup(b.dataset.k)});
+$('#alBar').addEventListener('click',e=>{const b=e.target.closest('[data-albar]');if(!b)return;const a=b.dataset.albar;
+  if(a==='bsview'||a==='bsok'){state.bsNew=[];renderAlBar();if(a==='bsview')bsOpen(b.dataset.k,b.dataset.tf);return}
+  state.alNew=[];renderAlBar();if(a==='view'&&state.gByKey.get(b.dataset.k))openGroup(b.dataset.k)});
+function bsOpen(k,tf){if(!state.gByKey.get(k)){showToast('This market isn\'t in the list right now.');return}if(BS_TFS.includes(tf)&&state.tf!==tf){state.tf=tf;LS.set('tf2',tf)}openGroup(k)}
 document.addEventListener('pointerdown',unlockSound,{once:true});
 $('#back').addEventListener('click',closeDetail);
 $('#mtf').addEventListener('click',e=>{const b=e.target.closest('[data-mtf]');if(b&&b.dataset.mtf!==state.tf)setTf(b.dataset.mtf)});
@@ -4365,6 +4424,10 @@ setInterval(()=>{if(state.mode!=='live'||document.hidden||state.loading)return;t
   loadAll(true,ticks%5!==0)},60000);
 
 state.alerts=cleanAlerts(LS.get('alerts',[]));
+state.bsOn=LS.get('bsOn',true)!==false;{const t=LS.get('bsTfs',null);state.bsTfs=Array.isArray(t)?BS_TFS.filter(x=>t.includes(x)):['1h','4h']}
+state.bsEv=cleanBsEv(LS.get('bsEv',[]));state.bsLast=cleanBsLast(LS.get('bsLast',{}));state.bsSec=LS.get('bsSec',false)===true;state.bsNew=[];
+setInterval(()=>{checkBs()},60000);setTimeout(()=>{checkBs()},8000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(()=>{checkBs()},2500)});
 state.theme=LS.get('theme','system');applyTheme(state.theme);
 state.compact=!!LS.get('compact',false);document.body.classList.toggle('compact',state.compact);$('#compactBtn').setAttribute('aria-pressed',state.compact);
 applyPanes();seenBump(state.cat);

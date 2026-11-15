@@ -2,6 +2,12 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-11-15 (owner request): B/S alerts for starred markets
+- New **B/S alerts** card at the top of **Starred**: each time a candle closes while the app is open, the app checks every starred market (up to 30) on the chosen candle sizes (1H and 4H to start; 15m, 1H, 4H, 1D can be switched on or off, plus an on/off switch) for a Supertrend flip, the same B/S marks the charts show. A new one rings, buzzes where the phone allows, and shows a banner ("BTC 1H: S, Supertrend turned down at …", View chart opens it on that candle size), and is listed on Starred with when the candle closed, the price then and the move since.
+- When the app comes back from being closed or in the background, flips that happened meanwhile are listed as "while you were away". The first look at a market only remembers where its chart is, so old flips never ring.
+- Closed candles only (new pure `stFlips`), so an alert never disappears; stored on the device (`bsEv`, `bsLast`, `bsTfs`, `bsOn`, cleaned on load) and included in backups. Information only: the card says flips alone pointed the right way about half the time in the nightly backtest.
+- 6 engine tests (flips match the chart's marks, forming candle left out, only flips after the last check, first look gives nothing, stored data cleaned); browser test checks the card, that the first look raises nothing, that a flip since the last check rings with a banner and is listed, OK closes the banner and the 15m chip switches on.
+
 ## 2026-11-15 (owner request): Trading box on charts
 - When a market is trading sideways, the chart now shades the **box** (range) it is stuck in, with "Box top" and "Box bottom" edges, and a **Trading box** card under the chart: the two edges, how tall the box is, how many candles it has lasted, how often each edge was tested, where price sits in it (near the top / bottom / middle), and, after a close outside it, that it broke out (or down) and what usually happens next.
 - New **Box** chip above the chart switches it on and off (on by default, remembered with the other chips).

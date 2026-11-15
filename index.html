@@ -854,6 +854,7 @@ body::before{background:var(--glass);-webkit-backdrop-filter:blur(16px);backdrop
           <div class="card book divb" id="huntBox" hidden></div>
           <div class="card book divb" id="waveBox" hidden></div>
           <div class="card book srl" id="srBox" hidden></div>
+          <div class="card book" id="boxBox" hidden></div>
           <div class="card book fib" id="fibBox" hidden></div>
           <div class="card book" id="bookBox" hidden></div>
           <div class="card mnews" id="mktNews"></div>
@@ -1052,6 +1053,7 @@ function ctf(){return state.big||state.tf}
 if(!state.ind||typeof state.ind!=='object')state.ind={ema:false,bb:true,st:true,vol:true,marks:true};
 if(typeof state.ind.fib!=='boolean')state.ind.fib=true;   // Fibonacci levels (added 25 Oct 2026) start switched on
 if(typeof state.ind.sr!=='boolean')state.ind.sr=true;
+if(typeof state.ind.box!=='boolean')state.ind.box=true;   // trading box (added 15 Nov 2026) starts switched on
 if(typeof state.ind.w200!=='boolean')state.ind.w200=true;
 if(typeof state.ind.div!=='boolean')state.ind.div=true;
 if(typeof state.ind.hunt!=='boolean')state.ind.hunt=true;
@@ -2302,6 +2304,34 @@ function srLevels(cs,atr,opt){
   for(const z of sup)z.flip=z.highs>z.lows;for(const z of res)z.flip=z.lows>z.highs;
   return{price,atr,sup,res,at,zones:zones.length,look:Math.min(look,n)};
 }
+/* Trading box (owner request, 15 Nov 2026): the longest recent stretch of at least minN candles whose bodies stay inside a
+   band no taller than maxH ATRs, with the top and the bottom each tested on 2+ separate visits before the newest two candles (wicks count as tests) and no
+   clear trend across it (first and last third of closes within half the box). The box may have ended up to 3 candles ago,
+   so a fresh breakout still shows. Information only; only looks at the candles given. */
+function rangeBox(cs,atr,o){
+  o=o||{};const n=cs?cs.length:0,minN=o.minN||15,maxN=o.maxN||120,maxH=o.maxH||6;
+  if(n<minN+1||!(atr>0))return null;
+  const visits=(a,b,hit)=>{let v=0,was=false;for(let i=a;i<=b;i++){const h=hit(cs[i]);if(h&&!was)v++;was=h}return v};
+  const avg=(a,b)=>{let t=0;for(let i=a;i<=b;i++)t+=cs[i].close;return t/(b-a+1)};
+  let pick=null;   // a box still holding at the latest candle wins; after a breakout, the tightest box from before it (breakout candles don't stretch it)
+  for(let j=0;j<=3;j++){
+    const end=n-1-j;let top=-Infinity,bot=Infinity,pTop=-Infinity,pBot=Infinity,best=null;
+    const tTop=Math.max(cs[end].open,cs[end].close,cs[end-1].open,cs[end-1].close),tBot=Math.min(cs[end].open,cs[end].close,cs[end-1].open,cs[end-1].close);
+    for(let s=end;s>=Math.max(0,end-maxN+1);s--){
+      const c=cs[s];top=Math.max(top,c.open,c.close);bot=Math.min(bot,c.open,c.close);if(s<=end-2){pTop=Math.max(pTop,c.open,c.close);pBot=Math.min(pBot,c.open,c.close)}
+      const len=end-s+1,H=top-bot;if(H>maxH*atr)break;if(len<minN||H<atr)continue;
+      if(tTop>pTop+0.1*H||tBot<pBot-0.1*H)continue;   // the newest two candles pushing past the edges is a breakout, not part of the box
+      const band=0.2*H,tv=visits(s,end-2,k=>k.high>=top-band),bv=visits(s,end-2,k=>k.low<=bot+band),third=Math.max(2,Math.floor(len/3));
+      if(tv<2||bv<2||Math.abs(avg(end-third+1,end)-avg(s,s+third-1))>0.5*H)continue;
+      best={top,bot,from:s,to:end,len,topTests:tv,botTests:bv}}
+    if(!best)continue;
+    const H=best.top-best.bot,last=cs[n-1].close;
+    best.status=last>best.top+0.1*H?'above':last<best.bot-0.1*H?'below':'inside';best.pos=(last-best.bot)/H;best.price=last;
+    if(j===0&&best.status==='inside')return best;
+    if(!pick||H<pick.top-pick.bot)pick=best;
+  }
+  return pick;
+}
 /* Price alerts (owner request, 3 Nov 2026). Kept on the device. d = 1 rings when price rises to p, −1 when it falls to p
    (set from where price was when the alert was made). t, hit: milliseconds. */
 const AL_MAX=50;
@@ -3536,7 +3566,11 @@ function ensureCharts(){
   const md=LC.createChart($('#cMacd'),chartOpts({timeScale:{timeVisible:true,secondsVisible:false,borderColor:css('--line')}}));
   const up=css('--up'),dn=css('--down'),bbc=css('--bb');
   const line=(ch,color,w,extra)=>ch.addLineSeries(Object.assign({color,lineWidth:w||1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false},extra||{}));
-  const c={main,rs,md,
+  // trading box: a shaded band (baseline series filled down to the bottom edge) with its two edges, drawn behind the candles
+  const br=css('--brand');let boxF=null,boxT=null,boxB=null;
+  try{boxF=main.addBaselineSeries({baseValue:{type:'price',price:0},topLineColor:'rgba(0,0,0,0)',topFillColor1:hexA(br,.12),topFillColor2:hexA(br,.12),bottomLineColor:'rgba(0,0,0,0)',bottomFillColor1:'rgba(0,0,0,0)',bottomFillColor2:'rgba(0,0,0,0)',lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
+    boxT=line(main,hexA(br,.85),2,{lastValueVisible:true,title:'Box top'});boxB=line(main,hexA(br,.85),2,{lastValueVisible:true,title:'Box bottom'})}catch(e){recordErr('box series',e)}
+  const c={main,rs,md,boxF,boxT,boxB,
     bbU:line(main,bbc,1),bbL:line(main,bbc,1),bbM:line(main,css('--up'),1,{lineStyle:0}),
     w200:line(main,css('--c3'),3,{lineStyle:2,autoscaleInfoProvider:()=>null}),e200:line(main,css('--c3'),2),e50:line(main,css('--c2'),2),e20:line(main,css('--c1'),2),stU:line(main,up,2),stD:line(main,dn,2),plines:[],flines:[]};
   c.candle=main.addCandlestickSeries({upColor:up,downColor:dn,borderUpColor:up,borderDownColor:dn,wickUpColor:up,wickDownColor:dn});
@@ -3562,6 +3596,8 @@ function draw(keep){
   current.fib=fib;card('Fibonacci',renderFib);
   let sr=null;try{sr=srLevels(current.cs,current.an&&current.an.atr)}catch(e){recordErr('support and resistance',e)}
   current.sr=sr;card('support and resistance',renderSR);
+  let box=null;try{box=rangeBox(current.cs,current.an&&current.an.atr)}catch(e){recordErr('trading box',e)}
+  current.box=box;card('trading box',renderBox);
   const DIV_TF=['1h','4h','1d','1w'].includes(ctf()),HUNT_TF=['1h','4h','1d'].includes(ctf());let divs=null;
   let hunts=null;try{const A_=current.an;if(DIV_TF&&A_&&A_.series){divs=rsiDivergences(current.cs,A_.series.r12,Math.max(0,current.cs.length-300),A_.series.e50);if(HUNT_TF)hunts=stopHunts(current.cs,A_.series.at,Math.max(0,current.cs.length-300))}}catch(e){recordErr('RSI divergence',e)}
   current.divs=divs;current.hunts=hunts;current.divTf=DIV_TF;current.huntTf=HUNT_TF;card('RSI divergence',renderDiv);card('stop-hunts',renderHunt);
@@ -3618,6 +3654,10 @@ function draw(keep){
   if(sr&&state.ind.sr){const L=(z,col,t)=>ch.slines.push(ch.candle.createPriceLine({price:z.p,color:hexA(col,z.tests>=3?.95:.7),lineWidth:z.tests>=3?3:2,lineStyle:0,axisLabelVisible:true,title:t}));
     sr.res.forEach((z,i)=>L(z,dn,'R'+(i+1)));sr.sup.forEach((z,i)=>L(z,up,'S'+(i+1)));if(sr.at)L(sr.at,css('--accent'),'Testing')}
   $('#cMain').dataset.sr=ch.slines.length;
+  try{if(ch.boxF){const B=current.box,span=B?T.slice(B.from):[];
+    [ch.boxF,ch.boxT,ch.boxB].forEach(x=>x.applyOptions({priceFormat:pf}));if(B)ch.boxF.applyOptions({baseValue:{type:'price',price:B.bot}});
+    ch.boxF.setData(span.map(t=>({time:t,value:B.top})));ch.boxT.setData(span.map(t=>({time:t,value:B.top})));ch.boxB.setData(span.map(t=>({time:t,value:B.bot})))}}
+  catch(e){recordErr('box on chart',e)}
   applyToggles();applyPanes();
   const bars=matchMedia('(max-width:600px)').matches?70:120;
   if(keep&&current.range){const r=current.range,atEdge=r.to>=cs.length-4;ch.main.timeScale().setVisibleLogicalRange(atEdge?{from:r.from+1,to:r.to+1}:r)}
@@ -3631,6 +3671,7 @@ function applyToggles(){
   [charts.stU,charts.stD].forEach(s=>s.applyOptions({visible:!!i.st}));
   charts.vol.applyOptions({visible:!!i.vol});
   charts.w200.applyOptions({visible:!!i.w200});
+  const bx=!!(i.box&&current&&current.box&&charts.boxF);[charts.boxF,charts.boxT,charts.boxB].forEach(s=>{if(s)s.applyOptions({visible:bx})});$('#cMain').dataset.box=bx?1:0;
   const mk=(i.marks&&current&&current.marks?current.marks:[]).concat(current&&current.simMarks?current.simMarks:[],i.div&&current&&current.divMarks?current.divMarks:[],i.hunt&&current&&current.huntMarks?current.huntMarks:[],i.wave&&current&&current.waveMarks?current.waveMarks:[]).sort((a,b)=>a.time-b.time);
   charts.candle.setMarkers(mk);
 }
@@ -3655,7 +3696,7 @@ function renderLegend(idx){
   }else{$('#rsiLegend').innerHTML='<span>RSI 6 / 12 / 24</span>';$('#macdLegend').innerHTML='<span>MACD(12,26,9)</span>'}
 }
 function renderToggles(){
-  const T=[['bb','Bollinger','--bb'],['st','Supertrend','--up'],['marks','B/S marks','--accent'],['sr','Support/Resistance','--up'],['w200','200W EMA','--c3'],['div','RSI divergence','--c3'],['hunt','Stop-hunts','--accent'],['wave','Wave signals (1D/1W)','--c2'],['fib','Fibonacci','--c4'],['ema','EMA 20/50/200','--c2'],['vol','Volume','--muted']];
+  const T=[['bb','Bollinger','--bb'],['st','Supertrend','--up'],['marks','B/S marks','--accent'],['sr','Support/Resistance','--up'],['box','Box','--brand'],['w200','200W EMA','--c3'],['div','RSI divergence','--c3'],['hunt','Stop-hunts','--accent'],['wave','Wave signals (1D/1W)','--c2'],['fib','Fibonacci','--c4'],['ema','EMA 20/50/200','--c2'],['vol','Volume','--muted']];
   $('#toggles').innerHTML=T.map(([k,l,c])=>`<button class="chip" data-ind="${k}" aria-pressed="${!!state.ind[k]}"><i style="background:var(${c})"></i>${l}</button>`).join('');
 }
 
@@ -3852,6 +3893,15 @@ function fibHTML(f,tf){
     <details${r>=0.618?' open':''}><summary>All levels</summary><table>${rows}</table></details>
     <p class="note">Fibonacci levels are zones, not exact prices. Many traders watch them, which is part of why price sometimes reacts there, but studies disagree on whether they work better than other levels. The nightly backtest now measures how setups did in each zone (Simulator → Last night's backtest).</p>`;
 }
+function boxHTML(b,tf){
+  const T=TF_LABEL[tf]||tf,pos=Math.round(clamp(b.pos,0,1)*100),H=b.top-b.bot;
+  const now=b.status==='above'?`Price has just <b>closed above the box</b>: a breakout. The old top (${fmtUsd(b.top)}) often becomes support and gets tested again; a close back inside the box would mean the breakout failed.`:
+    b.status==='below'?`Price has just <b>closed below the box</b>: a breakdown. The old bottom (${fmtUsd(b.bot)}) often becomes resistance and gets tested again; a close back inside the box would mean the breakdown failed.`:
+    `Price is <b>${pos>=67?'near the top':pos<=33?'near the bottom':'in the middle'}</b> of the box (${pos}% of the way up). ${pos>=67?'The top is where sellers have stepped in so far.':pos<=33?'The bottom is where buyers have stepped in so far.':'The middle is where a trade has the least room to the edges.'} A close outside the box is a breakout.`;
+  return `<h3>Trading box</h3><p class="sub">${T} candles · drawn on the chart (Box chip)</p>
+    <p class="big">Price has stayed between <b>${fmtUsd(b.bot)}</b> and <b>${fmtUsd(b.top)}</b> (${((H/b.bot)*100).toFixed(1)}% tall) for <b>${plural(b.len,'candle')}</b>. The top was tested ${b.topTests}×, the bottom ${b.botTests}×.</p>
+    <p>${now}</p><p class="note">Edges come from candle bodies; wicks can poke out. Information only, not a recommendation.</p>`;
+}
 function srHTML(r,tf){
   const pc=v=>(v>=0?'+':'−')+Math.abs(v*100).toFixed(1)+'%';
   const strength=z=>z.tests>=3?`<b class="sr-strong">strong</b> · turned ${z.tests} times`:z.tests===2?'turned twice':'turned once';
@@ -4006,6 +4056,10 @@ function renderDiv(){const el=$('#divBox');if(!el)return;const ok=current&&state
 function renderSR(){
   const el=$('#srBox');if(!el)return;const r=current&&current.sr,ok=r&&(r.sup.length||r.res.length||r.at);
   el.hidden=!ok;el.innerHTML=ok?srHTML(r,ctf()):'';
+}
+function renderBox(){
+  const el=$('#boxBox');if(!el)return;const b=current&&current.box;
+  el.hidden=!b;el.innerHTML=b?boxHTML(b,ctf()):'';
 }
 function renderFib(){
   const el=$('#fibBox');if(!el)return;const f=current&&current.fib;

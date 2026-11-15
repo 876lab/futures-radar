@@ -2,6 +2,12 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-11-15 (owner request): Trading box on charts
+- When a market is trading sideways, the chart now shades the **box** (range) it is stuck in, with "Box top" and "Box bottom" edges, and a **Trading box** card under the chart: the two edges, how tall the box is, how many candles it has lasted, how often each edge was tested, where price sits in it (near the top / bottom / middle), and, after a close outside it, that it broke out (or down) and what usually happens next.
+- New **Box** chip above the chart switches it on and off (on by default, remembered with the other chips).
+- How a box is found (new pure `rangeBox`): the longest recent stretch of 15–120 candles whose candle bodies stay within 6 ATR, with the top and the bottom each tested on 2+ separate visits (wicks count), and no clear trend across it (first and last third of closes within half the box). The newest two candles can't stretch the box, so a fresh breakout shows as a breakout rather than a bigger box; after a breakout the box from before it is kept for up to 3 candles. Every candle size.
+- 7 engine tests (box after a rise, none in a steady trend, breakout and breakdown flagged, too few candles, card text); browser test checks the chip, the card and that the chip hides the box. Information only: no signal rules changed.
+
 ## 2026-11-13 (nightly run): Track record checked against the backtest (track record follow-up a)
 - The nightly backtest (`scripts/backtest.js`) now re-reads every finished live setup from `track.json` (track-data branch, read from raw.githubusercontent.com) at the same candle, twice: with the live run's 400-candle window (exactly as `scripts/track.js` saw it) and with the backtest's long history. It also scores each trade again with `simTrade`, and replays the same markets since the record began (26 Oct), so live and replayed results can be compared like for like. Markets no longer in the backtest's top 30 are downloaded for the check only; delisted ones are listed as missing.
 - Published as `check` in `backtest.json`; the Simulator's **Track record** card shows it under its details as "Checked against last night's backtest" (share of live setups found again, share scored the same, average R live vs replayed, and both sides' results on the same markets since the start, with a plain verdict). The check can never stop the backtest: any problem is noted in `fails`.

@@ -270,6 +270,18 @@ const b=trackLike(cl,'1h',1,true,100);ok(!b.exact&&b.st.n===180&&b.label==='conf
 const c=trackLike(cl,'1h',1,false,100);ok(c.st.n===230&&c.label==='all 1H setups','track like: then same candle size');
 const e=trackLike(cl,'4h',-1,true,100);ok(e.st.n===270&&e.label==='all 1H and 4H setups'&&e.all===270,'track like: then everything, unscored left out');
 ok(trackLike(cl,'4h',-1,true,500).st===null&&trackLike(cl,'15m',1,true,100)===null,'track like: nothing under the minimum, no 15m');}
+// trading box (owner request 15 Nov 2026): found in a sideways stretch, not in a steady trend, breakouts flagged, no look-ahead
+{const mk=closes=>{const out=[];let prev=closes[0];closes.forEach((c,i)=>{out.push({time:i*3600,open:prev,close:c,high:Math.max(prev,c)+0.5,low:Math.min(prev,c)-0.5,volume:1});prev=c});return out};
+const rise=Array.from({length:20},(_,i)=>62+i*2),side=Array.from({length:40},(_,i)=>105+5*Math.sin(i*0.6));
+const b=rangeBox(mk(rise.concat(side)),3);
+ok(b&&b.status==='inside'&&Math.abs(b.top-110)<0.6&&Math.abs(b.bot-100)<2.1&&b.len>=35&&b.topTests>=2&&b.botTests>=2,'box: sideways stretch after a rise '+JSON.stringify(b&&{t:b.top,b:b.bot,l:b.len,s:b.status}));
+ok(b&&b.from>=18,'box: does not reach back into the rise ('+(b&&b.from)+')');
+ok(rangeBox(mk(Array.from({length:80},(_,i)=>60+i)),3)===null,'box: none in a steady uptrend');
+const bo=rangeBox(mk(rise.concat(side,[112,118])),3);ok(bo&&bo.status==='above'&&bo.top<112,'box: breakout above flagged '+JSON.stringify(bo&&{t:bo.top,s:bo.status}));
+const bd=rangeBox(mk(rise.concat(side,[97,92])),3);ok(bd&&bd.status==='below','box: breakdown below flagged');
+ok(rangeBox(mk(side.slice(0,10)),3)===null&&rangeBox(mk(side),0)===null,'box: too few candles or no ATR');
+const cs=mk(rise.concat(side,[118,120,125])),b1=rangeBox(cs.slice(0,62),3),b2=rangeBox(cs,3);ok(b1&&b2&&b1.top===b2.top||(b1&&b1.status==='above'),'box: later candles do not change an earlier box');
+const h=boxHTML(b,'4h'),h2=boxHTML(bo,'1d');ok(/Trading box/.test(h)&&/\\d+ candles/.test(h)&&/tested/.test(h)&&/closed above the box/.test(h2)&&!/undefined|NaN/.test(h+h2),'box: card text');}
 // live vs replay check (track record follow-up a): counts per reading, same score within 0.05R, averages over scored rows only
 {const c=replayCheck([{tf:'1h',read:'same',long:'same',r:1.2,rr:1.2},{tf:'1h',read:'same',long:'levels',r:-1.05,rr:-0.98},{tf:'4h',read:'none',long:'other',r:0.6,rr:-1},
   {tf:'4h',read:'nocandle',long:'nocandle',r:null,rr:null},{tf:'1h',read:'bogus',long:'same',r:0.3,rr:null}]);

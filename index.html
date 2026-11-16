@@ -3607,7 +3607,7 @@ function chartOpts(extra){
   return Object.assign({autoSize:true,
     layout:{background:{type:'solid',color:css('--surface')},textColor:css('--muted'),fontFamily:"Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",fontSize:11},
     grid:{vertLines:{color:css('--grid')},horzLines:{color:css('--grid')}},
-    rightPriceScale:{borderColor:css('--line'),minimumWidth:80},localization:{timeFormatter:t=>{try{return candleWhen(t-tzOff,ctf())}catch(e){return ''}}},crosshair:{mode:0,vertLine:{color:hexA(css('--brand'),.55),labelBackgroundColor:css('--brand')},horzLine:{color:hexA(css('--brand'),.55),labelBackgroundColor:css('--brand')}},handleScroll:{vertTouchDrag:false}},extra);
+    rightPriceScale:{borderColor:css('--line'),minimumWidth:80},localization:{timeFormatter:t=>{try{return candleWhen(t-tzOff,ctf())}catch(e){return ''}}},crosshair:{mode:0,vertLine:{color:hexA(css('--brand'),.55),labelBackgroundColor:css('--brand')},horzLine:{color:hexA(css('--brand'),.55),labelBackgroundColor:css('--brand')}},handleScroll:{vertTouchDrag:false},trackingMode:{exitMode:0}},extra);   // touch: a drag moves the chart; holding a finger shows a candle until it lifts (owner report 16 Nov 2026)
 }
 function ensureCharts(){
   if(charts)return charts;const LC=window.LightweightCharts;if(!LC)return null;
@@ -3732,7 +3732,7 @@ function renderLegend(idx){
   if(!current)return;const {cs,an}=current;const i=idx==null?cs.length-1:idx;const k=cs[i];if(!k)return;
   const S=an&&an.series,c=k.close>=k.open?'up':'down',f=v=>v==null?'—':fmtPrice(v),f2=v=>v==null?'—':v.toFixed(2);
   const pv=i>0?cs[i-1].close:k.open,mv=pv>0?(k.close/pv-1)*100:null;
-  const parts=[`<span class="lg-d"><b>${esc(candleWhen(k.time,ctf()))}</b>${idx==null?' <span class="lg-hint">· latest · tap or drag on the chart for any candle</span>':''}</span>`,
+  const parts=[`<span class="lg-d"><b>${esc(candleWhen(k.time,ctf()))}</b>${idx==null?' <span class="lg-hint">· latest · hold a finger on any candle to see it; drag to move the chart</span>':''}</span>`,
     `<span>O <b>${f(k.open)}</b></span><span>H <b>${f(k.high)}</b></span><span>L <b>${f(k.low)}</b></span><span>C <b class="${c}">${f(k.close)}</b></span>${mv!=null?`<span class="${mv>0?'up':mv<0?'down':''}">${fmtPct(mv)}</span>`:''}`];
   if(state.ind.w200&&current.w200){const v=current.w200v&&current.w200v[i];parts.push(v!=null?`<span style="color:var(--c3)">EMA 200W <b>${f(v)}</b> (price ${fmtPct((k.close/v-1)*100)})</span>`:`<span style="color:var(--muted)">EMA 200W: ${current.w200.n<200?`needs 200 weeks of history (${current.w200.n} so far)`:'—'}</span>`)}
   if(S&&state.ind.bb)parts.push(`<span style="color:var(--bb)">BOLL(20,2) UB <b>${f(S.bb.up[i])}</b> MB <b style="color:var(--up)">${f(S.bb.mid[i])}</b> LB <b>${f(S.bb.lo[i])}</b></span>`);

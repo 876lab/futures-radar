@@ -1,4 +1,8 @@
 [
+  {"date": "2026-11-16", "title": "Charts slide more easily", "items": [
+    "Drag on a chart to slide it back and forth; it no longer gets stuck showing a candle's details.",
+    "To read a candle's date, prices and % move, hold your finger on it. Let go and the chart slides normally again."
+  ]},
   {"date": "2026-11-15", "title": "B/S alerts for your starred coins", "items": [
     "The Starred page has a new B/S alerts card: when a B or S mark (Supertrend flip) appears on one of your starred markets, the app rings and shows a banner, even if that chart isn't open.",
     "It watches 1H and 4H to start; tap 15m, 1H, 4H or 1D on the card to choose, or switch it off.",

@@ -2,6 +2,9 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-11-16 (owner report): Charts easier to slide
+- After tapping a candle to read it, the chart's crosshair stayed on until the next tap, so the next drag moved the crosshair instead of the chart, making it hard to slide back and forth. Charts now use Lightweight Charts' `trackingMode` with exit on touch end: a normal drag always moves the chart, holding a finger on a candle shows its date, open/high/low/close and % move, and lifting the finger lets go. The hint above the chart says so. No change on computers (mouse).
+
 ## 2026-11-15 (owner request): B/S alerts for starred markets
 - New **B/S alerts** card at the top of **Starred**: each time a candle closes while the app is open, the app checks every starred market (up to 30) on the chosen candle sizes (1H and 4H to start; 15m, 1H, 4H, 1D can be switched on or off, plus an on/off switch) for a Supertrend flip, the same B/S marks the charts show. A new one rings, buzzes where the phone allows, and shows a banner ("BTC 1H: S, Supertrend turned down at …", View chart opens it on that candle size), and is listed on Starred with when the candle closed, the price then and the move since.
 - When the app comes back from being closed or in the background, flips that happened meanwhile are listed as "while you were away". The first look at a market only remembers where its chart is, so old flips never ring.

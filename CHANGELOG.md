@@ -2,6 +2,12 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-11-18 (owner request): Where a breakout may cool down
+- When price closes out of a trading box, the chart now adds dashed **"Box 1×"** and **"Box 2×"** lines: the box's height added to the top (or taken from the bottom), the classic "measured move" where first breakout waves often slow down. The Trading box card names both prices, the high (or low) since the break, and whether 1× or 2× has already been reached.
+- Context on the card: in Bulkowski's study of rectangles on US stocks (bull market), about 78% of upward breakouts and 54% of breakdowns reached the 1× level, and about two in three came back to retest the broken edge. Crypto may behave differently; information only.
+- Switched with the Box chip. `rangeBox` returns `mm` {t1, t2, ext, hit1, hit2} on a breakout (targets at or below $0 left out); 3 new engine tests.
+- Source: Thomas Bulkowski, Rectangle tops, https://www.thepatternsite.com/recttops.html (measure rule, target met 78% up / 54% down, throwbacks 66% / pullbacks 64%).
+
 ## 2026-11-16 (owner report): Charts easier to slide
 - After tapping a candle to read it, the chart's crosshair stayed on until the next tap, so the next drag moved the crosshair instead of the chart, making it hard to slide back and forth. Charts now use Lightweight Charts' `trackingMode` with exit on touch end: a normal drag always moves the chart, holding a finger on a candle shows its date, open/high/low/close and % move, and lifting the finger lets go. The hint above the chart says so. No change on computers (mouse).
 

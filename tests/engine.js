@@ -279,9 +279,12 @@ ok(b&&b.from>=18,'box: does not reach back into the rise ('+(b&&b.from)+')');
 ok(rangeBox(mk(Array.from({length:80},(_,i)=>60+i)),3)===null,'box: none in a steady uptrend');
 const bo=rangeBox(mk(rise.concat(side,[112,118])),3);ok(bo&&bo.status==='above'&&bo.top<112,'box: breakout above flagged '+JSON.stringify(bo&&{t:bo.top,s:bo.status}));
 const bd=rangeBox(mk(rise.concat(side,[97,92])),3);ok(bd&&bd.status==='below','box: breakdown below flagged');
+ok(bo.mm&&Math.abs(bo.mm.t1-(bo.top+(bo.top-bo.bot)))<1e-9&&Math.abs(bo.mm.t2-(bo.top+2*(bo.top-bo.bot)))<1e-9&&bo.mm.ext>=118,'box: measured-move targets above a breakout');
+ok(bd.mm&&Math.abs(bd.mm.t1-(bd.bot-(bd.top-bd.bot)))<1e-9&&b.mm===undefined,'box: targets below a breakdown, none while inside');
+{const far=rangeBox(mk(rise.concat(side,[112,140])),3);ok(far&&far.mm&&far.mm.hit1&&far.mm.hit2===(far.mm.ext>=far.mm.t2),'box: 1× marked as reached ('+(far&&far.mm&&far.mm.t1)+')');}
 ok(rangeBox(mk(side.slice(0,10)),3)===null&&rangeBox(mk(side),0)===null,'box: too few candles or no ATR');
 const cs=mk(rise.concat(side,[118,120,125])),b1=rangeBox(cs.slice(0,62),3),b2=rangeBox(cs,3);ok(b1&&b2&&b1.top===b2.top||(b1&&b1.status==='above'),'box: later candles do not change an earlier box');
-const h=boxHTML(b,'4h'),h2=boxHTML(bo,'1d');ok(/Trading box/.test(h)&&/\\d+ candles/.test(h)&&/tested/.test(h)&&/closed above the box/.test(h2)&&!/undefined|NaN/.test(h+h2),'box: card text');}
+const h=boxHTML(b,'4h'),h2=boxHTML(bo,'1d');ok(/Trading box/.test(h)&&/\\d+ candles/.test(h)&&/tested/.test(h)&&/closed above the box/.test(h2)&&/measured move/.test(h2)&&/78%/.test(h2)&&!/undefined|NaN/.test(h+h2),'box: card text');}
 // B/S alerts on Starred (owner request 15 Nov 2026): same flips as the chart's marks, closed candles only, only after 'after'
 {state.pairs=demoPairs();const p=state.pairs[0],cs=demoCandles(p,'1h',400),now=cs[cs.length-1].time+60;   // last candle still forming
 const all=stFlips(cs,'1h',now,0),S=computeSeries(cs.slice(0,-1)),marks=[];for(let i=1;i<cs.length-1;i++){const a=S.st.dir[i-1],b=S.st.dir[i];if(a!=null&&b!=null&&a!==b)marks.push(cs[i].time)}

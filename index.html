@@ -2357,6 +2357,11 @@ function rangeBox(cs,atr,o){
     if(!best)continue;
     const H=best.top-best.bot,last=cs[n-1].close;
     best.status=last>best.top+0.1*H?'above':last<best.bot-0.1*H?'below':'inside';best.pos=(last-best.bot)/H;best.price=last;
+    if(best.status!=='inside'){   // measured move (owner request 16 Nov 2026): the box's height added past the broken edge, 1× and 2×
+      const up=best.status==='above',d=up?1:-1,edge=up?best.top:best.bot;let ext=edge;
+      for(let i=best.to+1;i<n;i++)ext=up?Math.max(ext,cs[i].high):Math.min(ext,cs[i].low);
+      best.mm={t1:edge+d*H,t2:edge+2*d*H,ext};if(!(best.mm.t2>0))best.mm.t2=null;if(!(best.mm.t1>0))best.mm.t1=null;
+      best.mm.hit1=best.mm.t1!=null&&(up?ext>=best.mm.t1:ext<=best.mm.t1);best.mm.hit2=best.mm.t2!=null&&(up?ext>=best.mm.t2:ext<=best.mm.t2)}
     if(j===0&&best.status==='inside')return best;
     if(!pick||H<pick.top-pick.bot)pick=best;
   }
@@ -3708,6 +3713,11 @@ function draw(keep){
     [ch.boxF,ch.boxT,ch.boxB].forEach(x=>x.applyOptions({priceFormat:pf}));if(B)ch.boxF.applyOptions({baseValue:{type:'price',price:B.bot}});
     ch.boxF.setData(span.map(t=>({time:t,value:B.top})));ch.boxT.setData(span.map(t=>({time:t,value:B.top})));ch.boxB.setData(span.map(t=>({time:t,value:B.bot})))}}
   catch(e){recordErr('box on chart',e)}
+  (ch.blines||[]).forEach(pl=>{try{ch.candle.removePriceLine(pl)}catch(e){}});ch.blines=[];
+  try{const B=current.box,m=B&&B.mm;if(m&&state.ind.box){const br=css('--brand');
+    [[m.t1,'Box 1×',.9],[m.t2,'Box 2×',.6]].forEach(([p,t,a])=>{if(p>0)ch.blines.push(ch.candle.createPriceLine({price:p,color:hexA(br,a),lineWidth:2,lineStyle:2,axisLabelVisible:true,title:t}))})}}
+  catch(e){recordErr('box targets',e)}
+  $('#cMain').dataset.boxt=ch.blines.length;
   applyToggles();applyPanes();
   const bars=matchMedia('(max-width:600px)').matches?70:120;
   if(keep&&current.range){const r=current.range,atEdge=r.to>=cs.length-4;ch.main.timeScale().setVisibleLogicalRange(atEdge?{from:r.from+1,to:r.to+1}:r)}
@@ -3945,8 +3955,9 @@ function fibHTML(f,tf){
 }
 function boxHTML(b,tf){
   const T=TF_LABEL[tf]||tf,pos=Math.round(clamp(b.pos,0,1)*100),H=b.top-b.bot;
-  const now=b.status==='above'?`Price has just <b>closed above the box</b>: a breakout. The old top (${fmtUsd(b.top)}) often becomes support and gets tested again; a close back inside the box would mean the breakout failed.`:
-    b.status==='below'?`Price has just <b>closed below the box</b>: a breakdown. The old bottom (${fmtUsd(b.bot)}) often becomes resistance and gets tested again; a close back inside the box would mean the breakdown failed.`:
+  const m=b.mm,up=b.status==='above',mmTxt=!m||m.t1==null?'':` <b>Where the first wave may cool down:</b> the box's height (${fmtUsd(H)}) ${up?'added to the top':'taken from the bottom'} points to <b>${fmtUsd(m.t1)}</b>, the "measured move"${m.t2!=null?`; a strong run can stretch to ${fmtUsd(m.t2)} (2×)`:''}. ${m.hit2?`Price has already gone past both (${up?'high':'low'} ${fmtUsd(m.ext)} since the break), so the move is very stretched.`:m.hit1?`Price has already reached the 1× level (${up?'high':'low'} ${fmtUsd(m.ext)} since the break), so the easy part of the move may be done.`:`Not reached yet (${up?'high':'low'} ${fmtUsd(m.ext)} since the break).`} In Bulkowski's study of stock chart rectangles, about ${up?'78%':'54%'} of ${up?'upward breakouts':'breakdowns'} reached the 1× level, and about 2 in 3 came back to retest the broken edge along the way. Shown on the chart as dashed "Box 1×/2×" lines.`;
+  const now=b.status==='above'?`Price has just <b>closed above the box</b>: a breakout. The old top (${fmtUsd(b.top)}) often becomes support and gets tested again; a close back inside the box would mean the breakout failed.${mmTxt}`:
+    b.status==='below'?`Price has just <b>closed below the box</b>: a breakdown. The old bottom (${fmtUsd(b.bot)}) often becomes resistance and gets tested again; a close back inside the box would mean the breakdown failed.${mmTxt}`:
     `Price is <b>${pos>=67?'near the top':pos<=33?'near the bottom':'in the middle'}</b> of the box (${pos}% of the way up). ${pos>=67?'The top is where sellers have stepped in so far.':pos<=33?'The bottom is where buyers have stepped in so far.':'The middle is where a trade has the least room to the edges.'} A close outside the box is a breakout.`;
   return `<h3>Trading box</h3><p class="sub">${T} candles · drawn on the chart (Box chip)</p>
     <p class="big">Price has stayed between <b>${fmtUsd(b.bot)}</b> and <b>${fmtUsd(b.top)}</b> (${((H/b.bot)*100).toFixed(1)}% tall) for <b>${plural(b.len,'candle')}</b>. The top was tested ${b.topTests}×, the bottom ${b.botTests}×.</p>
@@ -4252,7 +4263,7 @@ $('#sort').addEventListener('change',e=>{state.sort=e.target.value;LS.set('sort'
 let qT;$('#q').addEventListener('input',e=>{clearTimeout(qT);qT=setTimeout(()=>{state.q=e.target.value.trim().toUpperCase();state.limit=120;renderTabs();renderList(state.cat==='news')},120)});
 $('#tfSeg').addEventListener('click',e=>{const b=e.target.closest('[data-tf]');if(!b)return;if(BIG_TF[b.dataset.tf])setBig(b.dataset.tf);else setTf(b.dataset.tf)});
 $('#briefBox').addEventListener('click',e=>{if(!e.target.closest('#briefBtn')||!current)return;current.briefOpen=!current.briefOpen;renderBrief()});
-$('#toggles').addEventListener('click',e=>{const b=e.target.closest('[data-ind]');if(!b)return;const k=b.dataset.ind;state.ind[k]=!state.ind[k];LS.set('ind3',state.ind);renderToggles();if((k==='fib'||k==='sr'||k==='div'||k==='hunt'||k==='wave')&&current)draw(true);else applyToggles();renderLegend(null)});
+$('#toggles').addEventListener('click',e=>{const b=e.target.closest('[data-ind]');if(!b)return;const k=b.dataset.ind;state.ind[k]=!state.ind[k];LS.set('ind3',state.ind);renderToggles();if((k==='fib'||k==='sr'||k==='div'||k==='hunt'||k==='wave'||k==='box')&&current)draw(true);else applyToggles();renderLegend(null)});
 $('#venueBox').addEventListener('click',e=>{const r=e.target.closest('[data-cid]');if(r&&state.selected)openGroup(state.selected,true,r.dataset.cid)});
 $('#venueBox').addEventListener('keydown',e=>{const r=e.target.closest('[data-cid]');if(r&&(e.key==='Enter'||e.key===' ')){e.preventDefault();openGroup(state.selected,true,r.dataset.cid)}});
 $('#themeOpts').addEventListener('click',e=>{const b=e.target.closest('[data-theme-set]');if(!b)return;state.theme=b.dataset.themeSet;LS.set('theme',state.theme);applyTheme(state.theme)});

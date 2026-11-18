@@ -1,4 +1,9 @@
 [
+  {"date": "2026-11-18", "title": "Where a breakout may cool down", "items": [
+    "When price breaks out of a trading box, the chart now draws dashed Box 1× and Box 2× lines: the box's height added above the top (or below the bottom). First breakout waves often slow down near the 1× line.",
+    "The Trading box card says both prices and whether price has already reached them.",
+    "In a big study of stock charts, about 3 in 4 upward breakouts reached the 1× line and about 2 in 3 came back to test the old box edge on the way."
+  ]},
   {"date": "2026-11-16", "title": "Charts slide more easily", "items": [
     "Drag on a chart to slide it back and forth; it no longer gets stuck showing a candle's details.",
     "To read a candle's date, prices and % move, hold your finger on it. Let go and the chart slides normally again."

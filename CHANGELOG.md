@@ -2,6 +2,12 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-11-20 (owner request): 52-week range
+- Every chart screen (coins and stock futures) now shows a **52-week range** line under the price: the lowest low and highest high of the last 365 days with their dates (wicks count, like the usual 52-week figures), a bar with a dot for where price sits, and how far price is under the high and above the low. The live price is included, so a new high or low shows at once ("at the high"). Markets with less than a year of history read "Range since listing (N days)".
+- From the market's own daily candles (the same exchange as the chart, cached, already fetched for the 1D reading), so it doesn't change when the candle size changes. Information only.
+- New pure `yearRange` and `yearHTML`; 6 engine tests (wicks, 365-day window, live price beyond the old high, since listing, empty data, text); browser test checks the line on the chart screen.
+- Fix: the **B/S alerts** card on Starred disappeared for a moment while the market list reloaded (it was drawn only when starred rows were visible); it now counts starred markets directly. This was the cause of the flaky browser-test step.
+
 ## 2026-11-20 (owner report): Tidier price tags on charts
 - From the owner's BTC screenshots (15m/1H/4H/1D): up to 9 price tags stacked on the right edge, hiding the axis numbers (e.g. 63000, 60000); Stop $62,272.08 and R2 $62,270.35 as two separate tags; mark text cut off ("nt" for Hunt at the left edge, "Hu" and "HDiv" under the tags at the right).
 - Tags closer than 17 px are now merged into the more important one, e.g. **"Stop · R2"** (order: Entry, Stop / Trend breaks, TP1, Testing, R1/S1, Box top/bottom, TP2 and Box 1×, R2/S2, others, Box 2×; three or more read "Stop · R1 +2"). A tag sitting on the live price keeps its name on its line but drops its axis box. Entry is always shown. Every line is still drawn; only tags move. Re-checked after every scroll, zoom and live price change (once per frame).

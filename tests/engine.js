@@ -167,6 +167,15 @@ ok(cleanLab(null)===null&&cleanLab({rows:[]})===null,'lab: missing or empty');
 const W4=cleanLab({rows:[base],waveUp:{'1d':{n:40,turn:0.5},'4h':{n:300,turn:0.52}},waveDn:{'4h':{n:'x',turn:2}},waveHold4h:{up:{30:{n:50,pos:0.6,med:0.02},45:{n:5,pos:1,med:1}},dn:{60:{n:20,pos:7,med:0.01}},base:null}});
 ok(W4.waveUp['4h'].n===300&&W4.waveUp['1d'].n===40&&!W4.waveDn['4h']&&W4.waveHold4h.up[30].pos===0.6&&!W4.waveHold4h.up[45]&&W4.waveHold4h.dn[60].pos===1&&Object.keys(W4.waveHold4h.base).length===0,'lab: 4H wave numbers and holds kept and clamped');
 ok(Object.keys(L.waveHold4h.up).length===0&&Object.keys(L.waveHold.up).length===0,'lab: files without wave holds still read');}
+// 52-week range (owner request 20 Nov 2026): wicks count, only the last 365 days, live price included, short history flagged
+{const D=86400,now=1000*D,mk=(t,h,l,c)=>({time:t,open:c,high:h,low:l,close:c}),cs=[mk(now-500*D,500,1,100),mk(now-300*D,180,90,150),mk(now-100*D,140,60,80),mk(now-D,110,95,100),mk(now,104,99,100)];
+const Y=yearRange(cs,100,now);ok(Y.hi===180&&Y.lo===60&&Y.hiT===now-300*D&&Y.loT===now-100*D&&!Y.short,'52w: high and low from wicks of the last 365 days only');
+ok(Math.abs(Y.pos-1/3)<1e-9&&Math.abs(Y.fromHi+80/180)<1e-9&&Math.abs(Y.fromLo-40/60)<1e-9,'52w: place in the range and distance from high/low');
+const U=yearRange(cs,200,now);ok(U.hi===200&&U.hiT===now&&U.pos===1,'52w: a live price above the old high is the new high');
+const S=yearRange(cs.slice(2),100,now);ok(S.short&&S.days===100&&S.lo===60,'52w: under a year of history reads "since listing"');
+ok(yearRange([],1,now)===null&&yearRange(null,1,now)===null,'52w: nothing without candles');
+const tx=x=>x.split('<').map(q=>q.slice(q.indexOf('>')+1)).join(' ').split(' ').filter(Boolean).join(' '),h=tx(yearHTML(Y)),hs=tx(yearHTML(S));
+ok(h.includes('52-week range')&&h.includes('44% under the high')&&h.includes('67% above the low')&&!h.includes('NaN')&&!h.includes('undefined')&&hs.includes('since listing (100 days)'),'52w: text ('+h.slice(0,140)+')');}
 // price tags (owner report 20 Nov 2026): close tags merge into the more important one, Entry always shows, tags on the live price keep only their name
 {const T=(name,y)=>({name,y}),P=tagPlan([T('Entry',100),T('Stop',40),T('R2',45),T('R1',70),T('S1',160),T('Box bottom',150),T('TP1',220),T('S2',300)],98,17);
 ok(P[0].label&&P[0].title==='Entry','tags: Entry always shown even on the live price');

@@ -259,6 +259,12 @@ button{cursor:pointer}
 .d-price{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
 .d-price .p{font-family:var(--f-mono);font-variant-numeric:tabular-nums;font-size:23px;font-weight:500;letter-spacing:-.01em}
 .d-price .src{font-size:12.5px;color:var(--muted)}
+.yr{display:grid;gap:5px;font-size:12.5px;color:var(--muted);margin:2px 0 4px}
+.yr-h{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}.yr-h b{color:var(--fg);font-weight:600}
+.yr-r{display:flex;align-items:center;gap:10px}.yr-r .num{color:var(--fg);font-variant-numeric:tabular-nums;white-space:nowrap}
+.yr-r small{display:block;font-size:11px;color:var(--muted)}.yr-r>span:last-child{text-align:right}
+.yr .bar{flex:1;min-width:60px;height:4px;border-radius:2px;background:var(--line);position:relative}
+.yr .bar i{position:absolute;top:-4px;width:12px;height:12px;border-radius:50%;background:var(--brand);border:2px solid var(--surface);transform:translateX(-50%)}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r)}
 .card h3{margin:0;padding:12px 14px 0;font-family:var(--f-display);font-size:16px;font-weight:700;letter-spacing:-.01em}
 .card .note{margin:0;padding:0 14px 12px;font-size:12.5px;color:var(--muted)}
@@ -827,6 +833,7 @@ body::before{background:var(--glass);-webkit-backdrop-filter:blur(16px);backdrop
             <button class="star" id="dStar" aria-pressed="false" aria-label="Star this market"></button>
           </div>
           <div class="d-price"><span class="p" id="dPrice"></span><span class="pill" id="dChg"></span><span class="src" id="dSrc"></span></div>
+          <div class="yr" id="yrBox" hidden></div>
           <div class="card cobox" id="coBox" hidden></div>
           <div id="dlBox" hidden></div>
           <div class="card albox" id="alBox" hidden></div>
@@ -1429,7 +1436,7 @@ function patchRows(){
       if(prev){pr.classList.remove('tu','td');void pr.offsetWidth;pr.classList.add(g.price>=prev?'tu':'td');clearTimeout(pr._t);pr._t=setTimeout(()=>pr.classList.remove('tu','td'),700)}}
     if(pl){const cls='pill '+pctCls(g.chg),txt=fmtPct(g.chg);if(pl.className!==cls)pl.className=cls;if(pl.textContent!==txt)pl.textContent=txt}
   });
-  if(state.selContract&&dirty.has(state.selContract)){const p=state.byId.get(state.selContract);if(p){$('#dPrice').textContent=fmtUsd(p.unitPrice);const c=$('#dChg');c.className='pill '+pctCls(p.chg);c.textContent=fmtPct(p.chg)+' 24h'}}
+  if(state.selContract&&dirty.has(state.selContract)){const p=state.byId.get(state.selContract);if(p){$('#dPrice').textContent=fmtUsd(p.unitPrice);if(current&&current.p===p&&yrData)renderYear();const c=$('#dChg');c.className='pill '+pctCls(p.chg);c.textContent=fmtPct(p.chg)+' 24h'}}
 }
 function freshness(){
   const l=$('#live');if(state.mode!=='live'){return}
@@ -2022,7 +2029,7 @@ function renderListInner(force){
   let html;
   if(!v.length)html=`<div class="list"><div class="empty">${state.cat==='watch'?'No starred markets yet. Tap the star on any row to keep it here.':'No markets match. Try another tab or clear the search.'}</div></div>`;
   else html=`<div class="list">${v.slice(0,state.limit).map(g=>rowHTML(g,state.cat==='watch'?{note:stageNote(g)}:{})).join('')}${v.length>state.limit?`<button class="more" id="more">Show ${Math.min(120,v.length-state.limit)} more</button>`:''}</div>`;
-  if(state.cat==='watch'){html=bsSectionHTML(v.length)+alertsSectionHTML()+stagesCardHTML(v)+html;watchStages(v);
+  if(state.cat==='watch'){html=bsSectionHTML(state.watch.size)+alertsSectionHTML()+stagesCardHTML(v)+html;watchStages(v);
     if(state.bsEv&&state.bsEv.some(e=>!e.seen)){state.bsEv.forEach(e=>e.seen=true);LS.set('bsEv',state.bsEv)}}   // highlighted this once, then marked seen
   area.innerHTML=html;
   const m=$('#more');if(m)m.onclick=()=>{state.limit+=120;renderList()};
@@ -3636,6 +3643,21 @@ function simResultsHTML(){
   </div>`;
 }
 
+// 52-week range (owner request 20 Nov 2026): highest high and lowest low (wicks count) of the daily candles in the last
+// 365 days, including the live price; `short` when the market has less history than that (shown as "since listing")
+function yearRange(cs,price,now){
+  if(!cs||!cs.length)return null;const from=now-365*86400,c=cs.filter(k=>k.time+86400>from&&k.high>0&&k.low>0);if(!c.length)return null;
+  let hi=c[0],lo=c[0];for(const k of c){if(k.high>hi.high)hi=k;if(k.low<lo.low)lo=k}
+  const px=price>0?price:c[c.length-1].close;let H=hi.high,L=lo.low,hT=hi.time,lT=lo.time;
+  if(px>H){H=px;hT=now}if(px<L){L=px;lT=now}
+  return{hi:H,lo:L,hiT:hT,loT:lT,price:px,pos:H>L?(px-L)/(H-L):0.5,fromHi:px/H-1,fromLo:px/L-1,days:Math.max(1,Math.round((now-c[0].time)/86400)),short:cs[0].time>now-358*86400};
+}
+function yearHTML(Y){
+  if(!Y)return '';const d=t=>new Date(t*1000).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit',timeZone:'UTC'}),pc=v=>Math.abs(v*100)<0.05?'0%':Math.abs(v*100).toFixed(Math.abs(v)<0.1?1:0)+'%';
+  const where=Y.fromHi>-0.0005?'<b>at the high</b>':Y.fromLo<0.0005?'<b>at the low</b>':`<b>${pc(Y.fromHi)}</b> under the high · <b>${pc(Y.fromLo)}</b> above the low`;
+  return `<div class="yr-h"><span>${Y.short?`Range since listing (${Y.days} day${Y.days===1?'':'s'})`:'52-week range'}</span><span>${where}</span></div>
+    <div class="yr-r"><span class="num">${fmtUsd(Y.lo)}<small>low ${esc(d(Y.loT))}</small></span><span class="bar" role="img" aria-label="Price is ${Math.round(Y.pos*100)}% of the way from the low to the high"><i style="left:${(Math.min(1,Math.max(0,Y.pos))*100).toFixed(1)}%"></i></span><span class="num">${fmtUsd(Y.hi)}<small>high ${esc(d(Y.hiT))}</small></span></div>`;
+}
 // price tags on the chart's right edge (owner report 20 Nov 2026: up to 9 stacked tags hid the axis numbers and each other).
 // Tags closer than `gap` pixels are merged into the more important one ("Stop · R2"); a tag sitting on the live price keeps
 // its name on the line but drops its axis box. Entry is always shown. Lines are never removed, only their tags.
@@ -3945,7 +3967,7 @@ async function openGroup(key,quiet,cid){
     try{const cs=await getCandles(p,tf);if(tok!==loadToken)return;const an=analyze(cs);
       if(!an){current=null;msg.textContent=cs.length<2?'No price history for this market on '+TF_LABEL[tf]+' candles.':`Only ${plural(cs.length,TF_LABEL[tf]+' candle')} of history so far; the chart needs at least 35. A shorter candle size will work.`;$('#sigCard').innerHTML='';$('#signals').innerHTML='';$('#fibBox').hidden=true;$('#srBox').hidden=true;$('#divBox').hidden=true;$('#huntBox').hidden=true;return}
       current={p,cs,an,rc:null,han:null,big:tf};msg.hidden=true;
-      renderBigSignal(an,tf);renderTrendDetails(an);loadMTF(p,g,tok);loadBook(p,tok);loadW200(p,tok);
+      renderBigSignal(an,tf);renderTrendDetails(an);loadMTF(p,g,tok);loadBook(p,tok);loadW200(p,tok);loadYear(p,tok);
       requestAnimationFrame(()=>{try{draw();startChartFeed(p,tf)}catch(e){recordErr('chart',e);msg.hidden=false;msg.textContent='The chart hit a snag. Tap a candle size to try again.'}});
     }catch(e){if(tok!==loadToken)return;msg.hidden=false;msg.textContent=`Couldn't load ${TF_LABEL[tf]} candles from ${EX[p.ex].name}. Tap a candle size to try again.`;$('#sigCard').innerHTML=''}
     return}
@@ -3955,7 +3977,7 @@ async function openGroup(key,quiet,cid){
     current={p,cs:r.cs,an:r.an,rc:r.rc,han:r.han};
     if(p.id===g.primary.id)state.trend.set(p.id+'|'+state.tf,{score:r.an.score,rec:r.rc.rec,conf:r.rc.conf,dir:r.rc.dir});
     msg.hidden=true;
-    renderSignal(r.rc);renderTrendDetails(r.an);loadMTF(p,g,tok);loadBook(p,tok);loadW200(p,tok);
+    renderSignal(r.rc);renderTrendDetails(r.an);loadMTF(p,g,tok);loadBook(p,tok);loadW200(p,tok);loadYear(p,tok);
     requestAnimationFrame(()=>{try{draw();updateRow(g.key);startChartFeed(p,state.tf)}catch(e){recordErr('chart',e);msg.hidden=false;msg.textContent='The chart hit a snag. Tap a candle size to try again.'}});
   }catch(e){if(tok!==loadToken)return;msg.hidden=false;
     const net=e&&(e.name==='AbortError'||/HTTP|fetch|network|load failed|No data|No candles/i.test(String(e.message||e)));
@@ -4216,6 +4238,16 @@ function renderBox(){
 function renderFib(){
   const el=$('#fibBox');if(!el)return;const f=current&&current.fib;
   el.hidden=!f;el.innerHTML=f?fibHTML(f,ctf()):'';
+}
+let yrData=null;   // daily candles of the market on screen, kept when only the candle size changes
+async function loadYear(p,tok){
+  if(!yrData||yrData.id!==p.id)renderYear();   // a different market: hide the old range until its own arrives
+  let d=null;try{d=await getCandles(p,'1d')}catch(e){}
+  if(tok!==loadToken||!current||current.p!==p)return;yrData=d&&d.length?{id:p.id,cs:d}:null;renderYear();
+}
+function renderYear(){
+  const el=$('#yrBox');if(!el)return;let Y=null;try{if(current&&yrData&&yrData.id===current.p.id)Y=yearRange(yrData.cs,current.p.unitPrice,Math.floor(NOW()/1000))}catch(e){recordErr('52-week range',e)}
+  el.hidden=!Y;el.innerHTML=Y?yearHTML(Y):'';
 }
 async function loadW200(p,tok){
   let wk=null;try{wk=await getCandles(p,'1w')}catch(e){}

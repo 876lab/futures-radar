@@ -113,6 +113,8 @@ The working plan for nightly improvement runs. Each run picks the **first unchec
 - [ ] **Judge the bubble stages** (owner request, built 7 Nov 2026): record the stage at each simulated 1D entry and the 30/60/90-day moves after each stage in the nightly backtest; check the thresholds (5/8/12 ATR, 85%/97% stretch percentiles) on real markets before trusting the labels.
 - [x] **Breakout tab (owner request, 10 Nov 2026).** Squeeze + tested resistance + volume; measured nightly (`lab.breakout`). Judge with the wave review on/after 24 Nov.
 - [ ] **Next signals the owner agreed to consider:** Bollinger squeeze (bands unusually narrow → a big move often follows) and a crowded-trade warning (funding and open interest from the hourly `market-data` snapshots). Same pattern: mark, card, chip, measured in the lab.
+- [x] **52-week range (owner request, 20 Nov 2026).** Line under the price on every chart: 365-day low/high (wicks) with dates, a position bar, distance from each. Information only.
+- [ ] **52-week range follow-ups (ideas).** A "near 52-week high/low" tag or tab on Markets (within ~3%), and recording distance from the 52-week high in the nightly backtest to see whether setups near a yearly high or low do better.
 - [ ] **Unusual activity scanner.** A section (inside Hot) for volume spikes vs the 20-candle average and sudden moves in the last hour.
 - [ ] **Trading sessions and liquidity.** Show the current session (Asia / London / New York) and warn in thin hours and weekends.
 - [x] **Price alerts (owner request, 3 Nov 2026).** Bell on every chart, banner + chime while open, closed-app check from 1-hour candles on opening, list on Starred.

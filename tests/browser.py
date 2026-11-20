@@ -529,6 +529,12 @@ async def main():
             for bad in ("undefined", "NaN", "Infinity", "null"):
                 if bad in srt: problems.append(f"[{scheme}] support/resistance card shows '{bad}'")
             if not await pg.locator('#toggles [data-ind="sr"]').count(): problems.append(f"[{scheme}] chart: Support/Resistance chip missing")
+            # 52-week range under the price (owner request 20 Nov 2026)
+            yr = await pg.inner_text("#yrBox") if await pg.is_visible("#yrBox") else ""
+            if not ("52-week range" in yr or "since listing" in yr) or "under the high" not in yr and "at the high" not in yr and "at the low" not in yr or "low " not in yr or "high " not in yr: problems.append(f"[{scheme}] chart screen: 52-week range missing: {yr[:120]!r}")
+            for bad in ("undefined", "NaN", "Infinity"):
+                if bad in yr: problems.append(f"[{scheme}] 52-week range shows '{bad}'")
+            if scheme == "dark" and yr: await pg.locator(".d-price").screenshot(path=os.path.join(OUT, "range-52w-price.png")); await pg.locator("#yrBox").screenshot(path=os.path.join(OUT, "range-52w.png"))
             if scheme == "light" and srt: await pg.locator("#srBox").screenshot(path=os.path.join(OUT, "support-resistance.png"))
             if await pg.evaluate("!!window.LightweightCharts"):
                 if int(await pg.get_attribute("#cMain", "data-sr") or 0) < 1: problems.append(f"[{scheme}] chart: support/resistance lines missing")

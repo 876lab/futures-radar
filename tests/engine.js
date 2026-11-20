@@ -295,6 +295,20 @@ ok(stFlips(cs,'1h',now,Infinity).flips.length===0&&stFlips(cs.slice(0,10),'1h',n
 const ev=cleanBsEv([{k:'BTC',root:'BTC',tf:'1h',dir:1,t:100,p:5,at:1},{k:'BTC',tf:'1h',dir:1,t:100,at:2},{k:'X',tf:'2h',dir:1,t:1,at:1},{k:'Y',tf:'4h',dir:0,t:1,at:1},null,'x',{k:'Z',tf:'1d',dir:-1,t:5,at:3,p:-1,seen:true}]);
 ok(ev.length===2&&ev[0].id==='BTC|1h|100'&&ev[1].p===null&&ev[1].seen===true&&ev[1].root==='Z','bs: stored events cleaned, duplicates dropped');
 ok(cleanBsEv('junk').length===0&&Object.keys(cleanBsLast({'a|1h':5,'b|2h':5,'c|4h':'x','d|1d':-1,e:1})).join()==='a|1h'&&Object.keys(cleanBsLast([1])).length===0,'bs: last-checked times cleaned');}
+// fair value gaps (owner request 20 Nov 2026): gap between candle 1 and candle 3, filled once traded through, nearest first
+{const K=(o,h,l,c,i)=>({time:i*3600,open:o,high:h,low:l,close:c,volume:1});
+const base=[];for(let i=0;i<10;i++)base.push(K(100,101,99,100,i));
+const up=base.concat([K(100,101,99,100.5,10),K(100.5,112,100.4,111,11),K(111,113,106,112,12),K(112,113,110,112,13),K(112,113,109,111,14)]);   // gap 101–106, dipped to 109 only
+let f=fvgZones(up,2);ok(f&&f.bull.length===1&&f.bull[0].lo===101&&f.bull[0].hi===106&&f.bull[0].fill===0&&f.bear.length===0,'fvg: bullish gap found '+JSON.stringify(f&&f.bull));
+f=fvgZones(up.concat([K(111,111,104,105,15),K(105,107,104.5,106,16)]),2);ok(f&&f.bull.length===1&&Math.abs(f.bull[0].fill-0.4)<1e-9,'fvg: partly filled (40%)');
+f=fvgZones(up.concat([K(111,111,100,101,15),K(101,103,100.5,102,16)]),2);ok(f&&f.bull.length===0,'fvg: filled once price trades through it');
+const dn=base.concat([K(100,101,99,99.5,10),K(99.5,99.6,88,89,11),K(89,94,87,88,12),K(88,90,86,87,13),K(87,89,86,88,14)]);   // gap 94–99
+f=fvgZones(dn,2);ok(f&&f.bear.length===1&&f.bear[0].lo===94&&f.bear[0].hi===99&&f.bull.length===0,'fvg: bearish gap found');
+ok(fvgZones(up,20).bull.length===0,'fvg: gaps under 0.3 ATR ignored');
+f=fvgZones(up.slice(0,13),2);ok(f&&f.bull.length===0,'fvg: candle 3 must be closed (not the latest candle)');
+ok(fvgZones(up.slice(0,3),2)===null&&fvgZones(up,0)===null,'fvg: too few candles or no ATR');
+const g=fvgZones(up.concat(dn.slice(10).map((k,i)=>({...k,time:(15+i)*3600}))),2),h=fvgHTML(g,'1h',null,{top:106,bot:101});
+ok(/Fair value gaps/.test(h)&&/lines up with the box/.test(h)&&!/undefined|NaN/.test(h),'fvg: card text');}
 // live vs replay check (track record follow-up a): counts per reading, same score within 0.05R, averages over scored rows only
 {const c=replayCheck([{tf:'1h',read:'same',long:'same',r:1.2,rr:1.2},{tf:'1h',read:'same',long:'levels',r:-1.05,rr:-0.98},{tf:'4h',read:'none',long:'other',r:0.6,rr:-1},
   {tf:'4h',read:'nocandle',long:'nocandle',r:null,rr:null},{tf:'1h',read:'bogus',long:'same',r:0.3,rr:null}]);

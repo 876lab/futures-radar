@@ -2,6 +2,12 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-11-20 (owner request): Fair value gaps
+- New **Fair value gaps** on every chart: the range a fast move skipped, between candle 1's high and candle 3's low after a jump up (green, possible support) or candle 1's low and candle 3's high after a drop (red, possible resistance). Up to 3 unfilled gaps on each side, nearest to price, shaded from where they formed to now; a gap disappears once price trades through to its far side. Gaps under 0.3 ATR are ignored, and candle 3 must be closed.
+- **Fair value gaps** card under the chart: each gap's prices, the move that left it and when, how much is already filled, how far from price (or that price is inside it), and whether it lines up with a support/resistance level or the box edge. New chip switches the zones on and off (on by default).
+- New pure `fvgZones` and `fvgHTML`; 8 engine tests (bullish and bearish gaps, partial fill, filled gaps dropped, size filter, closed candle 3, card text); browser test checks the chip, the card and that the chip hides the zones. Information only; not yet measured in the backtest (backlog).
+- Sources: TradingView, Fair value gap (https://www.tradingview.com/education/fairvaluegap); LuxAlgo, Fair value gap (https://www.luxalgo.com/library/concept/fair-value-gap/).
+
 ## 2026-11-18 (owner request): Where a breakout may cool down
 - When price closes out of a trading box, the chart now adds dashed **"Box 1×"** and **"Box 2×"** lines: the box's height added to the top (or taken from the bottom), the classic "measured move" where first breakout waves often slow down. The Trading box card names both prices, the high (or low) since the break, and whether 1× or 2× has already been reached.
 - Context on the card: in Bulkowski's study of rectangles on US stocks (bull market), about 78% of upward breakouts and 54% of breakdowns reached the 1× level, and about two in three came back to retest the broken edge. Crypto may behave differently; information only.

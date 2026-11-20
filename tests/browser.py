@@ -559,6 +559,21 @@ async def main():
                 await pg.click('[data-ind="box"]'); await pg.wait_for_timeout(200)
                 if scheme == "dark": await pg.locator(".chartbox").screenshot(path=os.path.join(OUT, "box-chart.png"))
             if scheme == "dark" and bxt: await pg.locator("#boxBox").screenshot(path=os.path.join(OUT, "box.png"))
+            # fair value gaps (owner request 20 Nov 2026): card with the nearest unfilled gaps, shaded zones, chip switches them
+            if not await pg.locator('[data-ind="fvg"]').count(): problems.append(f"[{scheme}] chart: Fair value gaps chip missing")
+            fvt = await pg.inner_text("#fvgBox") if await pg.is_visible("#fvgBox") else ""
+            if fvt and ("Fair value gaps" not in fvt or "–" not in fvt): problems.append(f"[{scheme}] chart: fair value gap card wrong: {fvt[:120]!r}")
+            for bad in ("undefined", "NaN", "Infinity", "null"):
+                if bad in fvt: problems.append(f"[{scheme}] fair value gap card shows '{bad}'")
+            if not fvt: print(f"  note: [{scheme}] no unfilled fair value gap on the test market's chart")
+            elif await pg.evaluate("!!window.LightweightCharts"):
+                if int(await pg.get_attribute("#cMain", "data-fvg") or 0) < 1: problems.append(f"[{scheme}] chart: fair value gaps not drawn")
+                await pg.click('[data-ind="fvg"]'); await pg.wait_for_timeout(200)
+                if (await pg.get_attribute("#cMain", "data-fvg")) != "0": problems.append(f"[{scheme}] chart: Fair value gaps chip did not hide them")
+                await pg.click('[data-ind="fvg"]'); await pg.wait_for_timeout(200)
+            if scheme == "dark" and fvt:
+                try: await pg.locator("#fvgBox").screenshot(path=os.path.join(OUT, "fvg.png"), timeout=5000)
+                except Exception as e: print(f"  note: fair value gap screenshot skipped ({type(e).__name__})")
             if ("Long setup" in sig or "Short setup" in sig) and "In last night's backtest" not in sig: problems.append(f"[{scheme}] chart screen: past win rate missing under a setup")
             for old in ("signal ·", "enter long", "enter short", "avoid for now", "confidence", "size this trade"):
                 if old in sig.lower(): problems.append(f"[{scheme}] chart screen: old wording '{old}' still shown")

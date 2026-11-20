@@ -1,4 +1,9 @@
 [
+  {"date": "2026-11-20", "title": "Fair value gaps", "items": [
+    "Charts now shade fair value gaps: zones a fast move skipped. Green ones below price can act as support, red ones above as resistance.",
+    "A new card under the chart lists the nearest unfilled gaps, how much of each is filled, and whether one lines up with a support/resistance level or the box edge.",
+    "Use the Fair value gaps chip above the chart to switch them on or off."
+  ]},
   {"date": "2026-11-18", "title": "Where a breakout may cool down", "items": [
     "When price breaks out of a trading box, the chart now draws dashed Box 1× and Box 2× lines: the box's height added above the top (or below the bottom). First breakout waves often slow down near the 1× line.",
     "The Trading box card says both prices and whether price has already reached them.",

@@ -855,6 +855,7 @@ body::before{background:var(--glass);-webkit-backdrop-filter:blur(16px);backdrop
           <div class="card book divb" id="waveBox" hidden></div>
           <div class="card book srl" id="srBox" hidden></div>
           <div class="card book" id="boxBox" hidden></div>
+          <div class="card book" id="fvgBox" hidden></div>
           <div class="card book fib" id="fibBox" hidden></div>
           <div class="card book" id="bookBox" hidden></div>
           <div class="card mnews" id="mktNews"></div>
@@ -1053,7 +1054,8 @@ function ctf(){return state.big||state.tf}
 if(!state.ind||typeof state.ind!=='object')state.ind={ema:false,bb:true,st:true,vol:true,marks:true};
 if(typeof state.ind.fib!=='boolean')state.ind.fib=true;   // Fibonacci levels (added 25 Oct 2026) start switched on
 if(typeof state.ind.sr!=='boolean')state.ind.sr=true;
-if(typeof state.ind.box!=='boolean')state.ind.box=true;   // trading box (added 15 Nov 2026) starts switched on
+if(typeof state.ind.box!=='boolean')state.ind.box=true;
+if(typeof state.ind.fvg!=='boolean')state.ind.fvg=true;   // fair value gaps (added 20 Nov 2026) start switched on   // trading box (added 15 Nov 2026) starts switched on
 if(typeof state.ind.w200!=='boolean')state.ind.w200=true;
 if(typeof state.ind.div!=='boolean')state.ind.div=true;
 if(typeof state.ind.hunt!=='boolean')state.ind.hunt=true;
@@ -2370,6 +2372,24 @@ function rangeBox(cs,atr,o){
 /* Price alerts (owner request, 3 Nov 2026). Kept on the device. d = 1 rings when price rises to p, −1 when it falls to p
    (set from where price was when the alert was made). t, hit: milliseconds. */
 const AL_MAX=50;
+/* Fair value gaps (owner request, 20 Nov 2026): three candles where candle 1's high stays below candle 3's low (bullish gap,
+   the range a fast move up skipped) or candle 1's low stays above candle 3's high (bearish gap). Only gaps at least minA ATR
+   tall, candle 3 fully closed, from the last `look` candles. A gap is filled once price trades through to its far side;
+   fill = how much of it price has re-entered since (0–1). Returns the unfilled ones nearest to price: up to max per side. */
+function fvgZones(cs,atr,o){
+  o=o||{};const n=cs?cs.length:0,minA=o.minA||0.3,look=o.look||300,max=o.max||3;if(n<5||!(atr>0))return null;
+  const out=[];
+  for(let i=Math.max(1,n-1-look);i<=n-3;i++){const a=cs[i-1],c=cs[i+1];let z=null;
+    if(c.low-a.high>=minA*atr)z={dir:1,lo:a.high,hi:c.low};else if(a.low-c.high>=minA*atr)z={dir:-1,lo:c.high,hi:a.low};
+    if(!z)continue;let deep=z.dir>0?Infinity:-Infinity,done=false;
+    for(let j=i+2;j<n&&!done;j++){if(z.dir>0){deep=Math.min(deep,cs[j].low);done=deep<=z.lo}else{deep=Math.max(deep,cs[j].high);done=deep>=z.hi}}
+    if(done)continue;const H=z.hi-z.lo;
+    z.fill=z.dir>0?(isFinite(deep)&&deep<z.hi?(z.hi-deep)/H:0):(isFinite(deep)&&deep>z.lo?(deep-z.lo)/H:0);
+    z.i=i;z.time=cs[i].time;z.mid=(z.lo+z.hi)/2;z.size=H/atr;out.push(z)}
+  const price=cs[n-1].close,dist=z=>z.dir>0?Math.max(0,price-z.hi):Math.max(0,z.lo-price);
+  const bull=out.filter(z=>z.dir>0).sort((x,y)=>dist(x)-dist(y)||y.i-x.i).slice(0,max),bear=out.filter(z=>z.dir<0).sort((x,y)=>dist(x)-dist(y)||y.i-x.i).slice(0,max);
+  return{price,bull,bear,count:out.length};
+}
 /* B/S alerts for starred markets (owner request, 15 Nov 2026). stFlips: Supertrend flips (the chart's B/S marks) on fully
    closed candles after time 'after' (seconds). Events kept on the device: k market, tf, dir 1 = B / −1 = S, t flip candle start,
    p close then, at detected (ms), away = found after more candles had closed, seen. */
@@ -3625,7 +3645,10 @@ function ensureCharts(){
   const br=css('--brand');let boxF=null,boxT=null,boxB=null;
   try{boxF=main.addBaselineSeries({baseValue:{type:'price',price:0},topLineColor:'rgba(0,0,0,0)',topFillColor1:hexA(br,.12),topFillColor2:hexA(br,.12),bottomLineColor:'rgba(0,0,0,0)',bottomFillColor1:'rgba(0,0,0,0)',bottomFillColor2:'rgba(0,0,0,0)',lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
     boxT=line(main,hexA(br,.85),2,{lastValueVisible:true,title:'Box top'});boxB=line(main,hexA(br,.85),2,{lastValueVisible:true,title:'Box bottom'})}catch(e){recordErr('box series',e)}
-  const c={main,rs,md,boxF,boxT,boxB,
+  // fair value gaps: up to 3 green and 3 red shaded zones (baseline series filled down to each gap's low edge)
+  const up0=css('--up'),dn0=css('--down'),fv=[];
+  try{for(let k=0;k<6;k++){const col=k<3?up0:dn0;fv.push(main.addBaselineSeries({baseValue:{type:'price',price:0},topLineColor:hexA(col,.55),topFillColor1:hexA(col,.16),topFillColor2:hexA(col,.16),bottomLineColor:'rgba(0,0,0,0)',bottomFillColor1:'rgba(0,0,0,0)',bottomFillColor2:'rgba(0,0,0,0)',lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false}))}}catch(e){recordErr('gap series',e)}
+  const c={main,rs,md,boxF,boxT,boxB,fv,
     bbU:line(main,bbc,1),bbL:line(main,bbc,1),bbM:line(main,css('--up'),1,{lineStyle:0}),
     w200:line(main,css('--c3'),3,{lineStyle:2,autoscaleInfoProvider:()=>null}),e200:line(main,css('--c3'),2),e50:line(main,css('--c2'),2),e20:line(main,css('--c1'),2),stU:line(main,up,2),stD:line(main,dn,2),plines:[],flines:[]};
   c.candle=main.addCandlestickSeries({upColor:up,downColor:dn,borderUpColor:up,borderDownColor:dn,wickUpColor:up,wickDownColor:dn});
@@ -3653,6 +3676,8 @@ function draw(keep){
   current.sr=sr;card('support and resistance',renderSR);
   let box=null;try{box=rangeBox(current.cs,current.an&&current.an.atr)}catch(e){recordErr('trading box',e)}
   current.box=box;card('trading box',renderBox);
+  let fvg=null;try{fvg=fvgZones(current.cs,current.an&&current.an.atr)}catch(e){recordErr('fair value gaps',e)}
+  current.fvg=fvg;card('fair value gaps',renderFvg);
   const DIV_TF=['1h','4h','1d','1w'].includes(ctf()),HUNT_TF=['1h','4h','1d'].includes(ctf());let divs=null;
   let hunts=null;try{const A_=current.an;if(DIV_TF&&A_&&A_.series){divs=rsiDivergences(current.cs,A_.series.r12,Math.max(0,current.cs.length-300),A_.series.e50);if(HUNT_TF)hunts=stopHunts(current.cs,A_.series.at,Math.max(0,current.cs.length-300))}}catch(e){recordErr('RSI divergence',e)}
   current.divs=divs;current.hunts=hunts;current.divTf=DIV_TF;current.huntTf=HUNT_TF;card('RSI divergence',renderDiv);card('stop-hunts',renderHunt);
@@ -3713,6 +3738,9 @@ function draw(keep){
     [ch.boxF,ch.boxT,ch.boxB].forEach(x=>x.applyOptions({priceFormat:pf}));if(B)ch.boxF.applyOptions({baseValue:{type:'price',price:B.bot}});
     ch.boxF.setData(span.map(t=>({time:t,value:B.top})));ch.boxT.setData(span.map(t=>({time:t,value:B.top})));ch.boxB.setData(span.map(t=>({time:t,value:B.bot})))}}
   catch(e){recordErr('box on chart',e)}
+  try{if(ch.fv&&ch.fv.length){const F=current.fvg,slots=[...(F?F.bull:[]),null,null,null].slice(0,3).concat([...(F?F.bear:[]),null,null,null].slice(0,3));
+    slots.forEach((z,k)=>{const s=ch.fv[k];s.applyOptions({priceFormat:pf});if(!z){s.setData([]);return}s.applyOptions({baseValue:{type:'price',price:z.lo}});s.setData(T.slice(z.i-1).map(t=>({time:t,value:z.hi})))})}}
+  catch(e){recordErr('gaps on chart',e)}
   (ch.blines||[]).forEach(pl=>{try{ch.candle.removePriceLine(pl)}catch(e){}});ch.blines=[];
   try{const B=current.box,m=B&&B.mm;if(m&&state.ind.box){const br=css('--brand');
     [[m.t1,'Box 1×',.9],[m.t2,'Box 2×',.6]].forEach(([p,t,a])=>{if(p>0)ch.blines.push(ch.candle.createPriceLine({price:p,color:hexA(br,a),lineWidth:2,lineStyle:2,axisLabelVisible:true,title:t}))})}}
@@ -3732,6 +3760,7 @@ function applyToggles(){
   charts.vol.applyOptions({visible:!!i.vol});
   charts.w200.applyOptions({visible:!!i.w200});
   const bx=!!(i.box&&current&&current.box&&charts.boxF);[charts.boxF,charts.boxT,charts.boxB].forEach(s=>{if(s)s.applyOptions({visible:bx})});$('#cMain').dataset.box=bx?1:0;
+  const fz=current&&current.fvg?current.fvg.bull.length+current.fvg.bear.length:0,fon=!!(i.fvg&&fz&&charts.fv&&charts.fv.length);(charts.fv||[]).forEach(s=>s.applyOptions({visible:fon}));$('#cMain').dataset.fvg=fon?fz:0;
   const mk=(i.marks&&current&&current.marks?current.marks:[]).concat(current&&current.simMarks?current.simMarks:[],i.div&&current&&current.divMarks?current.divMarks:[],i.hunt&&current&&current.huntMarks?current.huntMarks:[],i.wave&&current&&current.waveMarks?current.waveMarks:[]).sort((a,b)=>a.time-b.time);
   charts.candle.setMarkers(mk);
 }
@@ -3756,7 +3785,7 @@ function renderLegend(idx){
   }else{$('#rsiLegend').innerHTML='<span>RSI 6 / 12 / 24</span>';$('#macdLegend').innerHTML='<span>MACD(12,26,9)</span>'}
 }
 function renderToggles(){
-  const T=[['bb','Bollinger','--bb'],['st','Supertrend','--up'],['marks','B/S marks','--accent'],['sr','Support/Resistance','--up'],['box','Box','--brand'],['w200','200W EMA','--c3'],['div','RSI divergence','--c3'],['hunt','Stop-hunts','--accent'],['wave','Wave signals (1D/1W)','--c2'],['fib','Fibonacci','--c4'],['ema','EMA 20/50/200','--c2'],['vol','Volume','--muted']];
+  const T=[['bb','Bollinger','--bb'],['st','Supertrend','--up'],['marks','B/S marks','--accent'],['sr','Support/Resistance','--up'],['box','Box','--brand'],['fvg','Fair value gaps','--c4'],['w200','200W EMA','--c3'],['div','RSI divergence','--c3'],['hunt','Stop-hunts','--accent'],['wave','Wave signals (1D/1W)','--c2'],['fib','Fibonacci','--c4'],['ema','EMA 20/50/200','--c2'],['vol','Volume','--muted']];
   $('#toggles').innerHTML=T.map(([k,l,c])=>`<button class="chip" data-ind="${k}" aria-pressed="${!!state.ind[k]}"><i style="background:var(${c})"></i>${l}</button>`).join('');
 }
 
@@ -3963,6 +3992,17 @@ function boxHTML(b,tf){
     <p class="big">Price has stayed between <b>${fmtUsd(b.bot)}</b> and <b>${fmtUsd(b.top)}</b> (${((H/b.bot)*100).toFixed(1)}% tall) for <b>${plural(b.len,'candle')}</b>. The top was tested ${b.topTests}×, the bottom ${b.botTests}×.</p>
     <p>${now}</p><p class="note">Edges come from candle bodies; wicks can poke out. Information only, not a recommendation.</p>`;
 }
+function fvgHTML(f,tf,sr,box){
+  const T=TF_LABEL[tf]||tf,big=tf==='1d'||tf==='1w'||tf==='1M',when=t=>new Date(t*1000).toLocaleString('en-US',big?{month:'short',day:'numeric',timeZone:'UTC'}:{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+  const lv=[];if(sr){sr.sup.forEach((z,i)=>lv.push(['S'+(i+1),z]));sr.res.forEach((z,i)=>lv.push(['R'+(i+1),z]));if(sr.at)lv.push(['the level being tested',sr.at])}
+  if(box){lv.push(['the box top',{lo:box.top,hi:box.top}]);lv.push(['the box bottom',{lo:box.bot,hi:box.bot}])}
+  const line=z=>{const pc=(z.dir>0?(z.hi/f.price-1):(z.lo/f.price-1))*100,inside=f.price>=z.lo&&f.price<=z.hi,mt=lv.filter(([,x])=>x.hi>=z.lo&&x.lo<=z.hi).map(([k])=>k);
+    return `<li><b class="${z.dir>0?'up':'down'}">${fmtUsd(z.lo)} – ${fmtUsd(z.hi)}</b> · left by the ${z.dir>0?'up':'down'}-move of ${esc(when(z.time))} · ${z.fill>0?`${Math.round(z.fill*100)}% filled`:'not touched yet'} · ${inside?'<b>price is inside it now</b>':`${Math.abs(pc).toFixed(1)}% ${z.dir>0?'below':'above'} price`}${mt.length?` · <b>lines up with ${mt.join(' and ')}</b>`:''}</li>`};
+  const sec=(arr,h,empty)=>`<div class="sim-sec"><h4>${h}</h4>${arr.length?`<ul class="sim-notes">${arr.map(line).join('')}</ul>`:`<p class="note">${empty}</p>`}</div>`;
+  return `<h3>Fair value gaps</h3><p class="sub">${T} candles · unfilled gaps nearest to price · shaded on the chart (Fair value gaps chip)</p>
+    ${sec(f.bull,'Green gaps below (possible support)','No unfilled gap left by a fast move up.')}${sec(f.bear,'Red gaps above (possible resistance)','No unfilled gap left by a fast move down.')}
+    <p class="note">A fair value gap is the range a fast move skipped: between candle 1's high and candle 3's low after a jump up (the reverse after a drop), so few orders were filled there. Price often comes back into it; many traders watch for a reaction there and treat the middle of the gap as the key line. A gap that lines up with a support/resistance level or the box edge is usually taken more seriously. Popular, but not yet measured in the app's backtest. Information only.</p>`;
+}
 function srHTML(r,tf){
   const pc=v=>(v>=0?'+':'−')+Math.abs(v*100).toFixed(1)+'%';
   const strength=z=>z.tests>=3?`<b class="sr-strong">strong</b> · turned ${z.tests} times`:z.tests===2?'turned twice':'turned once';
@@ -4117,6 +4157,10 @@ function renderDiv(){const el=$('#divBox');if(!el)return;const ok=current&&state
 function renderSR(){
   const el=$('#srBox');if(!el)return;const r=current&&current.sr,ok=r&&(r.sup.length||r.res.length||r.at);
   el.hidden=!ok;el.innerHTML=ok?srHTML(r,ctf()):'';
+}
+function renderFvg(){
+  const el=$('#fvgBox');if(!el)return;const f=current&&current.fvg,ok=f&&(f.bull.length||f.bear.length);
+  el.hidden=!ok;el.innerHTML=ok?fvgHTML(f,ctf(),current.sr,current.box):'';
 }
 function renderBox(){
   const el=$('#boxBox');if(!el)return;const b=current&&current.box;

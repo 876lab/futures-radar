@@ -162,7 +162,15 @@ ok(same,'divergence: no look-ahead (same result on data cut at each candle)');}
 const a={f:'4H only, confirmed',e:'x',n:600,avgR:0.05,older:0.02,newer:0.08,nOld:300,nNew:300},b={f:'y',e:'x',n:600,avgR:0.2,older:0.5,newer:-0.2,nOld:300,nNew:300},c={f:'z',e:'x',n:90,avgR:0.5,older:0.5,newer:0.5,nOld:45,nNew:45};
 const L=cleanLab({rows:[base,a,b,c,{f:'bad'}],div:{'1h':{n:10,turn:0.6},'15m':{n:1,turn:1}},flip:{},base:{},divGroup:[]});
 const P=labPicks(L,200);ok(L.rows.length===4&&P.base&&P.picks.length===1&&P.picks[0].f==='4H only, confirmed'&&!L.div['15m'],'lab: only ideas better on both halves with enough trades are picked');
-ok(cleanLab(null)===null&&cleanLab({rows:[]})===null,'lab: missing or empty');}
+ok(cleanLab(null)===null&&cleanLab({rows:[]})===null,'lab: missing or empty');
+// wave dots on 4H (measured only, 20 Nov 2026): the 4H numbers and 4H holds survive cleaning, junk is dropped, old files still read
+const W4=cleanLab({rows:[base],waveUp:{'1d':{n:40,turn:0.5},'4h':{n:300,turn:0.52}},waveDn:{'4h':{n:'x',turn:2}},waveHold4h:{up:{30:{n:50,pos:0.6,med:0.02},45:{n:5,pos:1,med:1}},dn:{60:{n:20,pos:7,med:0.01}},base:null}});
+ok(W4.waveUp['4h'].n===300&&W4.waveUp['1d'].n===40&&!W4.waveDn['4h']&&W4.waveHold4h.up[30].pos===0.6&&!W4.waveHold4h.up[45]&&W4.waveHold4h.dn[60].pos===1&&Object.keys(W4.waveHold4h.base).length===0,'lab: 4H wave numbers and holds kept and clamped');
+ok(Object.keys(L.waveHold4h.up).length===0&&Object.keys(L.waveHold.up).length===0,'lab: files without wave holds still read');}
+// wave dots on 4H candles: same rules as 1D (20 vs 200 candles), no look-ahead
+{const d4=demoCandles(state.pairs[1],'4h',600),S4=computeSeries(d4),W=waveSignals(d4,S4.at,1);let same=true;
+for(const L of [260,400,520,599]){const a=waveSignals(d4.slice(0,L+1),S4.at.slice(0,L+1),1).sig,b=W.sig.filter(w=>w.i<=L);if(JSON.stringify(a)!==JSON.stringify(b))same=false}
+ok(W.len===200&&same,'wave 4H: 200-candle average and no look-ahead ('+W.sig.length+' dots on sample data)');}
 // hidden divergence and stop-hunts (information only)
 {const H=3600,mk=arr=>arr.map((m,i)=>({time:i*H,open:m,high:m+0.5,low:m-0.5,close:m,volume:1}));
 // uptrend pullbacks: lows at i=10 (100) and i=30 (103, a higher low) while RSI lows go 40 -> 34: hidden bullish

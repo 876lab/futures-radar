@@ -2,6 +2,13 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-11-20 (nightly run): Wave dots measured on 4H (owner request 13 Nov)
+- The nightly backtest (`scripts/backtest.js`) now runs `waveSignals` on each market's 4H candles too, with exactly the 1D rules (20 vs 200 candles, 100/50 fallback): the 1 ATR first-touch test against random 4H candles (`lab.wave` / `waveUp` / `waveDn` under `4h`, baseline `lab.base['4h']`) and the price change 30 / 60 / 90 candles (5 / 10 / 15 days) after each dot and after every 7th candle (`lab.waveHold4h`). The 1D measurement moved into a shared `waveLab` function; its numbers are unchanged (checked on the demo data before and after).
+- Simulator → **What the backtest is learning** → All experiments and signal checks: a new **Wave dots, 1D vs 4H** table (low-wave, high-wave and random candles side by side) and a **Holding longer (4H)** table. `cleanLab` reads `waveHold4h` (older backtest files still read). The 1D Wave signals card's hold table is unchanged.
+- Information for the 24 Nov review only: wave dots stay on 1D and 1W charts; no signal rule, entry, stop or target changed.
+- Tests: 3 engine tests (4H numbers and holds kept and clamped, old files read, 4H dots use the 200-candle average with no look-ahead); browser test opens the lab card's details and checks the new tables.
+- Sources: WaveTrend (LazyBear) definition and use on several timeframes, https://pineify.app/pine-script/indicators/wave-trend and https://www.tradingview.com/script/TPWYUAYo-WaveTrend-4h-24m/. No new data endpoint (Gate API v4 candlesticks, already used).
+
 ## 2026-11-20 (owner request): Fair value gaps
 - New **Fair value gaps** on every chart: the range a fast move skipped, between candle 1's high and candle 3's low after a jump up (green, possible support) or candle 1's low and candle 3's high after a drop (red, possible resistance). Up to 3 unfilled gaps on each side, nearest to price, shaded from where they formed to now; a gap disappears once price trades through to its far side. Gaps under 0.3 ATR are ignored, and candle 3 must be closed.
 - **Fair value gaps** card under the chart: each gap's prices, the move that left it and when, how much is already filled, how far from price (or that price is inside it), and whether it lines up with a support/resistance level or the box edge. New chip switches the zones on and off (on by default).

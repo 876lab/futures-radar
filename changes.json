@@ -1,4 +1,9 @@
 [
+  {"date": "2026-11-20", "title": "Wave dots tested on 4H", "items": [
+    "The nightly backtest now also checks the green and red wave dots on 4H candles, the same way it checks them on 1D.",
+    "See it in Simulator → What the backtest is learning → All experiments: a 1D vs 4H table, and how price did 5, 10 and 15 days after 4H dots compared with random candles.",
+    "Charts don't change: wave dots stay on 1D and 1W until you decide at the 24 Nov review."
+  ]},
   {"date": "2026-11-20", "title": "Fair value gaps", "items": [
     "Charts now shade fair value gaps: zones a fast move skipped. Green ones below price can act as support, red ones above as resistance.",
     "A new card under the chart lists the nearest unfilled gaps, how much of each is filled, and whether one lines up with a support/resistance level or the box edge.",

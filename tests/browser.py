@@ -674,6 +674,14 @@ async def main():
                 lab = await pg.inner_text("#labCard")
                 if "What the backtest is learning" not in lab or "Today's rules" not in lab or "NaN" in lab or "undefined" in lab: problems.append(f"simulator: lab card wrong: {lab[:160]!r}")
                 await pg.locator("#labCard").screenshot(path=os.path.join(OUT, "lab.png"))
+                # wave dots measured on 1D and 4H side by side (owner request 13 Nov 2026), inside the folded experiments
+                await pg.evaluate("document.querySelectorAll('#labCard details').forEach(d=>d.open=true)"); await pg.wait_for_timeout(150)
+                wl = await pg.inner_text("#labCard")
+                for want in ("Wave dots, 1D vs 4H", "Holding longer (nightly backtest, 4H)", "30 candles", "measured only"):
+                    if want not in wl: problems.append(f"simulator: lab card wave 1D vs 4H missing '{want}'")
+                if "NaN" in wl or "undefined" in wl: problems.append("simulator: lab card shows NaN/undefined when open")
+                await pg.locator("#labCard").screenshot(path=os.path.join(OUT, "lab-open.png"))
+                await pg.evaluate("document.querySelectorAll('#labCard details').forEach(d=>d.open=false)")
                 for want in ("Starting with", "trades", "won", "lost", "about even", "Fees and slippage cost", "Latest trades, in plain words", "How a simulated trade works", "More numbers and breakdowns"):
                     if want not in res: problems.append(f"simulator: plain summary missing '{want}'")
                 if await pg.is_visible("#simRes .tiles"): problems.append("simulator: detailed numbers should be folded away under 'More numbers'")

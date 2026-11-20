@@ -2746,8 +2746,8 @@ function cleanLab(L){
   const dg=(Array.isArray(L.divGroup)?L.divGroup:[]).slice(0,3).filter(g=>g&&typeof g.k==='string'&&fin(g.n)&&fin(g.avgR)).map(g=>({k:g.k.slice(0,40),n:Math.round(g.n),avgR:g.avgR,reach:fin(g.reach)?g.reach:0}));
   const hdiv=sig(L.hdiv),hunt=sig(L.hunt),divlvl=sig(L.divlvl),combo=sig(L.combo),wave=sig(L.wave),waveUp=sig(L.waveUp),waveDn=sig(L.waveDn),bk=L.breakout&&typeof L.breakout==='object'?L.breakout:{},one=o=>{const x=sig(o?{'1d':o}:null)['1d'];return x||null},breakout={bo:one(bk.bo),coil:one(bk.coil),base:one(bk.base)};
   const hs=o=>{const out={};if(o&&typeof o==='object')for(const h of WAVE_HOLD){const x=o[h];if(x&&fin(x.n)&&x.n>0&&fin(x.pos)&&fin(x.med))out[h]={n:Math.round(x.n),pos:clamp(x.pos,0,1),med:clamp(x.med,-1,20)}}return out};
-  const wh=L.waveHold&&typeof L.waveHold==='object'?L.waveHold:{},waveHold={up:hs(wh.up),dn:hs(wh.dn),base:hs(wh.base)};
-  return rows.length?{hdiv,hunt,divlvl,combo,wave,waveUp,waveDn,waveHold,breakout,pbFill:fin(L.pbFill)?clamp(L.pbFill,0,1):null,rows,div:sig(L.div),flip:sig(L.flip),base:sig(L.base),divGroup:dg}:null;
+  const hz=o=>{const w=o&&typeof o==='object'?o:{};return{up:hs(w.up),dn:hs(w.dn),base:hs(w.base)}},waveHold=hz(L.waveHold),waveHold4h=hz(L.waveHold4h);
+  return rows.length?{hdiv,hunt,divlvl,combo,wave,waveUp,waveDn,waveHold,waveHold4h,breakout,pbFill:fin(L.pbFill)?clamp(L.pbFill,0,1):null,rows,div:sig(L.div),flip:sig(L.flip),base:sig(L.base),divGroup:dg}:null;
 }
 // ideas that held up: at least `minN` trades and better than today's rules on BOTH the older and the newer half
 function labPicks(lab,minN){
@@ -3397,6 +3397,14 @@ function trCheckHTML(){
     ${c.live&&c.replay?`<li>Same ${plural(c.markets,'market')}${c.from?` since ${esc(dateStr(c.from*1000))}`:''}: the backtest found ${c.replay.n.toLocaleString()} setups averaging <b class="${c.replay.avgR>0?'up':'down'}">${fmtR(c.replay.avgR)}</b> (target 1 in ${fmtP(c.replay.reach)}); live ${c.live.n.toLocaleString()} averaging <b class="${c.live.avgR>0?'up':'down'}">${fmtR(c.live.avgR)}</b> (target 1 in ${fmtP(c.live.reach)}). ${verdict}</li>`:''}
     <li>The live record only follows each market while it is among the busiest 25, and one setup at a time, so the counts differ a little.</li></ul></div>`;
 }
+// wave dots measured on 1D (shown on charts) and 4H (measured only, owner request 13 Nov 2026), side by side
+function waveLabHTML(L){
+  const tfs=['1d','4h'].filter(tf=>L.wave&&L.wave[tf]);if(!tfs.length)return '';
+  const c=x=>x&&x.n>=10?`${fmtP(x.turn)} <small class="muted">of ${x.n.toLocaleString()}</small>`:x?`<span class="muted">only ${x.n}</span>`:'<span class="muted">—</span>';
+  return `<li><b>Wave dots, 1D vs 4H</b> (1 ATR the dot's way first; compare with random candles):<table class="feedtbl wv-hold"><thead><tr><th></th><th>Low-wave</th><th>High-wave</th><th>Random</th></tr></thead><tbody>
+    ${tfs.map(tf=>`<tr><td><b>${TF_LABEL[tf]}</b></td><td>${c(L.waveUp&&L.waveUp[tf])}</td><td>${c(L.waveDn&&L.waveDn[tf])}</td><td>${c(L.base&&L.base[tf])}</td></tr>`).join('')}</tbody></table>
+    ${waveHoldHTML(L.waveHold4h,'4h')}<small class="muted">4H dots are measured only, for the 24 Nov review; charts keep showing them on 1D and 1W. The 1D holding table is on the 1D chart's Wave signals card.</small></li>`;
+}
 function labCardHTML(){
   const d=bt.data,L=d&&d.lab;
   if(!L)return `<h3>What the backtest is learning</h3><p class="note">Appears after the next nightly backtest. It replays the same setups with other stops, targets and filters to see what would have worked better.</p>`;
@@ -3415,6 +3423,7 @@ function labCardHTML(){
       ${L.divGroup.length?`<li><b>Setups and divergence (1H and 4H):</b> ${L.divGroup.map(g=>`${esc(g.k.toLowerCase())} ${fmtR(g.avgR)} (${g.n.toLocaleString()} trades)`).join(', ')}.</li>`:''}
       ${L.pbFill!=null?`<li><b>Pullback entries</b> (a limit order in the entry zone) were filled for ${fmtP(L.pbFill)} of confirmed setups; the rest were missed, so that row counts fewer trades.</li>`:''}
       <li><b>Market light</b> here uses Bitcoin's daily chart only (no Fear &amp; Greed or cycle history).</li>
+      ${waveLabHTML(L)}
       <li>"Avg" is the average result per trade in R after fees (+1R = won what was risked). "Older" and "Newer" split the period in two: an idea that only works in one half is probably luck.</li>
       <li>"Pointed the right way" means price moved 1 ATR in the signal's direction before 1 ATR against within 30 candles; around 50% is a coin flip.</li>
       <li>Each experiment uses the same entries, so it shows how the exit or filter changes results, not new setups. Past results don't guarantee future ones.</li></ul>
@@ -4084,14 +4093,14 @@ function waveListHTML(W,cs){
     return `<li class="${good?'w':'l'}"><span><b class="${w.dir>0?'up':'down'}">${w.dir>0?'Low-wave':'High-wave'}</b> · ${esc(new Date(cs[w.i].time*1000).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',timeZone:'UTC'}))}<small>Close then ${esc(fmtUsd(p))} · now ${esc(fmtUsd(now))}</small></span><b class="${ch>0?'up':ch<0?'down':''}">${fmtPct(ch)}</b></li>`}).join('')}</ul>
     <p class="note">The % is how far price has moved since each dot's close (green when it went the dot's way).</p>`;
 }
-// longer holds: how price did 30 / 60 / 90 days after each kind of dot, beside random days
-function waveHoldHTML(H){
+// longer holds: how price did 30 / 60 / 90 candles after each kind of dot, beside random candles (1D: days; 4H: lab only)
+function waveHoldHTML(H,tf){
   if(!H||!H.up||!WAVE_HOLD.some(h=>H.up[h]||(H.dn&&H.dn[h])))return '';
   const c=(x,w)=>x&&x.n>=10?`<td>${fmtP(x.pos)} <small class="muted">of ${x.n}</small><br><b class="${x.med>0?'up':x.med<0?'down':''}">${x.med>0?'+':''}${(x.med*100).toFixed(1)}%</b></td>`:`<td class="muted">${x?`only ${x.n}`:'—'}</td>`;
-  const B=H.base||{};
-  return `<div class="sim-sec"><h4>Holding longer (nightly backtest, 1D)</h4><table class="feedtbl wv-hold"><thead><tr><th>After</th><th>Low-wave: rose</th><th>High-wave: fell</th><th>Random days: rose</th></tr></thead><tbody>
-    ${WAVE_HOLD.map(h=>`<tr><td><b>${h} days</b></td>${c(H.up[h])}${c(H.dn&&H.dn[h])}${c(B[h])}</tr>`).join('')}</tbody></table>
-    <p class="note">Each cell: how often price went the dot's way after that many days, and the typical (median) move the dot's way. Compare with random days (they fell the rest of the time): a dot only helps if it beats them. Under 10 cases shows "only N".</p></div>`;
+  const B=H.base||{},h4=tf==='4h',u=h4?'candles':'days',when=h=>h4?`${h} candles <small class="muted">(${h/6} days)</small>`:`${h} days`;
+  return `<div class="sim-sec"><h4>Holding longer (nightly backtest, ${h4?'4H':'1D'})</h4><table class="feedtbl wv-hold"><thead><tr><th>After</th><th>Low-wave: rose</th><th>High-wave: fell</th><th>Random ${u}: rose</th></tr></thead><tbody>
+    ${WAVE_HOLD.map(h=>`<tr><td><b>${when(h)}</b></td>${c(H.up[h])}${c(H.dn&&H.dn[h])}${c(B[h])}</tr>`).join('')}</tbody></table>
+    <p class="note">Each cell: how often price went the dot's way after that many ${u}, and the typical (median) move the dot's way. Compare with random ${u} (they fell the rest of the time): a dot only helps if it beats them. Under 10 cases shows "only N".</p></div>`;
 }
 const BUBBLE_PATH='0,96 22,88 40,84 58,78 75,72 84,76 92,80 104,76 120,68 136,60 150,52 162,42 171,32 180,18 187,10 192,5 196,12 199,20 204,30 208,32 213,24 217,22 221,32 224,44 229,62 233,76 238,92 244,100 250,100 262,94 274,84 283,76 296,68';
 function bubbleHTML(B,u,mood){
@@ -4126,7 +4135,7 @@ function waveHTML(){
     <p class="big">The wave is ${mood}${x!=null?` (${x>0?'+':''}${Math.round(x)})`:''}. The 20-${u} average is ${gap==null?'—':`<b>${fmtPct(gap*100)}</b> from the ${esc(avg)}`}.</p>
     <p class="big">${lastTxt}</p>
     ${waveListHTML(W,cs)}
-    ${waveHoldHTML(L2&&L2.waveHold)}
+    ${waveHoldHTML(L2&&L2.waveHold,'1d')}
     ${wk?`<p class="note">Weekly dots are rare (often one every year or two per market), so the nightly backtest can't collect enough of them to say how often they were right. The 1D card shows the measured numbers for daily dots.</p>`:ev.length?`<p class="note">Nightly backtest (Gate, 1D, 30 busiest markets): ${ev.join('; ')} (50% would be a coin flip${base&&base.n?`; random days ${fmtP(base.turn)}`:''}).</p>`:'<p class="note">The nightly backtest is measuring how often these signals were right; the numbers appear here once there are at least 10 of each.</p>'}
     <details><summary>How the wave signals work</summary><ul class="sim-notes">
       <li>The <b>wave</b> is a momentum oscillator (WaveTrend): it measures how far the ${u}'s average price is from its recent average, smoothed. Below ${WAVE_OS} is oversold, above +${WAVE_OB} overheated.</li>

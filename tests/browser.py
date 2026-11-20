@@ -528,6 +528,11 @@ async def main():
             if scheme == "light" and srt: await pg.locator("#srBox").screenshot(path=os.path.join(OUT, "support-resistance.png"))
             if await pg.evaluate("!!window.LightweightCharts"):
                 if int(await pg.get_attribute("#cMain", "data-sr") or 0) < 1: problems.append(f"[{scheme}] chart: support/resistance lines missing")
+                # price tags tidied (owner report 20 Nov 2026): placed after layout, never more tags than lines
+                await pg.wait_for_timeout(300)
+                ntag = await pg.get_attribute("#cMain", "data-tags")
+                if ntag is None: problems.append(f"[{scheme}] chart: price tags were not tidied")
+                elif int(ntag) < 1: problems.append(f"[{scheme}] chart: every price tag was hidden")
                 await pg.click('[data-ind="sr"]'); await pg.wait_for_timeout(200)
                 if (await pg.get_attribute("#cMain", "data-sr")) != "0": problems.append(f"[{scheme}] chart: Support/Resistance chip did not hide the lines")
                 await pg.click('[data-ind="sr"]'); await pg.wait_for_timeout(200)

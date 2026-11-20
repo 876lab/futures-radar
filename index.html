@@ -1400,6 +1400,7 @@ function liveCandle(p,tf,k){
   if(closed){recomputeLive();return}
   const b=cs[cs.length-1],t=b.time+tzOff,up=css('--up'),dn=css('--down');
   try{charts.candle.update({time:t,open:b.open,high:b.high,low:b.low,close:b.close});charts.vol.update({time:t,value:b.volume,color:hexA(b.close>=b.open?up:dn,.35)})}catch(e){}
+  tidySoon();
   if(!current.hover)renderLegend(null);
 }
 function liveTickChart(price){
@@ -3635,6 +3636,25 @@ function simResultsHTML(){
   </div>`;
 }
 
+// price tags on the chart's right edge (owner report 20 Nov 2026: up to 9 stacked tags hid the axis numbers and each other).
+// Tags closer than `gap` pixels are merged into the more important one ("Stop · R2"); a tag sitting on the live price keeps
+// its name on the line but drops its axis box. Entry is always shown. Lines are never removed, only their tags.
+const TAG_PRI={'Entry':0,'Stop':1,'Trend breaks':1,'TP1':2,'Testing':3,'R1':4,'S1':4,'Box top':5,'Box bottom':5,'TP2':6,'Box 1×':6,'R2':7,'S2':7,'Box 2×':9};
+function tagPri(n){return n in TAG_PRI?TAG_PRI[n]:8}
+function tagPlan(tags,anchorY,gap){
+  const out=tags.map(t=>({label:true,title:t.name})),acc=[];
+  const order=tags.map((t,k)=>k).filter(k=>tags[k].y!=null&&isFinite(tags[k].y)).sort((a,b)=>tagPri(tags[a].name)-tagPri(tags[b].name)||tags[a].y-tags[b].y);
+  for(const k of order){const t=tags[k],first=tagPri(t.name)===0;
+    let near=null;for(const a of acc)if(Math.abs(a.y-t.y)<gap&&(!near||Math.abs(a.y-t.y)<Math.abs(near.y-t.y)))near=a;
+    if(near&&!first){near.names.push(t.name);out[k]={label:false,title:''};continue}
+    if(!first&&anchorY!=null&&Math.abs(anchorY-t.y)<gap){out[k]={label:false,title:t.name};continue}
+    acc.push({k,y:t.y,names:[t.name]})}
+  for(const a of acc)out[a.k].title=a.names.slice(0,2).join(' · ')+(a.names.length>2?' +'+(a.names.length-2):'');
+  return out;
+}
+// chart marks whose candle is at the very left edge lose their text, so "Hunt" isn't cut to "nt" (the mark itself stays)
+function edgeMarks(mk,idx,from){return mk.map(m=>{const i=idx.get(m.time);return m.text&&i!=null&&i<from+3?Object.assign({},m,{text:''}):m})}
+
 /* ---------- charts ---------- */
 let charts=null,current=null;
 function chartOpts(extra){
@@ -3670,8 +3690,26 @@ function ensureCharts(){
   c.mh=md.addHistogramSeries({priceLineVisible:false,lastValueVisible:false});c.dif=line(md,css('--down'),1);c.dea=line(md,css('--c3'),1);
   let syncing=false;const all=[main,rs,md];
   all.forEach(ch=>ch.timeScale().subscribeVisibleLogicalRangeChange(r=>{if(syncing||!r)return;syncing=true;all.forEach(o=>{if(o!==ch)o.timeScale().setVisibleLogicalRange(r)});syncing=false}));
+  main.timeScale().subscribeVisibleLogicalRangeChange(()=>{tidySoon();applyMarks()});
   main.subscribeCrosshairMove(param=>{if(!current||!current.tIndex)return;const ok=param&&param.time!=null&&param.seriesData.get(c.candle);current.hover=!!ok;renderLegend(ok?current.tIndex.get(param.time):null)});
   charts=c;return c;
+}
+// re-place the price tags after the chart has laid out (once per frame at most)
+let tidyQ=false;
+function tidySoon(){if(tidyQ)return;tidyQ=true;requestAnimationFrame(()=>{tidyQ=false;try{tidyTags()}catch(e){recordErr('price tags',e)}})}
+function tidyTags(){
+  const ch=charts;if(!ch||!current||!current.cs||!current.cs.length)return;const c=ch.candle,tags=[];
+  for(const pl of [...(ch.plines||[]),...(ch.slines||[]),...(ch.blines||[])]){if(!pl._t){const o=pl.options();pl._t={name:o.title,price:o.price,on:o.axisLabelVisible}}if(!pl._t.on)continue;
+    tags.push({o:pl,name:pl._t.name,y:c.priceToCoordinate(pl._t.price),set:(label,title)=>pl.applyOptions({axisLabelVisible:label,title})})}
+  const B=current.box;if(B&&state.ind.box&&ch.boxT)for(const [sr,name,price] of [[ch.boxT,'Box top',B.top],[ch.boxB,'Box bottom',B.bot]])tags.push({o:sr,name,y:c.priceToCoordinate(price),set:(label,title)=>sr.applyOptions({lastValueVisible:label,title})});
+  const plan=tagPlan(tags,c.priceToCoordinate(current.cs[current.cs.length-1].close),17);let shown=0;
+  tags.forEach((t,k)=>{const p=plan[k],key=p.label+'|'+p.title;if(p.label)shown++;if(t.o._k!==key){t.o._k=key;t.set(p.label,p.title)}});
+  $('#cMain').dataset.tags=shown;
+}
+function applyMarks(){
+  if(!charts||!current)return;const mk=current.allMarks||[];let from=-1e9;try{const r=charts.main.timeScale().getVisibleLogicalRange();if(r)from=r.from}catch(e){}
+  const out=current.tIndex?edgeMarks(mk,current.tIndex,from):mk,key=out.map(m=>m.text?1:0).join('');
+  if(current.marksKey===key&&current.marksSrc===mk)return;current.marksKey=key;current.marksSrc=mk;charts.candle.setMarkers(out);
 }
 function destroyCharts(){if(!charts)return;['main','rs','md'].forEach(k=>{try{charts[k].remove()}catch(e){}});charts=null}
 const tzOff=-new Date().getTimezoneOffset()*60;
@@ -3756,10 +3794,10 @@ function draw(keep){
   catch(e){recordErr('box targets',e)}
   $('#cMain').dataset.boxt=ch.blines.length;
   applyToggles();applyPanes();
-  const bars=matchMedia('(max-width:600px)').matches?70:120;
+  const phone=matchMedia('(max-width:600px)').matches,bars=phone?70:120,pad=phone?12:8;   // empty candles on the right keep the newest ones clear of the tags
   if(keep&&current.range){const r=current.range,atEdge=r.to>=cs.length-4;ch.main.timeScale().setVisibleLogicalRange(atEdge?{from:r.from+1,to:r.to+1}:r)}
-  else ch.main.timeScale().setVisibleLogicalRange({from:Math.max(0,cs.length-bars),to:cs.length+3});
-  renderLegend(null);
+  else ch.main.timeScale().setVisibleLogicalRange({from:Math.max(0,cs.length-bars),to:cs.length+pad});
+  renderLegend(null);tidySoon();
 }
 function applyToggles(){
   if(!charts)return;const i=state.ind;
@@ -3771,7 +3809,7 @@ function applyToggles(){
   const bx=!!(i.box&&current&&current.box&&charts.boxF);[charts.boxF,charts.boxT,charts.boxB].forEach(s=>{if(s)s.applyOptions({visible:bx})});$('#cMain').dataset.box=bx?1:0;
   const fz=current&&current.fvg?current.fvg.bull.length+current.fvg.bear.length:0,fon=!!(i.fvg&&fz&&charts.fv&&charts.fv.length);(charts.fv||[]).forEach(s=>s.applyOptions({visible:fon}));$('#cMain').dataset.fvg=fon?fz:0;
   const mk=(i.marks&&current&&current.marks?current.marks:[]).concat(current&&current.simMarks?current.simMarks:[],i.div&&current&&current.divMarks?current.divMarks:[],i.hunt&&current&&current.huntMarks?current.huntMarks:[],i.wave&&current&&current.waveMarks?current.waveMarks:[]).sort((a,b)=>a.time-b.time);
-  charts.candle.setMarkers(mk);
+  if(current){current.allMarks=mk;current.marksSrc=null;applyMarks();tidySoon()}else charts.candle.setMarkers(mk);
 }
 // a candle's start time in the phone's own time zone: date only for 1D and bigger, date and time below that
 function candleWhen(t,tf){const big=tf==='1d'||tf==='1w'||tf==='1M';

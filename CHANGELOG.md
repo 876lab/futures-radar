@@ -2,6 +2,13 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-11-20 (owner report): Tidier price tags on charts
+- From the owner's BTC screenshots (15m/1H/4H/1D): up to 9 price tags stacked on the right edge, hiding the axis numbers (e.g. 63000, 60000); Stop $62,272.08 and R2 $62,270.35 as two separate tags; mark text cut off ("nt" for Hunt at the left edge, "Hu" and "HDiv" under the tags at the right).
+- Tags closer than 17 px are now merged into the more important one, e.g. **"Stop · R2"** (order: Entry, Stop / Trend breaks, TP1, Testing, R1/S1, Box top/bottom, TP2 and Box 1×, R2/S2, others, Box 2×; three or more read "Stop · R1 +2"). A tag sitting on the live price keeps its name on its line but drops its axis box. Entry is always shown. Every line is still drawn; only tags move. Re-checked after every scroll, zoom and live price change (once per frame).
+- Charts open with 12 empty candles on the right on phones (8 on computers, was 3), so the newest candles and their marks sit clear of the tags.
+- A mark on the left-most 3 candles drops its text (the mark stays), so names are never cut in half.
+- New pure `tagPlan` and `edgeMarks`; 7 engine tests; browser test checks the tags are placed (`data-tags`) when the chart library loads.
+
 ## 2026-11-20 (nightly run): Wave dots measured on 4H (owner request 13 Nov)
 - The nightly backtest (`scripts/backtest.js`) now runs `waveSignals` on each market's 4H candles too, with exactly the 1D rules (20 vs 200 candles, 100/50 fallback): the 1 ATR first-touch test against random 4H candles (`lab.wave` / `waveUp` / `waveDn` under `4h`, baseline `lab.base['4h']`) and the price change 30 / 60 / 90 candles (5 / 10 / 15 days) after each dot and after every 7th candle (`lab.waveHold4h`). The 1D measurement moved into a shared `waveLab` function; its numbers are unchanged (checked on the demo data before and after).
 - Simulator → **What the backtest is learning** → All experiments and signal checks: a new **Wave dots, 1D vs 4H** table (low-wave, high-wave and random candles side by side) and a **Holding longer (4H)** table. `cleanLab` reads `waveHold4h` (older backtest files still read). The 1D Wave signals card's hold table is unchanged.

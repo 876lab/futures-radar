@@ -167,6 +167,16 @@ ok(cleanLab(null)===null&&cleanLab({rows:[]})===null,'lab: missing or empty');
 const W4=cleanLab({rows:[base],waveUp:{'1d':{n:40,turn:0.5},'4h':{n:300,turn:0.52}},waveDn:{'4h':{n:'x',turn:2}},waveHold4h:{up:{30:{n:50,pos:0.6,med:0.02},45:{n:5,pos:1,med:1}},dn:{60:{n:20,pos:7,med:0.01}},base:null}});
 ok(W4.waveUp['4h'].n===300&&W4.waveUp['1d'].n===40&&!W4.waveDn['4h']&&W4.waveHold4h.up[30].pos===0.6&&!W4.waveHold4h.up[45]&&W4.waveHold4h.dn[60].pos===1&&Object.keys(W4.waveHold4h.base).length===0,'lab: 4H wave numbers and holds kept and clamped');
 ok(Object.keys(L.waveHold4h.up).length===0&&Object.keys(L.waveHold.up).length===0,'lab: files without wave holds still read');}
+// price tags (owner report 20 Nov 2026): close tags merge into the more important one, Entry always shows, tags on the live price keep only their name
+{const T=(name,y)=>({name,y}),P=tagPlan([T('Entry',100),T('Stop',40),T('R2',45),T('R1',70),T('S1',160),T('Box bottom',150),T('TP1',220),T('S2',300)],98,17);
+ok(P[0].label&&P[0].title==='Entry','tags: Entry always shown even on the live price');
+ok(P[1].label&&P[1].title==='Stop · R2'&&!P[2].label&&P[2].title==='','tags: R2 two pixels from Stop merges into "Stop · R2"');
+ok(P[3].label&&P[4].label&&P[4].title==='S1 · Box bottom'&&!P[5].label&&P[6].label&&P[7].label,'tags: far-apart tags all shown, near ones merged ('+JSON.stringify(P.map(x=>x.title))+')');
+const Q=tagPlan([T('R1',101),T('S1',300)],100,17);ok(!Q[0].label&&Q[0].title==='R1'&&Q[1].label,'tags: a tag on the live price keeps its name on the line, drops its axis box');
+const R=tagPlan([T('Stop',50),T('R1',52),T('R2',54),T('S1',56)],null,17);ok(R[0].title==='Stop · R1 +2'&&R.filter(x=>x.label).length===1,'tags: three merged names shown as "+2"');
+const N=tagPlan([T('R1',null),T('S1',NaN)],null,17);ok(N[0].label&&N[1].label,'tags: off-screen tags left alone');
+const idx=new Map([[10,0],[11,1],[12,2],[13,3],[14,4]]),mk=[{time:10,text:'Hunt'},{time:12,text:'Div'},{time:14,text:'B'}],E=edgeMarks(mk,idx,0.5);
+ok(E[0].text===''&&E[1].text===''&&E[2].text==='B'&&mk[0].text==='Hunt'&&E.length===3,'chart marks: text dropped only at the left edge, marks kept');}
 // wave dots on 4H candles: same rules as 1D (20 vs 200 candles), no look-ahead
 {const d4=demoCandles(state.pairs[1],'4h',600),S4=computeSeries(d4),W=waveSignals(d4,S4.at,1);let same=true;
 for(const L of [260,400,520,599]){const a=waveSignals(d4.slice(0,L+1),S4.at.slice(0,L+1),1).sig,b=W.sig.filter(w=>w.i<=L);if(JSON.stringify(a)!==JSON.stringify(b))same=false}

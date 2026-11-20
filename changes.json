@@ -1,4 +1,9 @@
 [
+  {"date": "2026-11-20", "title": "Tidier price tags on charts", "items": [
+    "Price tags that sit almost on top of each other now merge into one, e.g. \"Stop · R2\", so the price numbers on the right are no longer hidden. Every line is still drawn.",
+    "Charts leave a little more space on the right, so the newest candles and their marks aren't covered by the tags.",
+    "Mark names like \"Hunt\" are no longer cut in half at the left edge of the chart."
+  ]},
   {"date": "2026-11-20", "title": "Wave dots tested on 4H", "items": [
     "The nightly backtest now also checks the green and red wave dots on 4H candles, the same way it checks them on 1D.",
     "See it in Simulator → What the backtest is learning → All experiments: a 1D vs 4H table, and how price did 5, 10 and 15 days after 4H dots compared with random candles.",

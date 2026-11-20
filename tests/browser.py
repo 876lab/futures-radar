@@ -298,7 +298,11 @@ async def stages_check(b):
         except Exception as e: print(f"  note: B/S alerts screenshot skipped ({type(e).__name__})")
         if bar: await pg.click('[data-albar="bsok"]'); await pg.wait_for_timeout(200)
         if await pg.is_visible("#alBar"): problems.append("bs: OK did not close the banner")
-        await pg.click('[data-bstf="15m"]'); await pg.wait_for_timeout(300)
+        # the Starred list can be redrawn while the app finishes loading (slow machines): wait for the card, keep it open
+        try: await pg.wait_for_selector('[data-bstf="15m"]', state="attached", timeout=20000)
+        except Exception: problems.append("bs: B/S alerts card disappeared after OK")
+        await pg.evaluate("(()=>{const d=document.querySelector('#bsList');if(d)d.open=true})()"); await pg.wait_for_timeout(150)
+        await pg.click('[data-bstf="15m"]', timeout=10000); await pg.wait_for_timeout(300)
         if await pg.get_attribute('[data-bstf="15m"]', "aria-pressed") != "true" or "15m" not in (await pg.evaluate("localStorage.getItem('fradar:bsTfs')") or ""): problems.append("bs: 15m chip didn't switch on")
     if errs: problems.append("stages: JS error: " + errs[0])
     await pg.close()

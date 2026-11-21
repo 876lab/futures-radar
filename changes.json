@@ -1,4 +1,8 @@
 [
+  {"date": "2026-11-20", "title": "Testing divergences on 15m and wave dots on 1H", "items": [
+    "The nightly backtest now also checks RSI divergences on 15m charts and wave dots on 1H charts, the same way as on the bigger candle sizes.",
+    "See the results in Simulator → What the backtest is learning → All experiments. Your charts don't change; we decide together at the 24 Nov review."
+  ]},
   {"date": "2026-11-20", "title": "52-week high and low", "items": [
     "Every chart now shows the 52-week range under the price: the lowest and highest price of the last year with their dates, and a dot showing where price sits between them.",
     "It also says how far price is under the high and above the low. Coins and stock futures with less than a year of history show the range since they were listed.",

@@ -160,11 +160,12 @@ ok(same,'divergence: no look-ahead (same result on data cut at each candle)');}
 // backtest lab: picks must beat today's rules on both halves
 {const base={f:'Confirmed setups (what Setups shows)',e:"Today's stop and targets",n:2000,avgR:-0.1,older:-0.05,newer:-0.15,nOld:1000,nNew:1000};
 const a={f:'4H only, confirmed',e:'x',n:600,avgR:0.05,older:0.02,newer:0.08,nOld:300,nNew:300},b={f:'y',e:'x',n:600,avgR:0.2,older:0.5,newer:-0.2,nOld:300,nNew:300},c={f:'z',e:'x',n:90,avgR:0.5,older:0.5,newer:0.5,nOld:45,nNew:45};
-const L=cleanLab({rows:[base,a,b,c,{f:'bad'}],div:{'1h':{n:10,turn:0.6},'15m':{n:1,turn:1}},flip:{},base:{},divGroup:[]});
-const P=labPicks(L,200);ok(L.rows.length===4&&P.base&&P.picks.length===1&&P.picks[0].f==='4H only, confirmed'&&!L.div['15m'],'lab: only ideas better on both halves with enough trades are picked');
+const L=cleanLab({rows:[base,a,b,c,{f:'bad'}],div:{'1h':{n:10,turn:0.6},'15m':{n:3,turn:0.5},'5m':{n:1,turn:1}},flip:{},base:{},divGroup:[]});
+const P=labPicks(L,200);ok(L.rows.length===4&&P.base&&P.picks.length===1&&P.picks[0].f==='4H only, confirmed'&&L.div['15m'].n===3&&!L.div['5m'],'lab: only ideas better on both halves with enough trades are picked');
 ok(cleanLab(null)===null&&cleanLab({rows:[]})===null,'lab: missing or empty');
 // wave dots on 4H (measured only, 20 Nov 2026): the 4H numbers and 4H holds survive cleaning, junk is dropped, old files still read
 const W4=cleanLab({rows:[base],waveUp:{'1d':{n:40,turn:0.5},'4h':{n:300,turn:0.52}},waveDn:{'4h':{n:'x',turn:2}},waveHold4h:{up:{30:{n:50,pos:0.6,med:0.02},45:{n:5,pos:1,med:1}},dn:{60:{n:20,pos:7,med:0.01}},base:null}});
+ok(cleanLab({rows:[base],waveHold1h:{up:{30:{n:12,pos:0.5,med:0.01}}}}).waveHold1h.up[30].n===12,'lab: 1H wave holds kept');
 ok(W4.waveUp['4h'].n===300&&W4.waveUp['1d'].n===40&&!W4.waveDn['4h']&&W4.waveHold4h.up[30].pos===0.6&&!W4.waveHold4h.up[45]&&W4.waveHold4h.dn[60].pos===1&&Object.keys(W4.waveHold4h.base).length===0,'lab: 4H wave numbers and holds kept and clamped');
 ok(Object.keys(L.waveHold4h.up).length===0&&Object.keys(L.waveHold.up).length===0,'lab: files without wave holds still read');}
 // 52-week range (owner request 20 Nov 2026): wicks count, only the last 365 days, live price included, short history flagged

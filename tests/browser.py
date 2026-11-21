@@ -285,7 +285,14 @@ async def stages_check(b):
     if k1:
         last[k1] = last[k1] - 20 * 86400
         await pg.evaluate("v => localStorage.setItem('fradar:bsLast', v)", json.dumps(last))
+        snap = await pg.evaluate("JSON.stringify(Object.fromEntries(Object.keys(localStorage).map(k=>[k,localStorage.getItem(k)])))")
         await pg.reload(); await pg.wait_for_timeout(11000)
+        # headless Chromium sometimes starts a reloaded file:// page with empty localStorage on a busy machine (seen 20 Nov 2026,
+        # about 1 run in 8 under load; the live site is https and the app never clears storage): put it back and reload once more
+        if not await pg.evaluate("!!localStorage.getItem('fradar:watch2')"):
+            print("  note: browser lost the page's storage on reload (test machine), restored it")
+            await pg.evaluate("v => { const o = JSON.parse(v); for (const k in o) localStorage.setItem(k, o[k]) }", snap)
+            await pg.reload(); await pg.wait_for_timeout(11000)
         bar = await pg.inner_text("#alBar") if await pg.is_visible("#alBar") else ""
         if "Supertrend turned" not in bar or "while you were away" not in bar: problems.append(f"bs: no banner for a flip since the last check: {bar!r}")
         await pg.click('[data-nav="watch"]'); await pg.wait_for_timeout(800)
@@ -692,7 +699,7 @@ async def main():
                 # wave dots measured on 1D and 4H side by side (owner request 13 Nov 2026), inside the folded experiments
                 await pg.evaluate("document.querySelectorAll('#labCard details').forEach(d=>d.open=true)"); await pg.wait_for_timeout(150)
                 wl = await pg.inner_text("#labCard")
-                for want in ("Wave dots, 1D vs 4H", "Holding longer (nightly backtest, 4H)", "30 candles", "measured only"):
+                for want in ("Wave dots, 1D vs 4H vs 1H", "Holding longer (nightly backtest, 4H)", "Holding longer (nightly backtest, 1H)", "1.25 days", "30 candles", "measured only", "15m, pointed the right way"):
                     if want not in wl: problems.append(f"simulator: lab card wave 1D vs 4H missing '{want}'")
                 if "NaN" in wl or "undefined" in wl: problems.append("simulator: lab card shows NaN/undefined when open")
                 await pg.locator("#labCard").screenshot(path=os.path.join(OUT, "lab-open.png"))

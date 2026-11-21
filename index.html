@@ -2750,12 +2750,12 @@ function cleanLab(L){
   if(!L||typeof L!=='object')return null;const fin=v=>typeof v==='number'&&isFinite(v),txt=(v,n)=>typeof v==='string'?v.slice(0,n):'';
   const rows=(Array.isArray(L.rows)?L.rows:[]).slice(0,120).filter(r=>r&&fin(r.n)&&r.n>0&&fin(r.avgR)).map(r=>({f:txt(r.f,70),e:txt(r.e,50),n:Math.round(r.n),avgR:clamp(r.avgR,-5,5),win:fin(r.win)?clamp(r.win,0,1):0,
     older:fin(r.older)?clamp(r.older,-5,5):null,newer:fin(r.newer)?clamp(r.newer,-5,5):null,nOld:fin(r.nOld)?r.nOld:0,nNew:fin(r.nNew)?r.nNew:0}));
-  const sig=o=>{const out={};if(o&&typeof o==='object')for(const tf of ['1h','4h','1d']){const x=o[tf];if(x&&fin(x.n)&&x.n>0&&fin(x.turn))out[tf]={n:Math.round(x.n),turn:clamp(x.turn,0,1)}}return out};
+  const sig=o=>{const out={};if(o&&typeof o==='object')for(const tf of ['15m','1h','4h','1d']){const x=o[tf];if(x&&fin(x.n)&&x.n>0&&fin(x.turn))out[tf]={n:Math.round(x.n),turn:clamp(x.turn,0,1)}}return out};
   const dg=(Array.isArray(L.divGroup)?L.divGroup:[]).slice(0,3).filter(g=>g&&typeof g.k==='string'&&fin(g.n)&&fin(g.avgR)).map(g=>({k:g.k.slice(0,40),n:Math.round(g.n),avgR:g.avgR,reach:fin(g.reach)?g.reach:0}));
   const hdiv=sig(L.hdiv),hunt=sig(L.hunt),divlvl=sig(L.divlvl),combo=sig(L.combo),wave=sig(L.wave),waveUp=sig(L.waveUp),waveDn=sig(L.waveDn),bk=L.breakout&&typeof L.breakout==='object'?L.breakout:{},one=o=>{const x=sig(o?{'1d':o}:null)['1d'];return x||null},breakout={bo:one(bk.bo),coil:one(bk.coil),base:one(bk.base)};
   const hs=o=>{const out={};if(o&&typeof o==='object')for(const h of WAVE_HOLD){const x=o[h];if(x&&fin(x.n)&&x.n>0&&fin(x.pos)&&fin(x.med))out[h]={n:Math.round(x.n),pos:clamp(x.pos,0,1),med:clamp(x.med,-1,20)}}return out};
-  const hz=o=>{const w=o&&typeof o==='object'?o:{};return{up:hs(w.up),dn:hs(w.dn),base:hs(w.base)}},waveHold=hz(L.waveHold),waveHold4h=hz(L.waveHold4h);
-  return rows.length?{hdiv,hunt,divlvl,combo,wave,waveUp,waveDn,waveHold,waveHold4h,breakout,pbFill:fin(L.pbFill)?clamp(L.pbFill,0,1):null,rows,div:sig(L.div),flip:sig(L.flip),base:sig(L.base),divGroup:dg}:null;
+  const hz=o=>{const w=o&&typeof o==='object'?o:{};return{up:hs(w.up),dn:hs(w.dn),base:hs(w.base)}},waveHold=hz(L.waveHold),waveHold4h=hz(L.waveHold4h),waveHold1h=hz(L.waveHold1h);
+  return rows.length?{hdiv,hunt,divlvl,combo,wave,waveUp,waveDn,waveHold,waveHold4h,waveHold1h,breakout,pbFill:fin(L.pbFill)?clamp(L.pbFill,0,1):null,rows,div:sig(L.div),flip:sig(L.flip),base:sig(L.base),divGroup:dg}:null;
 }
 // ideas that held up: at least `minN` trades and better than today's rules on BOTH the older and the newer half
 function labPicks(lab,minN){
@@ -3407,11 +3407,11 @@ function trCheckHTML(){
 }
 // wave dots measured on 1D (shown on charts) and 4H (measured only, owner request 13 Nov 2026), side by side
 function waveLabHTML(L){
-  const tfs=['1d','4h'].filter(tf=>L.wave&&L.wave[tf]);if(!tfs.length)return '';
+  const tfs=['1d','4h','1h'].filter(tf=>L.wave&&L.wave[tf]);if(!tfs.length)return '';
   const c=x=>x&&x.n>=10?`${fmtP(x.turn)} <small class="muted">of ${x.n.toLocaleString()}</small>`:x?`<span class="muted">only ${x.n}</span>`:'<span class="muted">—</span>';
-  return `<li><b>Wave dots, 1D vs 4H</b> (1 ATR the dot's way first; compare with random candles):<table class="feedtbl wv-hold"><thead><tr><th></th><th>Low-wave</th><th>High-wave</th><th>Random</th></tr></thead><tbody>
+  return `<li><b>Wave dots, 1D vs 4H${tfs.includes('1h')?' vs 1H':''}</b> (1 ATR the dot's way first; compare with random candles):<table class="feedtbl wv-hold"><thead><tr><th></th><th>Low-wave</th><th>High-wave</th><th>Random</th></tr></thead><tbody>
     ${tfs.map(tf=>`<tr><td><b>${TF_LABEL[tf]}</b></td><td>${c(L.waveUp&&L.waveUp[tf])}</td><td>${c(L.waveDn&&L.waveDn[tf])}</td><td>${c(L.base&&L.base[tf])}</td></tr>`).join('')}</tbody></table>
-    ${waveHoldHTML(L.waveHold4h,'4h')}<small class="muted">4H dots are measured only, for the 24 Nov review; charts keep showing them on 1D and 1W. The 1D holding table is on the 1D chart's Wave signals card.</small></li>`;
+    ${waveHoldHTML(L.waveHold4h,'4h')}${waveHoldHTML(L.waveHold1h,'1h')}<small class="muted">4H and 1H dots are measured only, for the 24 Nov review; charts keep showing them on 1D and 1W. The 1D holding table is on the 1D chart's Wave signals card.</small></li>`;
 }
 function labCardHTML(){
   const d=bt.data,L=d&&d.lab;
@@ -3427,7 +3427,7 @@ function labCardHTML(){
     ${picks.length?`<div class="tblwrap"><table class="btable"><thead><tr><th>Idea</th><th>Trades</th><th>Avg</th><th>Older</th><th>Newer</th></tr></thead><tbody>${base?row(base):''}${picks.map(row).join('')}</tbody></table></div>`:''}
     <details><summary>All experiments and signal checks</summary>
       <div class="tblwrap"><table class="btable"><thead><tr><th>Idea</th><th>Trades</th><th>Avg</th><th>Older</th><th>Newer</th></tr></thead><tbody>${L.rows.map(row).join('')}</tbody></table></div>
-      <ul class="sim-notes">${['1h','4h'].map(sigLine).join('')}
+      <ul class="sim-notes">${['15m','1h','4h'].map(sigLine).join('')}
       ${L.divGroup.length?`<li><b>Setups and divergence (1H and 4H):</b> ${L.divGroup.map(g=>`${esc(g.k.toLowerCase())} ${fmtR(g.avgR)} (${g.n.toLocaleString()} trades)`).join(', ')}.</li>`:''}
       ${L.pbFill!=null?`<li><b>Pullback entries</b> (a limit order in the entry zone) were filled for ${fmtP(L.pbFill)} of confirmed setups; the rest were missed, so that row counts fewer trades.</li>`:''}
       <li><b>Market light</b> here uses Bitcoin's daily chart only (no Fear &amp; Greed or cycle history).</li>
@@ -4157,8 +4157,8 @@ function waveListHTML(W,cs){
 function waveHoldHTML(H,tf){
   if(!H||!H.up||!WAVE_HOLD.some(h=>H.up[h]||(H.dn&&H.dn[h])))return '';
   const c=(x,w)=>x&&x.n>=10?`<td>${fmtP(x.pos)} <small class="muted">of ${x.n}</small><br><b class="${x.med>0?'up':x.med<0?'down':''}">${x.med>0?'+':''}${(x.med*100).toFixed(1)}%</b></td>`:`<td class="muted">${x?`only ${x.n}`:'—'}</td>`;
-  const B=H.base||{},h4=tf==='4h',u=h4?'candles':'days',when=h=>h4?`${h} candles <small class="muted">(${h/6} days)</small>`:`${h} days`;
-  return `<div class="sim-sec"><h4>Holding longer (nightly backtest, ${h4?'4H':'1D'})</h4><table class="feedtbl wv-hold"><thead><tr><th>After</th><th>Low-wave: rose</th><th>High-wave: fell</th><th>Random ${u}: rose</th></tr></thead><tbody>
+  const B=H.base||{},hr={'4h':4,'1h':1}[tf],u=hr?'candles':'days',when=h=>hr?`${h} candles <small class="muted">(${+(h*hr/24).toFixed(2)} days)</small>`:`${h} days`;
+  return `<div class="sim-sec"><h4>Holding longer (nightly backtest, ${TF_LABEL[tf]||'1D'})</h4><table class="feedtbl wv-hold"><thead><tr><th>After</th><th>Low-wave: rose</th><th>High-wave: fell</th><th>Random ${u}: rose</th></tr></thead><tbody>
     ${WAVE_HOLD.map(h=>`<tr><td><b>${when(h)}</b></td>${c(H.up[h])}${c(H.dn&&H.dn[h])}${c(B[h])}</tr>`).join('')}</tbody></table>
     <p class="note">Each cell: how often price went the dot's way after that many ${u}, and the typical (median) move the dot's way. Compare with random ${u} (they fell the rest of the time): a dot only helps if it beats them. Under 10 cases shows "only N".</p></div>`;
 }

@@ -2,6 +2,10 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-11-21 (owner report): R1 and S1 tags missing next to the price
+- On BTC 1D the R1 line (just above price) and the S1 line (just below) had no tags. Cause: the 20 Nov tag tidy-up hid the axis tag of any level within 17 px of the live price, expecting the name to stay on the line; in Lightweight Charts the name is drawn inside the axis tag, so both disappeared. Tags near the live price now always show (the chart nudges them apart from the price tag); merging of tags that crowd each other ("Stop · R2") is unchanged.
+- Engine test updated: R1 and S1 next to the live price keep their tags.
+
 ## 2026-11-20 (owner request): 15m divergences and 1H wave dots measured (no chart change)
 - The nightly backtest now also checks **RSI divergences on 15m** (with hidden divergences, at a level, stop-hunts and B/S flips on 15m, against random 15m candles) and **wave dots on 1H** (the same 1 ATR test and 30/60/90-candle holds, `lab.waveHold1h`). Learning lab card: a "15m, pointed the right way" line, and the wave table is now 1D vs 4H vs 1H with a 1H holding table. Charts unchanged: divergences stay on 1H/4H/1D/1W, wave dots on 1D/1W, until the owner decides at the 24 Nov review.
 - Tests: `cleanLab` keeps 15m signal numbers and 1H wave holds (5m still dropped); browser test checks the new lab lines.
@@ -15,7 +19,7 @@ Newest first. Plain-language summaries also go into `changes.json`, which the ap
 
 ## 2026-11-20 (owner report): Tidier price tags on charts
 - From the owner's BTC screenshots (15m/1H/4H/1D): up to 9 price tags stacked on the right edge, hiding the axis numbers (e.g. 63000, 60000); Stop $62,272.08 and R2 $62,270.35 as two separate tags; mark text cut off ("nt" for Hunt at the left edge, "Hu" and "HDiv" under the tags at the right).
-- Tags closer than 17 px are now merged into the more important one, e.g. **"Stop · R2"** (order: Entry, Stop / Trend breaks, TP1, Testing, R1/S1, Box top/bottom, TP2 and Box 1×, R2/S2, others, Box 2×; three or more read "Stop · R1 +2"). A tag sitting on the live price keeps its name on its line but drops its axis box. Entry is always shown. Every line is still drawn; only tags move. Re-checked after every scroll, zoom and live price change (once per frame).
+- Tags closer than 17 px are now merged into the more important one, e.g. **"Stop · R2"** (order: Entry, Stop / Trend breaks, TP1, Testing, R1/S1, Box top/bottom, TP2 and Box 1×, R2/S2, others, Box 2×; three or more read "Stop · R1 +2"). Entry is always shown. (A tag sitting on the live price lost its axis box; undone on 21 Nov, see above.) Every line is still drawn; only tags move. Re-checked after every scroll, zoom and live price change (once per frame).
 - Charts open with 12 empty candles on the right on phones (8 on computers, was 3), so the newest candles and their marks sit clear of the tags.
 - A mark on the left-most 3 candles drops its text (the mark stays), so names are never cut in half.
 - New pure `tagPlan` and `edgeMarks`; 7 engine tests; browser test checks the tags are placed (`data-tags`) when the chart library loads.

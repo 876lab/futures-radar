@@ -3659,8 +3659,9 @@ function yearHTML(Y){
     <div class="yr-r"><span class="num">${fmtUsd(Y.lo)}<small>low ${esc(d(Y.loT))}</small></span><span class="bar" role="img" aria-label="Price is ${Math.round(Y.pos*100)}% of the way from the low to the high"><i style="left:${(Math.min(1,Math.max(0,Y.pos))*100).toFixed(1)}%"></i></span><span class="num">${fmtUsd(Y.hi)}<small>high ${esc(d(Y.hiT))}</small></span></div>`;
 }
 // price tags on the chart's right edge (owner report 20 Nov 2026: up to 9 stacked tags hid the axis numbers and each other).
-// Tags closer than `gap` pixels are merged into the more important one ("Stop · R2"); a tag sitting on the live price keeps
-// its name on the line but drops its axis box. Entry is always shown. Lines are never removed, only their tags.
+// Tags closer than `gap` pixels are merged into the more important one ("Stop · R2"). Entry is always shown. Tags near the
+// live price stay: in Lightweight Charts a line's name is drawn inside its axis tag, so hiding the tag would leave an unnamed
+// line (owner report 21 Nov 2026: R1 and S1 next to the price had no tags). Lines are never removed, only merged tags.
 const TAG_PRI={'Entry':0,'Stop':1,'Trend breaks':1,'TP1':2,'Testing':3,'R1':4,'S1':4,'Box top':5,'Box bottom':5,'TP2':6,'Box 1×':6,'R2':7,'S2':7,'Box 2×':9};
 function tagPri(n){return n in TAG_PRI?TAG_PRI[n]:8}
 function tagPlan(tags,anchorY,gap){
@@ -3669,7 +3670,6 @@ function tagPlan(tags,anchorY,gap){
   for(const k of order){const t=tags[k],first=tagPri(t.name)===0;
     let near=null;for(const a of acc)if(Math.abs(a.y-t.y)<gap&&(!near||Math.abs(a.y-t.y)<Math.abs(near.y-t.y)))near=a;
     if(near&&!first){near.names.push(t.name);out[k]={label:false,title:''};continue}
-    if(!first&&anchorY!=null&&Math.abs(anchorY-t.y)<gap){out[k]={label:false,title:t.name};continue}
     acc.push({k,y:t.y,names:[t.name]})}
   for(const a of acc)out[a.k].title=a.names.slice(0,2).join(' · ')+(a.names.length>2?' +'+(a.names.length-2):'');
   return out;

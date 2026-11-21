@@ -182,7 +182,7 @@ ok(h.includes('52-week range')&&h.includes('44% under the high')&&h.includes('67
 ok(P[0].label&&P[0].title==='Entry','tags: Entry always shown even on the live price');
 ok(P[1].label&&P[1].title==='Stop · R2'&&!P[2].label&&P[2].title==='','tags: R2 two pixels from Stop merges into "Stop · R2"');
 ok(P[3].label&&P[4].label&&P[4].title==='S1 · Box bottom'&&!P[5].label&&P[6].label&&P[7].label,'tags: far-apart tags all shown, near ones merged ('+JSON.stringify(P.map(x=>x.title))+')');
-const Q=tagPlan([T('R1',101),T('S1',300)],100,17);ok(!Q[0].label&&Q[0].title==='R1'&&Q[1].label,'tags: a tag on the live price keeps its name on the line, drops its axis box');
+const Q=tagPlan([T('R1',112),T('S1',86)],100,17);ok(Q[0].label&&Q[0].title==='R1'&&Q[1].label&&Q[1].title==='S1','tags: R1 and S1 right next to the live price keep their tags (owner report 21 Nov)');
 const R=tagPlan([T('Stop',50),T('R1',52),T('R2',54),T('S1',56)],null,17);ok(R[0].title==='Stop · R1 +2'&&R.filter(x=>x.label).length===1,'tags: three merged names shown as "+2"');
 const N=tagPlan([T('R1',null),T('S1',NaN)],null,17);ok(N[0].label&&N[1].label,'tags: off-screen tags left alone');
 const idx=new Map([[10,0],[11,1],[12,2],[13,3],[14,4]]),mk=[{time:10,text:'Hunt'},{time:12,text:'Div'},{time:14,text:'B'}],E=edgeMarks(mk,idx,0.5);

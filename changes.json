@@ -1,4 +1,7 @@
 [
+  {"date": "2026-11-21", "title": "Support and resistance tags back", "items": [
+    "Fixed: R1 or S1 lines sitting right next to the price had lost their tags, so they showed as unnamed lines. Their tags are back."
+  ]},
   {"date": "2026-11-20", "title": "Testing divergences on 15m and wave dots on 1H", "items": [
     "The nightly backtest now also checks RSI divergences on 15m charts and wave dots on 1H charts, the same way as on the bigger candle sizes.",
     "See the results in Simulator → What the backtest is learning → All experiments. Your charts don't change; we decide together at the 24 Nov review."

@@ -2,6 +2,12 @@
 
 Newest first. Plain-language summaries also go into `changes.json`, which the app shows under **What's new**.
 
+## 2026-11-22 (owner request): Halving clock
+- News → **Crypto cycle** card now opens with a **halving clock**: days since the last Bitcoin halving (block 840,000, 20 Apr 2024 00:09 UTC), about how many days to the next (block 1,050,000) with its estimated date, and a bar showing how far through the cycle we are. The Setups cycle line adds "day N after the halving, ~N days to the next".
+- The estimate uses the real block count: the daily cycle job (`scripts/cycle.js`) reads the latest block height and its time from mempool.space (Blockstream as a fallback) and the pace since the halving (average seconds per block); next date = latest block time + blocks left × that pace. If the block data can't be read, the app falls back to the fixed mid-April 2028 estimate and says so. Days since the halving count from the exact block time with the phone's clock.
+- New pure `halvingClock`; 5 engine tests; the demo cycle run includes sample block data; browser test checks the card and the Setups line. Information only.
+- Sources: mempool.space REST API (GET /blocks/tip/height, /block-height/:height, /block/:hash), https://mempool.space/docs/api; Blockstream Esplora API, https://github.com/Blockstream/esplora/blob/master/API.md (block `timestamp` field); next halving at block 1,050,000 expected around April 2028: https://www.coingecko.com/explain/bitcoin_halving, https://bitref.com/halving/.
+
 ## 2026-11-21 (owner report): R1 and S1 tags missing next to the price
 - On BTC 1D the R1 line (just above price) and the S1 line (just below) had no tags. Cause: the 20 Nov tag tidy-up hid the axis tag of any level within 17 px of the live price, expecting the name to stay on the line; in Lightweight Charts the name is drawn inside the axis tag, so both disappeared. Tags near the live price now always show (the chart nudges them apart from the price tag); merging of tags that crowd each other ("Stop · R2") is unchanged.
 - Engine test updated: R1 and S1 next to the live price keep their tags.

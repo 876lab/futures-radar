@@ -168,6 +168,13 @@ const W4=cleanLab({rows:[base],waveUp:{'1d':{n:40,turn:0.5},'4h':{n:300,turn:0.5
 ok(cleanLab({rows:[base],waveHold1h:{up:{30:{n:12,pos:0.5,med:0.01}}}}).waveHold1h.up[30].n===12,'lab: 1H wave holds kept');
 ok(W4.waveUp['4h'].n===300&&W4.waveUp['1d'].n===40&&!W4.waveDn['4h']&&W4.waveHold4h.up[30].pos===0.6&&!W4.waveHold4h.up[45]&&W4.waveHold4h.dn[60].pos===1&&Object.keys(W4.waveHold4h.base).length===0,'lab: 4H wave numbers and holds kept and clamped');
 ok(Object.keys(L.waveHold4h.up).length===0&&Object.keys(L.waveHold.up).length===0,'lab: files without wave holds still read');}
+// halving clock (owner request 22 Nov 2026): days since block 840,000, days to block 1,050,000 from the block pace
+{const D=86400,now=HALVING_T+946*D+3600,h={height:976000,tipT:now-600,sec:600},c=halvingClock(now,h);
+ok(c.since===946&&c.live&&c.blocks===74000&&Math.abs(c.nextT-(now-600+74000*600))<1&&c.left===Math.ceil((74000*600-600)/D),'halving: days since, blocks left and estimated date ('+c.since+' / '+c.left+')');
+ok(c.pct>0.6&&c.pct<0.7,'halving: share of the way through the cycle ('+c.pct.toFixed(3)+')');
+const f=halvingClock(now,null);ok(!f.live&&f.nextT===NEXT_HALVING/1000&&f.since===946&&f.blocks===null,'halving: fixed April 2028 estimate without block data');
+ok(!halvingClock(now,{height:976000,tipT:now,sec:90}).live&&!halvingClock(now,{height:5,tipT:now,sec:600}).live,'halving: implausible block data ignored');
+const d=halvingClock(now,{height:1050003,tipT:now-100,sec:600});ok(d.done&&d.left===0,'halving: next halving reached');}
 // 52-week range (owner request 20 Nov 2026): wicks count, only the last 365 days, live price included, short history flagged
 {const D=86400,now=1000*D,mk=(t,h,l,c)=>({time:t,open:c,high:h,low:l,close:c}),cs=[mk(now-500*D,500,1,100),mk(now-300*D,180,90,150),mk(now-100*D,140,60,80),mk(now-D,110,95,100),mk(now,104,99,100)];
 const Y=yearRange(cs,100,now);ok(Y.hi===180&&Y.lo===60&&Y.hiT===now-300*D&&Y.loT===now-100*D&&!Y.short,'52w: high and low from wicks of the last 365 days only');

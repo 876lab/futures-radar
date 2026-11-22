@@ -39,6 +39,22 @@ async function gateHistory() {
   return [...out.values()].sort((a, b) => a.time - b.time);
 }
 const day = s => new Date(s * 1000).toISOString().slice(0, 10);
+// halving clock: block count from mempool.space (Blockstream's Esplora API as a fallback), both documented at
+// https://mempool.space/docs/api and https://github.com/Blockstream/esplora/blob/master/API.md:
+// GET /blocks/tip/height, GET /block-height/:height (hash), GET /block/:hash (timestamp). Never stops the gauge.
+async function getText(url) { const r = await fetch(url, { headers: { 'user-agent': 'futures-radar-cycle' } }); if (!r.ok) throw new Error('HTTP ' + r.status); return (await r.text()).trim(); }
+async function halvingData() {
+  for (const B of ['https://mempool.space/api', 'https://blockstream.info/api']) {
+    try {
+      const height = parseInt(await getText(B + '/blocks/tip/height'), 10); if (!(height > HALVING_H)) throw new Error('bad height');
+      const tipB = await getJSON(B + '/block/' + encodeURIComponent(await getText(B + '/block-height/' + height)));
+      const tipT = +tipB.timestamp; if (!(tipT > HALVING_T)) throw new Error('bad timestamp');
+      const sec = (tipT - HALVING_T) / (height - HALVING_H);
+      return { height, tipT, sec: +sec.toFixed(1), src: B.replace('https://', '').split('/')[0] };
+    } catch (e) { console.error('halving data from ' + B + ': ' + e.message); }
+  }
+  return null;
+}
 // the gauge on past turning points, so the app can show how it read then (only dates the data covers)
 const MARKS = [['Top', '2017-12-17'], ['Low', '2018-12-15'], ['Top', '2021-11-10'], ['Low', '2022-11-21']];
 function report(cs) {
@@ -62,7 +78,7 @@ function report(cs) {
   const m = {}; for (const k in now.m) m[k] = now.m[k] ? { v: +now.m[k].v.toFixed(4), s: now.m[k].s } : null;
   return { v: 1, updated: Math.floor(Date.now() / 1000), source: DEMO ? 'sample data' : 'Gate BTC/USDT daily', from: cs[0].time, days: cs.length,
     t: now.t, price: now.price, ath: now.ath, athT: now.athT, score: now.score, m,
-    phase: ph && { k: ph.k, name: ph.name, days: ph.days, toNext: ph.toNext }, marks, hist, light };
+    phase: ph && { k: ph.k, name: ph.name, days: ph.days, toNext: ph.toNext }, marks, hist, light, halving: null };
 }
 async function main() {
   let cs;
@@ -70,6 +86,8 @@ async function main() {
   else cs = await gateHistory();
   if (!DEMO && cs.length < 1500) throw new Error('only ' + cs.length + ' days of history; not publishing');
   const r = report(cs);
+  r.halving = DEMO ? { height: 925000, tipT: HALVING_T + 85000 * 590, sec: 590, src: 'sample' } : await halvingData();
+  if (r.halving) { const c = halvingClock(Math.floor(Date.now() / 1000), r.halving); console.log('halving: block ' + r.halving.height + ' (' + r.halving.src + '), ' + r.halving.sec + ' s per block; day ' + c.since + ' since, ~' + c.left + ' days to block 1,050,000 (' + day(c.nextT) + ')'); }
   fs.writeFileSync(OUT, JSON.stringify(r));
   console.log('cycle: ' + r.days + ' days from ' + day(r.from) + '; score ' + r.score + ' (' + cycleZone(r.score)[1] + '); ' +
     Object.entries(r.m).map(([k, v]) => k + ' ' + (v ? v.v.toFixed(2) + '→' + v.s : '—')).join(', ') + '; phase ' + (r.phase && r.phase.name + ' day ' + r.phase.days) +

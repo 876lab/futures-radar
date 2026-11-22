@@ -1,4 +1,9 @@
 [
+  {"date": "2026-11-22", "title": "Halving clock", "items": [
+    "The Crypto cycle card on the News page now shows how many days since the last Bitcoin halving (April 2024) and about how many days until the next one, with a bar for how far through the cycle we are.",
+    "The countdown uses the real number of Bitcoin blocks, checked once a day, so the estimated date moves a little as blocks come faster or slower.",
+    "The cycle line on Setups shows both numbers too."
+  ]},
   {"date": "2026-11-21", "title": "Support and resistance tags back", "items": [
     "Fixed: R1 or S1 lines sitting right next to the price had lost their tags, so they showed as unnamed lines. Their tags are back."
   ]},

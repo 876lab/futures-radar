@@ -259,6 +259,9 @@ button{cursor:pointer}
 .d-price{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
 .d-price .p{font-family:var(--f-mono);font-variant-numeric:tabular-nums;font-size:23px;font-weight:500;letter-spacing:-.01em}
 .d-price .src{font-size:12.5px;color:var(--muted)}
+.hv{margin:10px 0 4px}.hv-n{display:grid;grid-template-columns:1fr 1fr;gap:10px}.hv-n>div{display:flex;flex-direction:column;gap:2px}
+.hv-n b{font-size:26px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--fg);letter-spacing:-.02em}.hv-n span{font-size:12.5px;color:var(--muted);line-height:1.35}.hv-n small{font-size:11px}
+.hv-bar{display:block;height:6px;border-radius:3px;background:var(--line);margin:10px 0 6px;overflow:hidden}.hv-bar i{display:block;height:100%;background:var(--brand);border-radius:3px}
 .yr{display:grid;gap:5px;font-size:12.5px;color:var(--muted);margin:2px 0 4px}
 .yr-h{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}.yr-h b{color:var(--fg);font-weight:600}
 .yr-r{display:flex;align-items:center;gap:10px}.yr-r .num{color:var(--fg);font-variant-numeric:tabular-nums;white-space:nowrap}
@@ -2249,6 +2252,17 @@ function fibLevels(cs,atr){
 /* crypto cycle gauge: information only, built from Bitcoin's daily prices (scripts/cycle.js runs it daily) */
 // Halving dates (blocks 210,000 / 420,000 / 630,000 / 840,000). The next one is expected around April 2028 (block 1,050,000).
 const HALVINGS=[Date.UTC(2012,10,28),Date.UTC(2016,6,9),Date.UTC(2020,4,11),Date.UTC(2024,3,20)],NEXT_HALVING=Date.UTC(2028,3,15);
+// Halving clock (owner request 22 Nov 2026). Block 840,000 was mined 20 Apr 2024 00:09 UTC; the next halving is block
+// 1,050,000. With the daily job's block count (h: tip height and time, average seconds per block since the halving) the date
+// is estimated from blocks left x that pace; without it, the fixed April 2028 estimate. Information only.
+const HALVING_T=1713571767,HALVING_H=840000,NEXT_H=1050000;
+function halvingClock(now,h){
+  const ok=h&&h.height>HALVING_H&&h.height<NEXT_H+50000&&h.tipT>HALVING_T&&h.sec>=480&&h.sec<=720;
+  const nextT=ok?(h.height>=NEXT_H?h.tipT:h.tipT+(NEXT_H-h.height)*h.sec):NEXT_HALVING/1000;
+  const since=Math.max(0,Math.floor((now-HALVING_T)/86400)),left=Math.max(0,Math.ceil((nextT-now)/86400));
+  return{since,left,nextT,pct:clamp((now-HALVING_T)/(nextT-HALVING_T),0,1),blocks:ok?Math.max(0,NEXT_H-h.height):null,height:ok?h.height:null,
+    min:ok?h.sec/60:null,live:!!ok,done:ok&&h.height>=NEXT_H};
+}
 // Where in the four-year rhythm we are. Past tops came 371, 526 and 548 days after a halving; past lows 777, 889 and 924 days after.
 function cyclePhase(ms){
   const h=[...HALVINGS].reverse().find(t=>t<=ms);if(!h)return null;const d=Math.floor((ms-h)/864e5);
@@ -2815,7 +2829,8 @@ function cleanCycle(j){
   const fs=o=>o&&fin(o.n)&&o.n>0&&fin(o.up)&&fin(o.med)?{n:Math.round(o.n),up:clamp(o.up,0,1),med:clamp(o.med,-1,10),worst:fin(o.worst)?clamp(o.worst,-1,10):null}:null;
   for(const k of ['red','green','purple','amber']){const x=L[k];if(x&&fin(x.days)&&x.days>0)lk[k]={days:Math.round(x.days),eps:fin(x.eps)?Math.round(x.eps):0,f7:fs(x.f7),f30:fs(x.f30)}}
   const light={from:j.light&&fin(j.light.from)?j.light.from:null,k:lk};
-  return{light,updated:fin(j.updated)?j.updated:0,t:fin(j.t)?j.t:0,price:j.price,ath:fin(j.ath)?j.ath:null,athT:fin(j.athT)?j.athT:null,score:sc(j.score),m,phase:ph,marks,hist,
+  const hv=j.halving&&typeof j.halving==='object'&&fin(j.halving.height)&&fin(j.halving.tipT)&&fin(j.halving.sec)?{height:Math.round(j.halving.height),tipT:j.halving.tipT,sec:j.halving.sec}:null;
+  return{halving:hv,light,updated:fin(j.updated)?j.updated:0,t:fin(j.t)?j.t:0,price:j.price,ath:fin(j.ath)?j.ath:null,athT:fin(j.athT)?j.athT:null,score:sc(j.score),m,phase:ph,marks,hist,
     source:typeof j.source==='string'?j.source.slice(0,40):'',days:fin(j.days)?j.days:0}
 }
 async function loadCycle(){
@@ -2887,8 +2902,16 @@ function cycleSpark(h){
   return `<svg class="cy-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><line x1="0" x2="${W}" y1="${y(80)}" y2="${y(80)}" class="cy-g"/><line x1="0" x2="${W}" y1="${y(20)}" y2="${y(20)}" class="cy-g"/><polyline points="${h.map((p,i)=>x(i)+','+y(p[1])).join(' ')}"/></svg>`;
 }
 function cycleLineHTML(){
-  const d=cy.data;if(!d)return '';const z=cycleZone(d.score),ph=d.phase;
-  return `<button type="button" class="cy-line" data-go="news" aria-label="Open the crypto cycle gauge on the News page"><span class="cy-chip" style="background:${CY_COL[z[0]]}"></span><span><b>Crypto cycle: ${esc(z[1])} (${d.score}/100)</b>${ph?` · ${esc(ph.name)}, day ${ph.days} after the halving`:''}</span></button>`;
+  const d=cy.data;if(!d)return '';const z=cycleZone(d.score),ph=d.phase,hc=halvingClock(NOW()/1000,d.halving);
+  return `<button type="button" class="cy-line" data-go="news" aria-label="Open the crypto cycle gauge on the News page"><span class="cy-chip" style="background:${CY_COL[z[0]]}"></span><span><b>Crypto cycle: ${esc(z[1])} (${d.score}/100)</b>${ph?` · ${esc(ph.name)}`:''} · day ${hc.since} after the halving, ${hc.done?'next halving reached':`~${hc.left.toLocaleString()} days to the next`}</span></button>`;
+}
+// halving clock card section: days since the April 2024 halving, days to the next, and a bar between them
+function halvingHTML(h){
+  const c=halvingClock(NOW()/1000,h),when=new Date(c.nextT*1000).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',timeZone:'UTC'});
+  return `<div class="hv"><div class="hv-n"><div><b>${c.since.toLocaleString()}</b><span>days since the last halving<br><small>20 Apr 2024 · block 840,000</small></span></div>
+    <div><b>${c.done?'0':'~'+c.left.toLocaleString()}</b><span>days to the next<br><small>${c.done?'reached':'about '+esc(when)} · block 1,050,000</small></span></div></div>
+    <span class="hv-bar" role="img" aria-label="${Math.round(c.pct*100)}% of the way to the next halving"><i style="width:${(c.pct*100).toFixed(1)}%"></i></span>
+    <p class="note">${Math.round(c.pct*100)}% of the way through this cycle. ${c.live?`${c.blocks.toLocaleString()} blocks left at block ${c.height.toLocaleString()}; blocks have come every ${c.min.toFixed(1)} minutes on average since the last halving, so the date is an estimate that moves a little each day.`:'Estimated from the usual pace of one block every 10 minutes; the exact block count wasn\'t available today.'} At each halving the new bitcoin paid to miners per block is cut in half (now 3.125, then 1.5625).</p></div>`;
 }
 function cycleCardHTML(){
   const d=cy.data;
@@ -2899,6 +2922,7 @@ function cycleCardHTML(){
   const marks=d.marks.length?`<p class="note">How it read at past turning points: ${d.marks.map(k=>`${k.k==='Top'?'top':'low'} ${esc(new Date(k.d+'T12:00:00Z').toLocaleDateString('en-US',{month:'short',year:'numeric',timeZone:'UTC'}))} <b>${k.s}</b>`).join(' · ')}.</p>`:'';
   return `<h3>Crypto cycle <span class="muted" style="font-weight:500;font-size:13px">· Bitcoin</span></h3>
     <div class="cy-top">${cycleGauge(d.score)}<div><div class="cy-score"><b style="color:${CY_COL[z[0]]}">${d.score}</b><span>/100</span></div><div class="cy-zone">${esc(z[1])}</div><div class="note">${esc(z[2])}</div></div></div>
+    ${halvingHTML(d.halving)}
     ${ph?`<p class="cy-ph"><b>${esc(ph.name)}</b> · day ${ph.days} since the April 2024 halving. ${esc(ph.text)}</p>`:''}
     <details><summary>The four measures and past readings</summary>
       <ul class="cy-list">

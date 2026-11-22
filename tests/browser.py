@@ -425,10 +425,10 @@ async def main():
                     if "Crypto cycle" not in cyt or "/100" not in cyt or "halving" not in cyt: problems.append(f"[{scheme}] news: crypto cycle gauge missing")
                     await pg.click("#cyCard summary"); await pg.wait_for_timeout(150)
                     cyt = await pg.inner_text("#cyCard")
-                    for want in ("200-week", "Mayer", "Pi Cycle", "all-time high"):
+                    for want in ("200-week", "Mayer", "Pi Cycle", "all-time high", "days since the last halving", "days to the next", "block 1,050,000", "blocks left at block 925,000"):
                         if want not in cyt: problems.append(f"[{scheme}] cycle gauge: '{want}' missing")
                     if scheme == "dark": await pg.locator("#cyCard").screenshot(path=os.path.join(OUT, "cycle.png"))
-                if nav == "setups" and "Crypto cycle:" not in txt: problems.append(f"[{scheme}] setups: crypto cycle line missing")
+                if nav == "setups" and ("Crypto cycle:" not in txt or "days to the next" not in txt): problems.append(f"[{scheme}] setups: crypto cycle line (with the halving clock) missing")
                 if nav == "setups" and "Big US news" not in txt: problems.append(f"[{scheme}] setups: big-news warning missing")
                 if nav == "setups" and ("Long setups" not in txt or "Short setups" not in txt): problems.append(f"[{scheme}] setups: 'Long setups'/'Short setups' headings missing")
                 for old in ("Enter long", "Enter short", "Avoid for now", "Long entries", "Confidence", "confidence"):

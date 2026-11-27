@@ -167,7 +167,22 @@ ok(cleanLab(null)===null&&cleanLab({rows:[]})===null,'lab: missing or empty');
 const W4=cleanLab({rows:[base],waveUp:{'1d':{n:40,turn:0.5},'4h':{n:300,turn:0.52}},waveDn:{'4h':{n:'x',turn:2}},waveHold4h:{up:{30:{n:50,pos:0.6,med:0.02},45:{n:5,pos:1,med:1}},dn:{60:{n:20,pos:7,med:0.01}},base:null}});
 ok(cleanLab({rows:[base],waveHold1h:{up:{30:{n:12,pos:0.5,med:0.01}}}}).waveHold1h.up[30].n===12,'lab: 1H wave holds kept');
 ok(W4.waveUp['4h'].n===300&&W4.waveUp['1d'].n===40&&!W4.waveDn['4h']&&W4.waveHold4h.up[30].pos===0.6&&!W4.waveHold4h.up[45]&&W4.waveHold4h.dn[60].pos===1&&Object.keys(W4.waveHold4h.base).length===0,'lab: 4H wave numbers and holds kept and clamped');
-ok(Object.keys(L.waveHold4h.up).length===0&&Object.keys(L.waveHold.up).length===0,'lab: files without wave holds still read');}
+ok(Object.keys(L.waveHold4h.up).length===0&&Object.keys(L.waveHold.up).length===0,'lab: files without wave holds still read');
+// bubble stages measured nightly (24 Nov 2026 review): known stages and 'all' kept and clamped, unknown keys dropped, old files read
+const BH=cleanLab({rows:[base],bubbleHold:{greed:{30:{n:40,pos:0.4,med:-0.05},60:{n:'x',pos:1,med:0}},all:{90:{n:900,pos:3,med:50}},hack:{30:{n:5,pos:0.5,med:0}},despair:null}}).bubbleHold;
+ok(BH.greed[30].pos===0.4&&!BH.greed[60]&&BH.all[90].pos===1&&BH.all[90].med===20&&!BH.hack&&!BH.despair,'lab: bubble-stage holds kept, clamped, unknown stages dropped');
+ok(Object.keys(L.bubbleHold).length===0,'lab: files without bubble stages still read');}
+// bubbleSamples: every 7th closed day, stage from candles up to that day only, 'all' = every sampled day, no-trading days skipped
+{const d=demoCandles(state.pairs[0],'1d',700),S=computeSeries(d),W=waveSignals(d,S.at,1),B=bubbleSamples(d,S,W,7,40);
+const tot=h=>Object.keys(B).filter(k=>k!=='all').reduce((a,k)=>a+((B[k][h]||[]).length),0);
+ok(B.all&&B.all[30].length>20&&tot(30)===B.all[30].length&&tot(90)===B.all[90].length&&Object.keys(B).every(k=>k==='all'||BUBBLE[k]),'bubble samples: every sampled day has one known stage');
+let same=true;for(const L of [301,399,504,602]){const cut=d.slice(0,L+1),a=bubbleStage(cut,computeSeries(cut),waveSignals(cut,computeSeries(cut).at,1)),b=bubbleStage(d.slice(0,L+1),S,W);if(!a||!b||a.k!==b.k)same=false}
+ok(same,'bubble samples: stage on a past day equals a fresh reading on candles up to that day (no look-ahead)');
+const i0=Math.ceil(300/7)*7,r=bubbleStage(d.slice(0,i0+1),S,W),mv=d[i0+30].close/d[i0].close-1;
+ok(r&&B[r.k][30].some(x=>Math.abs(x-mv)<1e-12),'bubble samples: 30-day move recorded under the stage of that day');
+const fl=d.map((k,i)=>i===i0?Object.assign({},k,{high:k.close,low:k.close,open:k.close}):k),Bf=bubbleSamples(fl,S,W,7,40);
+ok(Bf.all[30].length===B.all[30].length-1,'bubble samples: a day with no trading is skipped');
+ok(Object.keys(bubbleSamples(d,S,{len:0},7)).length===0&&Object.keys(bubbleSamples(null,S,W,7)).length===0,'bubble samples: nothing without a long average or candles');}
 // halving clock (owner request 22 Nov 2026): days since block 840,000, days to block 1,050,000 from the block pace
 {const D=86400,now=HALVING_T+946*D+3600,h={height:976000,tipT:now-600,sec:600},c=halvingClock(now,h);
 ok(c.since===946&&c.live&&c.blocks===74000&&Math.abs(c.nextT-(now-600+74000*600))<1&&c.left===Math.ceil((74000*600-600)/D),'halving: days since, blocks left and estimated date ('+c.since+' / '+c.left+')');

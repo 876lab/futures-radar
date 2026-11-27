@@ -699,7 +699,7 @@ async def main():
                 # wave dots measured on 1D and 4H side by side (owner request 13 Nov 2026), inside the folded experiments
                 await pg.evaluate("document.querySelectorAll('#labCard details').forEach(d=>d.open=true)"); await pg.wait_for_timeout(150)
                 wl = await pg.inner_text("#labCard")
-                for want in ("Wave dots, 1D vs 4H vs 1H", "Holding longer (nightly backtest, 4H)", "Holding longer (nightly backtest, 1H)", "1.25 days", "30 candles", "measured only", "15m, pointed the right way"):
+                for want in ("Wave dots, 1D vs 4H vs 1H", "Holding longer (nightly backtest, 4H)", "Holding longer (nightly backtest, 1H)", "1.25 days", "30 candles", "measured only", "15m, pointed the right way", "Bubble stages, 1D", "Any day", "90 days"):
                     if want not in wl: problems.append(f"simulator: lab card wave 1D vs 4H missing '{want}'")
                 if "NaN" in wl or "undefined" in wl: problems.append("simulator: lab card shows NaN/undefined when open")
                 await pg.locator("#labCard").screenshot(path=os.path.join(OUT, "lab-open.png"))

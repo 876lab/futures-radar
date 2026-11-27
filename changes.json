@@ -1,4 +1,10 @@
 [
+  {"date": "2026-11-27", "title": "The 24 Nov review, and bubble stages tested", "items": [
+    "Review done (details in the roadmap notes): wave dots did not beat random candles on 4H or 1H, so they stay on 1D and 1W charts only. Nothing changes on your charts.",
+    "Hidden divergences on 15m were the only signal a little better than random on two runs; it's your call whether to show them, or wait two more weeks for more data.",
+    "Skipping weekends helped overall but not on both halves of the data, so no switch yet. Sundays were the weak day, not Saturdays.",
+    "New in Simulator → What the backtest is learning → All experiments: how often price was higher 30, 60 and 90 days after each bubble stage, compared with any day."
+  ]},
   {"date": "2026-11-22", "title": "Halving clock", "items": [
     "The Crypto cycle card on the News page now shows how many days since the last Bitcoin halving (April 2024) and about how many days until the next one, with a bar for how far through the cycle we are.",
     "The countdown uses the real number of Bitcoin blocks, checked once a day, so the estimated date moves a little as blocks come faster or slower.",

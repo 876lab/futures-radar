@@ -61,7 +61,9 @@ function runMarket(m, c) {
       const cf = confirmSetup({ dir: t.dir, tf: '1d', dirs: { '4h': t.dir, '1d': t.dir }, range: 0, vol: 1e12, delisting: false });
       DAY_TR.push({ m: m.root, t0: t.t0, r: +t.r.toFixed(3), confirmed: cf.ok }); } })); }
   // wave signals on 1D (owner request 7 Nov 2026; 4H is measured in the loop below)
-  if (c['1d'] && c['1d'].length >= 120) { const cs = c['1d'], S = computeSeries(cs); waveLab(cs, S, '1d', WAVE_H, true);
+  if (c['1d'] && c['1d'].length >= 120) { const cs = c['1d'], S = computeSeries(cs), W1 = waveLab(cs, S, '1d', WAVE_H, true);
+    // bubble stages (judged at the 24 Nov 2026 review): stage every 7th day, close 30/60/90 days later, by stage
+    const BS1 = bubbleSamples(cs, S, W1, 7, SIM_WARM); for (const k in BS1) for (const h in BS1[k]) { const o = BUB_H[k] || (BUB_H[k] = {}); (o[h] || (o[h] = [])).push(...BS1[k][h]); }
     // breakouts (owner request 10 Nov 2026): every day of the last 700, with S from the full series (indicators only look back)
     const BO = SIG['1d'].bo || (SIG['1d'].bo = { bo: [0, 0], coil: [0, 0], base: [0, 0], fail: [0, 0] }); let wasCoil = false; const seen = new Set();
     for (let i = Math.max(SIM_WARM, 130, cs.length - 700); i < cs.length - 1; i++) { const A = S.at[i]; if (!(A > 0)) continue;
@@ -147,7 +149,7 @@ function limitEntry(cs, S, i, rc, A, o) {
 // do RSI divergences and Supertrend flips (the chart's B/S marks) on their own point the right way? From the candle where
 // each is known: does price move 1 ATR its way before 1 ATR against within 30 candles (a candle touching both counts as
 // against)? Baseline: the same test from every 7th candle in both directions.
-const SIG = {}, DAY_TR = [], WAVE_H = { up: {}, dn: {}, base: {} }, WAVE_H4 = { up: {}, dn: {}, base: {} }, WAVE_H1 = { up: {}, dn: {}, base: {} };
+const SIG = {}, BUB_H = {}, DAY_TR = [], WAVE_H = { up: {}, dn: {}, base: {} }, WAVE_H4 = { up: {}, dn: {}, base: {} }, WAVE_H1 = { up: {}, dn: {}, base: {} };
 for (const H of [WAVE_H, WAVE_H4, WAVE_H1]) for (const k in H) for (const h of WAVE_HOLD) H[k][h] = [];
 // wave dots (1D since 7 Nov, 4H since 20 Nov): same 1 ATR test as the other signals, against random candles; then the
 // price change 30 / 60 / 90 candles after each dot's close and after every 7th candle. base=true adds the random-candle
@@ -217,7 +219,8 @@ function labReport(trades, mid) {
   const breakout = BOs ? { bo: rr(BOs.bo), coil: rr(BOs.coil), base: rr(BOs.base), fail: rr(BOs.fail) } : null;
   const holds = H => { const o = {}; for (const k in H) { o[k] = {}; for (const h of WAVE_HOLD) o[k][h] = holdStat(H[k][h], k === 'dn' ? -1 : 1); } return o; };
   const waveHold = holds(WAVE_H), waveHold4h = holds(WAVE_H4), waveHold1h = holds(WAVE_H1);
-  return { pbFill, rows, div, flip, base, hdiv, hunt, divlvl, combo, wave, waveUp, waveDn, waveHold, waveHold4h, waveHold1h, breakout, divGroup: group(trades.filter(t => t.tf !== '15m'), t => ({ with: 'Divergence agrees', against: 'Divergence against', none: 'No recent divergence' })[t.div], ['Divergence agrees', 'No recent divergence', 'Divergence against']) };
+  const bubbleHold = {}; for (const k in BUB_H) { bubbleHold[k] = {}; for (const h of WAVE_HOLD) bubbleHold[k][h] = holdStat(BUB_H[k][h] || [], 1); }
+  return { pbFill, rows, div, flip, base, hdiv, hunt, divlvl, combo, wave, waveUp, waveDn, waveHold, waveHold4h, waveHold1h, bubbleHold, breakout, divGroup: group(trades.filter(t => t.tf !== '15m'), t => ({ with: 'Divergence agrees', against: 'Divergence against', none: 'No recent divergence' })[t.div], ['Divergence agrees', 'No recent divergence', 'Divergence against']) };
 }
 const SESSION = h => h < 8 ? 'Asia (0–8 UTC)' : h < 13 ? 'London (8–13 UTC)' : h < 21 ? 'New York (13–21 UTC)' : 'Late (21–24 UTC)';
 const WDAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -334,6 +337,7 @@ async function main() {
     console.log('lab wave (' + tf + '): ' + ['wave', 'waveUp', 'waveDn', 'base'].map(k => k + ' ' + (L[k] && L[k][tf] ? Math.round(L[k][tf].turn * 1000) / 10 + '% of ' + L[k][tf].n : '—')).join(', '));
     const WH = tf === '1d' ? L.waveHold : tf === '4h' ? L.waveHold4h : L.waveHold1h;
     console.log('lab wave holds (' + tf + '): ' + ['up', 'dn', 'base'].map(k => k + ' ' + WAVE_HOLD.map(h => { const x = WH[k][h]; return h + ' ' + (x ? Math.round(x.pos * 1000) / 10 + '% n' + x.n + ' med ' + (x.med * 100).toFixed(1) + '%' : '—'); }).join(', ')).join(' | ')); }
+  console.log('lab bubble stages (1D, rose after 30/60/90 days): ' + Object.keys(L.bubbleHold).map(k => k + ' ' + WAVE_HOLD.map(h => { const x = L.bubbleHold[k][h]; return x ? Math.round(x.pos * 1000) / 10 + '% n' + x.n + ' med ' + (x.med * 100).toFixed(1) + '%' : '—'; }).join(' / ')).join(' | '));
   console.log('lab breakouts (1D): ' + (L.breakout ? ['bo', 'coil', 'base', 'fail'].map(k => k + ' ' + (L.breakout[k] ? Math.round(L.breakout[k].turn * 1000) / 10 + '% of ' + L.breakout[k].n : '—')).join(', ') : '—'));
   console.log('lab divergence at entry: ' + L.divGroup.map(g => g.k + ' ' + g.n + ' avg ' + g.avgR.toFixed(3) + 'R').join(', '));
 }

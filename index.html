@@ -2708,6 +2708,16 @@ function bubbleStage(cs,S,W){
   }
   return{k,pct,label:BUBBLE[k][0],text:BUBBLE[k][1],x:BUBBLE[k][2],y:BUBBLE[k][3],dev:c/eL-1,dA,dd:c/P-1,peakT:cs[pk].time,ch20A,wave:w,len:W.len};
 }
+// Judge the bubble stages (nightly backtest, 24 Nov 2026 review): the stage on every 'every'-th closed day (candles up to
+// that day only; W and S from the full series, whose values only look back) and the close 30/60/90 days later, by stage,
+// plus 'all' (every sampled day with a stage). Days with no trading (high = low) are skipped. Returns {stage:{h:[moves]}}.
+function bubbleSamples(cs,S,W,every,from){
+  const out={};if(!cs||!S||!W||!W.len)return out;const step=every||7;
+  const add=(k,i)=>{const o=out[k]||(out[k]={});for(const h of WAVE_HOLD){const r=holdReturn(cs,i,h);if(r!=null)(o[h]||(o[h]=[])).push(r)}};
+  for(let i=Math.max(60,from||0);i<cs.length;i++){if(i%step||!(cs[i].high>cs[i].low))continue;
+    const B=bubbleStage(cs.slice(0,i+1),S,W);if(!B)continue;add(B.k,i);add('all',i)}
+  return out;
+}
 // which part of the last move price is in (used for wording and for the backtest's buckets)
 
 function fibZone(retr){
@@ -2769,7 +2779,8 @@ function cleanLab(L){
   const hdiv=sig(L.hdiv),hunt=sig(L.hunt),divlvl=sig(L.divlvl),combo=sig(L.combo),wave=sig(L.wave),waveUp=sig(L.waveUp),waveDn=sig(L.waveDn),bk=L.breakout&&typeof L.breakout==='object'?L.breakout:{},one=o=>{const x=sig(o?{'1d':o}:null)['1d'];return x||null},breakout={bo:one(bk.bo),coil:one(bk.coil),base:one(bk.base)};
   const hs=o=>{const out={};if(o&&typeof o==='object')for(const h of WAVE_HOLD){const x=o[h];if(x&&fin(x.n)&&x.n>0&&fin(x.pos)&&fin(x.med))out[h]={n:Math.round(x.n),pos:clamp(x.pos,0,1),med:clamp(x.med,-1,20)}}return out};
   const hz=o=>{const w=o&&typeof o==='object'?o:{};return{up:hs(w.up),dn:hs(w.dn),base:hs(w.base)}},waveHold=hz(L.waveHold),waveHold4h=hz(L.waveHold4h),waveHold1h=hz(L.waveHold1h);
-  return rows.length?{hdiv,hunt,divlvl,combo,wave,waveUp,waveDn,waveHold,waveHold4h,waveHold1h,breakout,pbFill:fin(L.pbFill)?clamp(L.pbFill,0,1):null,rows,div:sig(L.div),flip:sig(L.flip),base:sig(L.base),divGroup:dg}:null;
+  const bubbleHold={},bh=L.bubbleHold&&typeof L.bubbleHold==='object'?L.bubbleHold:{};for(const k of [...Object.keys(BUBBLE),'all']){const x=hs(bh[k]);if(Object.keys(x).length)bubbleHold[k]=x}
+  return rows.length?{hdiv,hunt,divlvl,combo,wave,waveUp,waveDn,waveHold,waveHold4h,waveHold1h,bubbleHold,breakout,pbFill:fin(L.pbFill)?clamp(L.pbFill,0,1):null,rows,div:sig(L.div),flip:sig(L.flip),base:sig(L.base),divGroup:dg}:null;
 }
 // ideas that held up: at least `minN` trades and better than today's rules on BOTH the older and the newer half
 function labPicks(lab,minN){
@@ -3437,6 +3448,16 @@ function waveLabHTML(L){
     ${tfs.map(tf=>`<tr><td><b>${TF_LABEL[tf]}</b></td><td>${c(L.waveUp&&L.waveUp[tf])}</td><td>${c(L.waveDn&&L.waveDn[tf])}</td><td>${c(L.base&&L.base[tf])}</td></tr>`).join('')}</tbody></table>
     ${waveHoldHTML(L.waveHold4h,'4h')}${waveHoldHTML(L.waveHold1h,'1h')}<small class="muted">4H and 1H dots are measured only, for the 24 Nov review; charts keep showing them on 1D and 1W. The 1D holding table is on the 1D chart's Wave signals card.</small></li>`;
 }
+// bubble stages measured on 1D (owner request 10 Nov 2026, for the 24 Nov review): how often price was higher 30/60/90 days
+// after a day in each stage, beside any day; information only
+function bubbleLabHTML(L){
+  const H=L.bubbleHold||{},ks=Object.keys(BUBBLE).filter(k=>H[k]);if(!ks.length)return '';
+  const c=x=>x&&x.n>=10?`<td>${fmtP(x.pos)} <small class="muted">of ${x.n.toLocaleString()}</small><br><b class="${x.med>0?'up':x.med<0?'down':''}">${x.med>0?'+':''}${(x.med*100).toFixed(1)}%</b></td>`:`<td class="muted">${x?`only ${x.n}`:'—'}</td>`;
+  const row=(k,name)=>`<tr><td><b>${esc(name)}</b></td>${WAVE_HOLD.map(h=>c(H[k]&&H[k][h])).join('')}</tr>`;
+  return `<li><b>Bubble stages, 1D</b> (was price higher after 30 / 60 / 90 days? share of days and the typical move):<div class="sim-sec"><table class="feedtbl wv-hold"><thead><tr><th>Stage</th>${WAVE_HOLD.map(h=>`<th>${h} days</th>`).join('')}</tr></thead><tbody>
+    ${ks.map(k=>row(k,BUBBLE[k][0].split(' (')[0])).join('')}${H.all?row('all','Any day'):''}</tbody></table></div>
+    <small class="muted">Stage read every 7th day from closed daily candles. In the theory, Greed, Delusion, Denial and Bull trap come before falls, and Despair and Return to the mean before rises; a stage only tells you something if it differs clearly from "Any day". Under 10 cases shows "only N".</small></li>`;
+}
 function labCardHTML(){
   const d=bt.data,L=d&&d.lab;
   if(!L)return `<h3>What the backtest is learning</h3><p class="note">Appears after the next nightly backtest. It replays the same setups with other stops, targets and filters to see what would have worked better.</p>`;
@@ -3455,7 +3476,7 @@ function labCardHTML(){
       ${L.divGroup.length?`<li><b>Setups and divergence (1H and 4H):</b> ${L.divGroup.map(g=>`${esc(g.k.toLowerCase())} ${fmtR(g.avgR)} (${g.n.toLocaleString()} trades)`).join(', ')}.</li>`:''}
       ${L.pbFill!=null?`<li><b>Pullback entries</b> (a limit order in the entry zone) were filled for ${fmtP(L.pbFill)} of confirmed setups; the rest were missed, so that row counts fewer trades.</li>`:''}
       <li><b>Market light</b> here uses Bitcoin's daily chart only (no Fear &amp; Greed or cycle history).</li>
-      ${waveLabHTML(L)}
+      ${waveLabHTML(L)}${bubbleLabHTML(L)}
       <li>"Avg" is the average result per trade in R after fees (+1R = won what was risked). "Older" and "Newer" split the period in two: an idea that only works in one half is probably luck.</li>
       <li>"Pointed the right way" means price moved 1 ATR in the signal's direction before 1 ATR against within 30 candles; around 50% is a coin flip.</li>
       <li>Each experiment uses the same entries, so it shows how the exit or filter changes results, not new setups. Past results don't guarantee future ones.</li></ul>
